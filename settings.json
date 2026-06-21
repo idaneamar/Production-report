@@ -376,7 +376,8 @@
    "special_type": "BARREL",
    "special_max_kg": 110,
    "special_units": 0,
-   "note": "חביות=כרוב אדום (110 ק\"ג לחבית); כלוב=פלפלים (עד 600, שקית 10 ק\"ג)"
+   "note": "חביות=כרוב אדום (110 ק\"ג לחבית); כלוב=פלפלים (עד 600, שקית 10 ק\"ג)",
+   "pickup": false
   },
   {
    "name": "סלטי גן",
@@ -392,7 +393,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "משטח שקיות 10 ק\"ג עד 400"
+   "note": "משטח שקיות 10 ק\"ג עד 400",
+   "pickup": false
   },
   {
    "name": "חמים וטעים 511017097",
@@ -408,7 +410,8 @@
    "special_type": "CAGE",
    "special_max_kg": 300,
    "special_units": 0,
-   "note": "פלפל אדום לממולאים: כלוב עד 300 כדי לא למעוך"
+   "note": "פלפל אדום לממולאים: כלוב עד 300 כדי לא למעוך",
+   "pickup": false
   },
   {
    "name": "חמים וטעים- לוי מירב (זמן קפה)",
@@ -424,7 +427,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "קרטונים, שקית 10 ק\"ג"
+   "note": "קרטונים, שקית 10 ק\"ג",
+   "pickup": false
   },
   {
    "name": "סלטי מונטה קרלו",
@@ -440,7 +444,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "קרטון = 2 שקיות, כל שקית 4 ק\"ג"
+   "note": "קרטון = 2 שקיות, כל שקית 4 ק\"ג",
+   "pickup": false
   },
   {
    "name": "ל.ג גל סלט בע\"מ",
@@ -456,7 +461,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "מושיקו רחל מעדני עופר בע\"מ",
@@ -472,7 +478,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "עינת תעשיות מזון אגש\"ח בע\"מ",
@@ -488,7 +495,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "עד 50-60 קרטון במשטח"
+   "note": "עד 50-60 קרטון במשטח",
+   "pickup": false
   },
   {
    "name": "ביכורי שדה צפון 1994 ג.ד בע\"מ",
@@ -504,7 +512,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "1 ק\"ג=10 לארגז; 300-400 גרם=15 לארגז"
+   "note": "1 ק\"ג=10 לארגז; 300-400 גרם=15 לארגז",
+   "pickup": false
   },
   {
    "name": "סלטי עמים ברדה בע\"מ",
@@ -520,7 +529,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "מדי מעדני הים התיכון בע\"מ (סלטי מיקי)",
@@ -536,7 +546,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "אלוניאל בע\"מ (מקדונלס)",
@@ -552,7 +563,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 20,
-   "note": "יחידות (לא ק\"ג); 10 שקיות בארגז, 50 ארגז במשטח; מלפפון טבעות 20 בארגז"
+   "note": "יחידות (לא ק\"ג); 10 שקיות בארגז, 50 ארגז במשטח; מלפפון טבעות 20 בארגז",
+   "pickup": false
   },
   {
    "name": "אייסמן מזון 2002 בע\"מ 513318501",
@@ -568,7 +580,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "שקיות 50 גרם, 64 קרטונים במשטח (שקיות/קרטון לפי הצורך)"
+   "note": "שקיות 50 גרם, 64 קרטונים במשטח (שקיות/קרטון לפי הצורך)",
+   "pickup": false
   },
   {
    "name": "רביבים עלי דשא בע\"מ (עגלת עלים)",
@@ -584,7 +597,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "תממ",
@@ -600,7 +614,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "20 יחידות בקרטון, בדר\"כ עד רבע משטח"
+   "note": "20 יחידות בקרטון, בדר\"כ עד רבע משטח",
+   "pickup": false
   },
   {
    "name": "חמוצי הבית",
@@ -616,7 +631,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "חטיפי אלקיים",
@@ -632,7 +648,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "משה קילופים בע\"מ 513626069",
@@ -648,7 +665,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "קרטון עד 10 ק\"ג, שקית 1 ק\"ג"
+   "note": "קרטון עד 10 ק\"ג, שקית 1 ק\"ג",
+   "pickup": false
   },
   {
    "name": "ניר סלטים בע\"מ",
@@ -664,7 +682,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "כלוב עד 600; לחלופין קרטונים עד 50 ארגז (10 שקיות/ארגז)"
+   "note": "כלוב עד 600; לחלופין קרטונים עד 50 ארגז (10 שקיות/ארגז)",
+   "pickup": false
   },
   {
    "name": "ברכת עץ השדה א.ב בע\"מ",
@@ -680,7 +699,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "שלום שיווק פרי וירק נתניה",
@@ -696,7 +716,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "טיב וטעים 2013 הסעדה בע\"מ",
@@ -712,7 +733,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "טיב וטעים- חברת החשמל",
@@ -728,7 +750,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "דגים מעושנים התקווה בע\"מ",
@@ -744,7 +767,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "ביכורי שדה דרום 513234120",
@@ -760,7 +784,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "לורד סנדוויץ",
@@ -776,7 +801,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "70 יחידות בקרטון (שקית 120 גרם); או 10 שקיות/קרטון שקית 1 ק\"ג"
+   "note": "70 יחידות בקרטון (שקית 120 גרם); או 10 שקיות/קרטון שקית 1 ק\"ג",
+   "pickup": false
   },
   {
    "name": "תפוכן- שיווק תפו\"א ומזון",
@@ -792,7 +818,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "תוצרת המושב בע\"מ",
@@ -808,7 +835,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "ארד הרצל בע\"מ",
@@ -824,7 +852,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": ""
+   "note": "",
+   "pickup": false
   },
   {
    "name": "מרינה פטריות הגליל בע\"מ",
@@ -840,7 +869,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "באים לקחת"
+   "note": "באים לקחת",
+   "pickup": true
   },
   {
    "name": "שטראוס גרופ בע\"מ 557268851",
@@ -856,7 +886,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "דולב עד 300, שקית 10 ק\"ג"
+   "note": "דולב עד 300, שקית 10 ק\"ג",
+   "pickup": true
   },
   {
    "name": "קבוצת בנדיקט בע\"מ",
@@ -872,7 +903,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "באים לקחת, שקית 10 ק\"ג"
+   "note": "באים לקחת, שקית 10 ק\"ג",
+   "pickup": true
   },
   {
    "name": "בוניטו בע\"מ 514302827",
@@ -888,7 +920,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "קרטון קטן 8 יחידות; 2 משטחים"
+   "note": "קרטון קטן 8 יחידות; 2 משטחים",
+   "pickup": true
   },
   {
    "name": "מ.מ. פרי טרי 2022 בע\"מ",
@@ -904,7 +937,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "9 קופסאות בקרטון"
+   "note": "9 קופסאות בקרטון",
+   "pickup": true
   },
   {
    "name": "רוני יצחק תעשיות מזון (שדות בעמק)",
@@ -920,7 +954,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "קרטון קטן 8 יחידות; 2 משטחים"
+   "note": "קרטון קטן 8 יחידות; 2 משטחים",
+   "pickup": true
   },
   {
    "name": "סמארה",
@@ -936,7 +971,8 @@
    "special_type": "",
    "special_max_kg": 0,
    "special_units": 0,
-   "note": "נוסף אוטומטית מהדוח — נא לאמת תצורת אריזה (כרגע ברירת מחדל: קרטונים)"
+   "note": "נוסף אוטומטית מהדוח — נא לאמת תצורת אריזה (כרגע ברירת מחדל: קרטונים)",
+   "pickup": false
   }
  ]
 }
