@@ -351,15 +351,9 @@ function render(R){
    +tile((R.dailyNet>=0?'+':'')+R.dailyNet,'מאזן נטו היום',R.dailyNet>=0?'var(--green)':'var(--orange)')
    +tile(R.fruitPallets,'משטחי פירות (היום)','var(--orange)')+'</div>'
    +'<div class="muted">נטו חיובי = עלומים חייבים לנו ארגזים. את מספר משטחי הפירות של היום אפשר להוסיף ליומן "מעקב משטחי פירות".</div></div>';
-  h+='<div class="row" style="margin:4px 0"><b style="margin-left:6px">תצוגה:</b>'
-   +'<button class="btn '+(VIEW==='cust'?'':'sec')+'" onclick="setView(\'cust\')">👥 לפי לקוחות</button>'
-   +'<button class="btn '+(VIEW==='prod'?'':'sec')+'" onclick="setView(\'prod\')">📦 לפי מוצרים (תכנון ייצור)</button></div>';
-  if(VIEW==='prod'){ h+=productTable(R); }
-  else {
-    h+=productTable(R);                  // 1) סיכום לפי מוצר — ראשון
-    h+=ourCombinedHtml(R);               // 2) האזורים שלנו לפי לקוח: מאצלנו/מעלומים/סה"כ
-    h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 3)
-  }
+  h+=productTable(R);                  // 1) סיכום לפי מוצר — ראשון
+  h+=ourCombinedHtml(R);               // 2) האזורים שלנו לפי לקוח: מאצלנו/מעלומים/סה"כ
+  h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 3)
   out.innerHTML=h;
 }
 function setView(v){ VIEW=v; if(LAST)render(LAST); }
