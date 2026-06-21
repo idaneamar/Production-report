@@ -1,6 +1,6 @@
 {
  "our_regions": ["מרכז 3", "צפון מזרח", "צפון מערב"],
- "green_colors": ["FFC4D79B", "FF7CEB99"],
+ "green_colors": ["FFC4D79B", "FF7CEB99", "THEME6"],
  "orange_colors": ["FFFABF8F"],
  "carton_keywords": ["קרטון", "אגס", "גזרונ"],
  "fruit_keywords": ["אגס"],

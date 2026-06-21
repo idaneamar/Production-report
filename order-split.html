@@ -34,6 +34,9 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .reghead{background:#eef3f7;padding:7px 12px;font-weight:700;display:flex;justify-content:space-between}
 .cust{padding:6px 12px;border-top:1px solid var(--line)} .cust .cn{font-weight:600}
 .cust .addr{color:var(--muted);font-size:12px}
+.mini{margin:5px 0 4px;width:auto;min-width:60%}
+.mini th{background:#eef3f7;font-size:12px;padding:4px 8px} .mini td{font-size:13px;padding:3px 8px}
+.alcell{background:var(--greenbg);font-weight:600}
 .it{display:flex;gap:8px;align-items:center;padding:2px 0 2px 0;font-size:13px}
 .it .q{font-weight:700;min-width:64px;display:inline-block}
 .carton{color:var(--orange)} .hidden{display:none} .chk{width:18px;height:18px}
@@ -117,8 +120,8 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 
 const DEFAULT_SETTINGS = {
   our_regions: ["מרכז 3", "צפון מזרח", "צפון מערב"],
-  green_colors: ["FFC4D79B", "FF7CEB99"],   // עלומים מכינים
-  orange_colors: ["FFFABF8F"],              // אנחנו מכינים
+  green_colors: ["FFC4D79B", "FF7CEB99", "THEME6"],   // עלומים מכינים (כולל צבע ערכת-נושא)
+  orange_colors: ["FFFABF8F"],                        // אנחנו מכינים
   carton_keywords: ["קרטון", "אגס", "גזרונ"], // לא נספרים בתחשיב ארגזים
   fruit_keywords: ["אגס"],
   boxes_per_pallet: 60,
@@ -142,7 +145,9 @@ function cellText(cell) {
 }
 function fillARGB(cell) {
   const f = cell && cell.fill;
-  if (f && f.fgColor && f.fgColor.argb) return f.fgColor.argb.toUpperCase();
+  if (!f || !f.fgColor) return null;
+  if (f.fgColor.argb) return f.fgColor.argb.toUpperCase();
+  if (f.fgColor.theme != null) return 'THEME' + f.fgColor.theme; // צבע ערכת-נושא
   return null;
 }
 function has(hay, needles) { hay = hay || ""; return needles.some(n => hay.indexOf(n) >= 0); }
@@ -351,14 +356,36 @@ function render(R){
    +'<button class="btn '+(VIEW==='prod'?'':'sec')+'" onclick="setView(\'prod\')">📦 לפי מוצרים (תכנון ייצור)</button></div>';
   if(VIEW==='prod'){ h+=productTable(R); }
   else {
-    h+=sectionHtml('🟧 להכין ולשלוח — האזורים שלנו','sec-prepare',R.buckets.prepare,false);
-    h+=sectionHtml('🟩 לקבל מעלומים — צ\'ק-ליסט קבלה','sec-receive',R.buckets.receive,true);
-    h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);
-    h+=productTable(R);   // סיכום לפי מוצר תמיד בתחתית הדוח
+    h+=productTable(R);                  // 1) סיכום לפי מוצר — ראשון
+    h+=ourCombinedHtml(R);               // 2) האזורים שלנו לפי לקוח: מאצלנו/מעלומים/סה"כ
+    h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 3)
   }
   out.innerHTML=h;
 }
 function setView(v){ VIEW=v; if(LAST)render(LAST); }
+function combinedOurs(R){ var m={};
+  [['prepare','us'],['receive','al']].forEach(function(pair){ var bk=R.buckets[pair[0]], fld=pair[1];
+    for(var reg in bk){ for(var ck in bk[reg]){ var c=bk[reg][ck]; if(!m[reg])m[reg]={};
+      var e=m[reg][ck]||(m[reg][ck]={name:c.name,addr:c.addr,prods:{}});
+      c.items.forEach(function(x){ var p=e.prods[x.product]||(e.prods[x.product]={us:0,al:0,isCarton:x.isCarton}); p[fld]+=x.qty; }); } } });
+  return m; }
+function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort(function(a,b){return a.localeCompare(b,'he');});
+  if(!regs.length) return '';
+  var html='<div class="card sec-prepare"><h2>📋 האזורים שלנו — לפי לקוח (כמה ללקט מאצלנו · כמה מעלומים · סה"כ)</h2>';
+  regs.forEach(function(reg){ var custs=Object.keys(m[reg]).map(function(k){return m[reg][k];}).sort(function(a,b){return a.name.localeCompare(b.name,'he');});
+    var regUs=0,regAl=0,cb='';
+    custs.forEach(function(c){ var us=0,al=0;
+      var prods=Object.keys(c.prods).map(function(p){return [p,c.prods[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);});
+      var rows='';
+      prods.forEach(function(pr){ var v=pr[1]; if(!v.isCarton){us+=v.us;al+=v.al;} var tot=v.us+v.al;
+        rows+='<tr><td style="text-align:right">'+esc(pr[0])+(v.isCarton?' <span class="muted">(קרטון)</span>':'')+'</td><td>'+(v.us||'—')+'</td><td class="alcell">'+(v.al||'—')+'</td><td><b>'+tot+'</b></td></tr>'; });
+      regUs+=us; regAl+=al;
+      cb+='<div class="cust"><div class="cn">'+esc(c.name)+' <span class="pill">מאצלנו '+us+'</span><span class="pill" style="background:var(--greenbg);color:#3d6b1e">מעלומים '+al+'</span><span class="pill"><b>סה"כ '+(us+al)+'</b></span></div>'
+        +(c.addr?'<div class="addr">'+esc(c.addr)+'</div>':'')
+        +'<table class="mini"><thead><tr><th>מוצר</th><th>ללקט מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr></thead><tbody>'+rows+'</tbody></table></div>'; });
+    var pal=S.boxes_per_pallet>0?Math.ceil((regUs+regAl)/S.boxes_per_pallet):0;
+    html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>מאצלנו '+regUs+' · מעלומים '+regAl+' · סה"כ '+(regUs+regAl)+' ארגז'+(pal?' (~'+pal+' משטח)':'')+'</span></div>'+cb+'</div>'; });
+  return html+'</div>'; }
 function aggProducts(R){ const m={};
   ['prepare','send','receive'].forEach(key=>{ const b=R.buckets[key];
     for(const reg in b) for(const ck in b[reg]) b[reg][ck].items.forEach(x=>{
