@@ -378,15 +378,20 @@ function lineProductHtml(R){ var L=lineProducts(R); var regs=Object.keys(L).sort
     +'<p class="muted">לכל קו (אזור) — כמה מכל מוצר, כמה מאצלנו וכמה מעלומים. קרטונים מסומנים: לא נספרים בארגזים, אך כן במשטחים.</p>';
   regs.forEach(function(reg){ var prod=L[reg];
     var rows=Object.keys(prod).map(function(p){return [p,prod[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);});
-    var box=0,cart=0,units=0,fromUs=0,fromAl=0,body='';
+    var box=0,cart=0,units=0,usBox=0,usCart=0,alBox=0,alCart=0,body='';
     rows.forEach(function(pr){ var v=pr[1]; var tot=v.us+v.al; var bx=v.isCarton?0:tot; var ct=v.isCarton?tot:0;
-      if(v.isCarton){ if(!v.isFruit) cart+=tot; } else { box+=tot; }
-      if(!v.isFruit) units+=tot; fromUs+=v.us; fromAl+=v.al;
+      if(!v.isCarton){ box+=tot; usBox+=v.us; alBox+=v.al; }
+      else if(!v.isFruit){ cart+=tot; usCart+=v.us; alCart+=v.al; }
+      if(!v.isFruit) units+=tot;
       body+='<tr><td style="text-align:right">'+esc(pr[0])+(v.isFruit?' <span class="muted">(פרי)</span>':v.isCarton?' <span class="muted">(קרטון)</span>':'')+'</td><td>'+(v.us||'—')+'</td><td class="alcell">'+(v.al||'—')+'</td><td>'+(bx||'—')+'</td><td>'+(ct||'—')+'</td></tr>'; });
     var pal=S.boxes_per_pallet>0?Math.ceil(units/S.boxes_per_pallet):0;
-    html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>~'+pal+' משטח · (מאצלנו '+fromUs+' · מעלומים '+fromAl+')</span></div>'
+    html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>~'+pal+' משטח</span></div>'
       +'<table class="mini" style="min-width:80%"><thead><tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>ארגזים</th><th>קרטונים</th></tr></thead><tbody>'+body
-      +'</tbody><tfoot><tr style="font-weight:700;background:#eef3f7"><td>סה"כ '+esc(reg)+'</td><td>'+fromUs+'</td><td>'+fromAl+'</td><td>'+box+'</td><td>'+cart+'</td></tr></tfoot></table></div>';
+      +'</tbody><tfoot>'
+      +'<tr style="background:#fdf1e6"><td><b>סה"כ מאצלנו</b></td><td colspan="2">—</td><td><b>'+usBox+'</b> ארגזים</td><td><b>'+usCart+'</b> קרטונים</td></tr>'
+      +'<tr style="background:var(--greenbg)"><td><b>סה"כ מעלומים</b></td><td colspan="2">—</td><td><b>'+alBox+'</b> ארגזים</td><td><b>'+alCart+'</b> קרטונים</td></tr>'
+      +'<tr style="background:#eef3f7;font-weight:700"><td>סה"כ הכל</td><td colspan="2">—</td><td>'+box+' ארגזים</td><td>'+cart+' קרטונים</td></tr>'
+      +'</tfoot></table></div>';
   });
   return html+'</div>'; }
 function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort(function(a,b){return a.localeCompare(b,'he');});
@@ -528,10 +533,13 @@ function prodLineXls(R){ var L=lineProducts(R); var h='';
   Object.keys(L).sort(function(a,b){return a.localeCompare(b,'he');}).forEach(function(reg){ var prod=L[reg];
     h+='<table border="1"><tr><th colspan="5" style="background:#15517f;color:#fff">קו '+reg+' — לפי מוצר</th></tr>'
       +'<tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>ארגזים</th><th>קרטונים</th></tr>';
-    var box=0,cart=0,fu=0,fa=0;
-    Object.keys(prod).map(function(p){return [p,prod[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);}).forEach(function(pr){var v=pr[1];var tot=v.us+v.al;var bx=v.isCarton?0:tot;var ct=v.isCarton?tot:0;if(v.isCarton){if(!v.isFruit)cart+=tot;}else box+=tot;fu+=v.us;fa+=v.al;
+    var box=0,cart=0,usBox=0,usCart=0,alBox=0,alCart=0;
+    Object.keys(prod).map(function(p){return [p,prod[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);}).forEach(function(pr){var v=pr[1];var tot=v.us+v.al;var bx=v.isCarton?0:tot;var ct=v.isCarton?tot:0;
+      if(!v.isCarton){box+=tot;usBox+=v.us;alBox+=v.al;}else if(!v.isFruit){cart+=tot;usCart+=v.us;alCart+=v.al;}
       h+='<tr><td>'+pr[0]+(v.isFruit?' (פרי)':v.isCarton?' (קרטון)':'')+'</td><td>'+v.us+'</td><td>'+v.al+'</td><td>'+bx+'</td><td>'+ct+'</td></tr>'; });
-    h+='<tr style="font-weight:bold;background:#eef3f7"><td>סה"כ</td><td>'+fu+'</td><td>'+fa+'</td><td>'+box+'</td><td>'+cart+'</td></tr></table><br>'; });
+    h+='<tr style="font-weight:bold;background:#fdf1e6"><td>סה"כ מאצלנו</td><td colspan="2"></td><td>'+usBox+'</td><td>'+usCart+'</td></tr>'
+      +'<tr style="font-weight:bold;background:#eef7e6"><td>סה"כ מעלומים</td><td colspan="2"></td><td>'+alBox+'</td><td>'+alCart+'</td></tr>'
+      +'<tr style="font-weight:bold;background:#eef3f7"><td>סה"כ הכל</td><td colspan="2"></td><td>'+box+'</td><td>'+cart+'</td></tr></table><br>'; });
   return h; }
 function secTable(title,bucket){ let h='<table border="1"><tr><th colspan="4" style="background:#1f6fb2;color:#fff">'+title+'</th></tr><tr><th>מחוז</th><th>קיטרינג</th><th>כמות</th><th>מוצר</th></tr>';
   Object.keys(bucket).sort((a,b)=>a.localeCompare(b,'he')).forEach(reg=>{ Object.values(bucket[reg]).forEach(c=>{ c.items.forEach(x=>{
