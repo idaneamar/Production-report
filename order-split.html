@@ -123,6 +123,7 @@ const DEFAULT_SETTINGS = {
   fruit_keywords: ["אגס"],
   boxes_per_pallet: 60,
   fruit_cartons_per_pallet: 60,
+  sheet_webapp_url: "",
   meta_headers: ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל"]
 };
 
@@ -146,6 +147,23 @@ function fillARGB(cell) {
 }
 function has(hay, needles) { hay = hay || ""; return needles.some(n => hay.indexOf(n) >= 0); }
 
+function pad(n){ return (n < 10 ? "0" : "") + n; }
+function normDate(v) {
+  if (v == null) return "";
+  if (v instanceof Date) return pad(v.getDate()) + "/" + pad(v.getMonth() + 1) + "/" + v.getFullYear();
+  const s = String(v).trim();
+  const m = s.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);
+  if (m) { let y = m[3]; if (y.length === 2) y = "20" + y; return pad(+m[1]) + "/" + pad(+m[2]) + "/" + y; }
+  return "";
+}
+function getReportDate(ws) {
+  for (let r = 1; r <= Math.min(ws.rowCount, 6); r++) {
+    const row = ws.getRow(r); let found = "";
+    row.eachCell({ includeEmpty: false }, c => { if (!found) { const v = c.value; const d = normDate(v && v.result != null ? v.result : v); if (d) found = d; } });
+    if (found) return found;
+  }
+  return "";
+}
 function detectHeader(ws) {
   for (let r = 1; r <= Math.min(ws.rowCount, 15); r++) {
     const row = ws.getRow(r); let hasReg = false, hasName = false;
@@ -215,7 +233,7 @@ function process(ws, S) {
   }
   const fruitPallets = S.fruit_cartons_per_pallet > 0 ? Math.ceil(fruitCartons / S.fruit_cartons_per_pallet) : 0;
   return {
-    headerRow: hr, productCount: products.length, regionsSeen: [...regionsSeen],
+    headerRow: hr, productCount: products.length, regionsSeen: [...regionsSeen], reportDate: getReportDate(ws),
     buckets, flags, boxesOut, boxesIn, dailyNet: boxesOut - boxesIn,
     fruitCartons, fruitPallets, settings: S
   };
@@ -229,7 +247,7 @@ const DEFAULTS = DEFAULT_SETTINGS;
 let S = loadSet();
 let LEDGER = loadLedger();
 let FRUIT = loadFruit();
-let LAST=null, WB=null, WBNAME='';
+let LAST=null, WB=null, WBNAME='', VIEW='cust';
 function loadFruit(){ try{const s=localStorage.getItem('alumim_fruit'); if(s)return JSON.parse(s);}catch(e){} return {entries:[]}; }
 function saveFruit(){ try{localStorage.setItem('alumim_fruit',JSON.stringify(FRUIT));}catch(e){} }
 
@@ -240,6 +258,28 @@ function saveLedger(){ const o=document.getElementById('opening'); if(o)LEDGER.o
 
 // הגדרות מרכזיות מהשרת (כשמתארח)
 (async function(){ try{ const r=await fetch('settings2.json?_='+Date.now(),{cache:'no-store'}); if(!r.ok)return; const j=await r.json(); if(j&&j.our_regions){ S=Object.assign({},DEFAULTS,j); renderSet(); } }catch(e){} })();
+
+/* ---------- סנכרון Google Sheet משותף (JSONP) ---------- */
+function jsonp(url){ return new Promise((res,rej)=>{ const cb='cb_'+Math.random().toString(36).slice(2); const s=document.createElement('script'); let done=false;
+  function cleanup(){ try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode)s.parentNode.removeChild(s); }
+  window[cb]=d=>{done=true;res(d);cleanup();}; s.onerror=()=>{if(!done){rej(new Error('network'));cleanup();}};
+  s.src=url+(url.indexOf('?')>=0?'&':'?')+'callback='+cb; document.body.appendChild(s);
+  setTimeout(()=>{if(!done){rej(new Error('timeout'));cleanup();}},15000); }); }
+function syncBanner(html,kind){ const m=document.getElementById('msg'); if(!m)return; const d=document.createElement('div'); d.className=(kind==='ok')?'ok':'warn'; d.innerHTML=html; m.appendChild(d); }
+async function autoRecord(R){ if(!S.sheet_webapp_url||!R) return;
+  if(!R.reportDate){ syncBanner('⚠ לא זוהה תאריך בדוח — לא נרשם ליומן המשותף.','warn'); return; }
+  try{ const u=S.sheet_webapp_url+'?action=record&date='+encodeURIComponent(R.reportDate)+'&net='+R.dailyNet+'&fruit='+R.fruitPallets;
+    const r=await jsonp(u); let msgs=[];
+    if(r&&r.box){ if(r.box.status==='added')msgs.push('ארגזים: נרשם '+R.reportDate+' = '+(R.dailyNet>=0?'+':'')+R.dailyNet);
+      else if(r.box.status==='duplicate')msgs.push('ארגזים: כבר רשום אותו ערך ל-'+R.reportDate+' (לא נרשם שוב)');
+      else if(r.box.status==='conflict'){ syncBanner('⚠ <b>נדרשת בדיקה ידנית (ארגזים)</b>: ליום '+R.reportDate+' רשום '+r.box.existing+' אבל עכשיו חושב '+r.box.incoming+'. סומן בגיליון.','warn'); } }
+    if(r&&r.fruit){ if(r.fruit.status==='added')msgs.push('פירות: נרשם '+R.fruitPallets+' משטחים');
+      else if(r.fruit.status==='duplicate')msgs.push('פירות: כבר רשום ל-'+R.reportDate);
+      else if(r.fruit.status==='conflict')msgs.push('⚠ פירות: בדיקה ידנית ('+r.fruit.existing+' מול '+r.fruit.incoming+')'); }
+    if(msgs.length) syncBanner('🔄 יומן משותף: '+msgs.join(' · '),'ok');
+  }catch(e){ syncBanner('⚠ אין חיבור ליומן המשותף (בדוק כתובת Web App בהגדרות / אינטרנט).','warn'); }
+}
+function fetchShared(){ if(!S.sheet_webapp_url) return Promise.resolve(null); return jsonp(S.sheet_webapp_url+'?action=read&_='+Date.now()).catch(()=>null); }
 
 /* ---------- טעינת ExcelJS לפי דרישה ---------- */
 let XLJS=false;
@@ -266,6 +306,7 @@ async function loadFile(f){
     sel.value=def; document.getElementById('sheetbar').classList.remove('hidden'); sel.onchange=()=>runSheet(sel.value);
     info.textContent='✓ נטען: '+f.name;
     runSheet(def);
+    autoRecord(LAST);
   }catch(err){ info.textContent=''; document.getElementById('msg').innerHTML='<div class="warn">שגיאה בקריאת הקובץ: '+(err.message||err)+'</div>'; console.error(err); }
 }
 function runSheet(name){ const ws=WB.getWorksheet(name); if(!ws)return; LAST=processWS(ws,S); LAST.sheet=name; render(LAST); }
@@ -305,10 +346,35 @@ function render(R){
    +tile((R.dailyNet>=0?'+':'')+R.dailyNet,'מאזן נטו היום',R.dailyNet>=0?'var(--green)':'var(--orange)')
    +tile(R.fruitPallets,'משטחי פירות (היום)','var(--orange)')+'</div>'
    +'<div class="muted">נטו חיובי = עלומים חייבים לנו ארגזים. את מספר משטחי הפירות של היום אפשר להוסיף ליומן "מעקב משטחי פירות".</div></div>';
-  h+=sectionHtml('🟧 להכין ולשלוח — האזורים שלנו','sec-prepare',R.buckets.prepare,false);
-  h+=sectionHtml('🟩 לקבל מעלומים — צ\'ק-ליסט קבלה','sec-receive',R.buckets.receive,true);
-  h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);
+  h+='<div class="row" style="margin:4px 0"><b style="margin-left:6px">תצוגה:</b>'
+   +'<button class="btn '+(VIEW==='cust'?'':'sec')+'" onclick="setView(\'cust\')">👥 לפי לקוחות</button>'
+   +'<button class="btn '+(VIEW==='prod'?'':'sec')+'" onclick="setView(\'prod\')">📦 לפי מוצרים (תכנון ייצור)</button></div>';
+  if(VIEW==='prod'){ h+=productTable(R); }
+  else {
+    h+=sectionHtml('🟧 להכין ולשלוח — האזורים שלנו','sec-prepare',R.buckets.prepare,false);
+    h+=sectionHtml('🟩 לקבל מעלומים — צ\'ק-ליסט קבלה','sec-receive',R.buckets.receive,true);
+    h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);
+    h+=productTable(R);   // סיכום לפי מוצר תמיד בתחתית הדוח
+  }
   out.innerHTML=h;
+}
+function setView(v){ VIEW=v; if(LAST)render(LAST); }
+function aggProducts(R){ const m={};
+  ['prepare','send','receive'].forEach(key=>{ const b=R.buckets[key];
+    for(const reg in b) for(const ck in b[reg]) b[reg][ck].items.forEach(x=>{
+      if(!m[x.product]) m[x.product]={prepare:0,send:0,receive:0,isCarton:x.isCarton}; m[x.product][key]+=x.qty; }); });
+  return m; }
+function productTable(R){ const m=aggProducts(R);
+  const rows=Object.keys(m).sort((a,b)=>(m[b].prepare+m[b].send+m[b].receive)-(m[a].prepare+m[a].send+m[a].receive));
+  let tprep=0,ts=0,tr=0,town=0;
+  let body='';
+  rows.forEach(p=>{ const v=m[p]; const prep=v.prepare+v.send; tprep+=prep; ts+=v.send; tr+=v.receive; town+=v.prepare;
+    const u=v.isCarton?' <span class="muted">(קרטון)</span>':'';
+    body+='<tr><td style="text-align:right">'+esc(p)+u+'</td><td><b>'+prep+'</b></td><td>'+(v.prepare||'—')+'</td><td>'+(v.send||'—')+'</td><td>'+(v.receive||'—')+'</td></tr>'; });
+  return '<div class="card"><h2>סיכום לפי מוצר — לתכנון ייצור</h2>'
+   +'<p class="muted">"סה"כ להכין" = כל מה <b>שאנחנו</b> מכינים (כתום), בין לאזורים שלנו ובין לשלוח לעלומים. "לקבל מעלומים" = מה שעלומים מכינים עבור האזורים שלנו. כמויות בארגזים (פירות/גזרונים בקרטונים).</p>'
+   +'<table><thead><tr><th>מוצר</th><th>סה"כ להכין</th><th>לאזורים שלנו</th><th>לשלוח לעלומים</th><th>לקבל מעלומים</th></tr></thead><tbody>'
+   +body+'</tbody><tfoot><tr style="font-weight:700;background:#eef3f7"><td>סה"כ</td><td>'+tprep+'</td><td>'+town+'</td><td>'+ts+'</td><td>'+tr+'</td></tr></tfoot></table></div>';
 }
 function tile(n,l,col){ return '<div class="box" style="border-color:'+col+'"><div class="n" style="color:'+col+'">'+n+'</div><div class="l">'+l+'</div></div>'; }
 function esc(s){ return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
@@ -324,6 +390,7 @@ function addManual(){ const d=prompt('תאריך:',new Date().toLocaleDateString
   LEDGER.entries.push({date:d,sheet:'ידני',out:o,in:i,net:o-i}); saveLedger(); renderLedger(); }
 function delEntry(ix){ LEDGER.entries.splice(ix,1); saveLedger(); renderLedger(); }
 function renderLedger(){
+  if(S.sheet_webapp_url) return renderShared('ledgerTbl','ledgerTotals','box');
   const o=document.getElementById('opening'); if(o&&document.activeElement!==o) o.value=LEDGER.opening||0;
   let sumOut=0,sumIn=0; LEDGER.entries.forEach(e=>{sumOut+=e.out;sumIn+=e.in;});
   const net=(LEDGER.opening||0)+(sumOut-sumIn);
@@ -353,7 +420,23 @@ function addFruitManual(){ const date=prompt('תאריך:',new Date().toLocaleDa
 function fruitNote(ix,v){ FRUIT.entries[ix].notes=v; saveFruit(); }
 function fruitQty(ix,v){ FRUIT.entries[ix].pallets=parseFloat(v)||0; saveFruit(); renderFruit(); }
 function delFruit(ix){ FRUIT.entries.splice(ix,1); saveFruit(); renderFruit(); }
+async function renderShared(tblId,totId,kind){
+  const tbl=document.getElementById(tblId), tot=document.getElementById(totId);
+  if(tot)tot.innerHTML='<div class="muted" style="padding:6px">טוען מהיומן המשותף...</div>'; if(tbl)tbl.innerHTML='';
+  const d=await fetchShared();
+  if(!d||!d.ok){ if(tot)tot.innerHTML='<div class="warn" style="padding:8px">לא ניתן לטעון מהיומן המשותף — בדוק את הכתובת בהגדרות.</div>'; return; }
+  const rows=(kind==='box'?d.box:d.fruit)||[];
+  let sum=0; rows.forEach(r=>sum+=Number(r.val)||0);
+  if(kind==='box') tot.innerHTML=tile((sum>=0?'+':'')+sum,'מאזן נוכחי (משותף)',sum>=0?'var(--green)':'var(--orange)')+tile(rows.length,'רשומות','var(--brand)');
+  else tot.innerHTML=tile(sum,'סה"כ משטחי פירות (משותף)','var(--orange)')+tile(rows.length,'רשומות','var(--brand)');
+  let h='<div class="muted" style="margin-bottom:6px">מקור: גיליון Google משותף · <span class="lnk" onclick="'+(kind==='box'?'renderLedger':'renderFruit')+'()">🔄 רענן</span></div>';
+  h+='<table><thead><tr><th>תאריך</th><th>'+(kind==='box'?'נטו (+/-)':'משטחים')+'</th><th>הערות</th></tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="3" class="muted">אין רשומות עדיין</td></tr>';
+  rows.forEach(r=>{ const v=Number(r.val)||0; h+='<tr><td>'+esc(r.date)+'</td><td>'+(kind==='box'&&v>=0?'+':'')+r.val+'</td><td>'+esc(r.notes||'')+'</td></tr>'; });
+  h+='</tbody></table>'; tbl.innerHTML=h;
+}
 function renderFruit(){
+  if(S.sheet_webapp_url) return renderShared('fruitTbl','fruitTotals','fruit');
   let tot=0; FRUIT.entries.forEach(e=>tot+=e.pallets);
   document.getElementById('fruitTotals').innerHTML=tile(tot,'סה"כ משטחי פירות','var(--orange)')+tile(FRUIT.entries.length,'רשומות','var(--brand)');
   let h='<table><thead><tr><th>תאריך</th><th>כמות משטחים</th><th>הערות</th><th></th></tr></thead><tbody>';
@@ -373,6 +456,7 @@ function exportFruit(){ let h='<html dir="rtl"><head><meta charset="utf-8"></hea
 /* ---------- ייצוא אקסל של היום ---------- */
 function exportXls(){ if(!LAST){alert('קודם טען דוח');return;}
   let h='<html dir="rtl"><head><meta charset="utf-8"></head><body>';
+  h+=prodTableXls(LAST);
   h+=secTable('להכין ולשלוח (האזורים שלנו)',LAST.buckets.prepare);
   h+=secTable('לקבל מעלומים',LAST.buckets.receive);
   h+=secTable('לשלוח לעלומים',LAST.buckets.send);
@@ -383,6 +467,15 @@ function exportXls(){ if(!LAST){alert('קודם טען דוח');return;}
    +'<tr><td>משטחי פירות (היום)</td><td>'+LAST.fruitPallets+'</td></tr></table>';
   h+='</body></html>';
   dl(new Blob(['﻿'+h],{type:'application/vnd.ms-excel'}),'חלוקת_הזמנות_'+(LAST.sheet||'')+'.xls'); }
+function prodTableXls(R){ const m=aggProducts(R);
+  const rows=Object.keys(m).sort((a,b)=>(m[b].prepare+m[b].send+m[b].receive)-(m[a].prepare+m[a].send+m[a].receive));
+  let h='<table border="1"><tr><th colspan="5" style="background:#15517f;color:#fff">סיכום לפי מוצר (תכנון ייצור)</th></tr>'
+   +'<tr><th>מוצר</th><th>סה"כ להכין</th><th>לאזורים שלנו</th><th>לשלוח לעלומים</th><th>לקבל מעלומים</th></tr>';
+  let tprep=0,town=0,ts=0,tr=0;
+  rows.forEach(p=>{const v=m[p];const prep=v.prepare+v.send;tprep+=prep;town+=v.prepare;ts+=v.send;tr+=v.receive;
+    h+='<tr><td>'+p+(v.isCarton?' (קרטון)':'')+'</td><td>'+prep+'</td><td>'+v.prepare+'</td><td>'+v.send+'</td><td>'+v.receive+'</td></tr>';});
+  h+='<tr><td><b>סה"כ</b></td><td><b>'+tprep+'</b></td><td>'+town+'</td><td>'+ts+'</td><td>'+tr+'</td></tr></table><br>';
+  return h; }
 function secTable(title,bucket){ let h='<table border="1"><tr><th colspan="4" style="background:#1f6fb2;color:#fff">'+title+'</th></tr><tr><th>מחוז</th><th>קיטרינג</th><th>כמות</th><th>מוצר</th></tr>';
   Object.keys(bucket).sort((a,b)=>a.localeCompare(b,'he')).forEach(reg=>{ Object.values(bucket[reg]).forEach(c=>{ c.items.forEach(x=>{
     h+='<tr><td>'+reg+'</td><td>'+c.name+'</td><td>'+x.qty+(x.isCarton?' קרטון':' ארגז')+'</td><td>'+x.product+'</td></tr>'; }); }); });
@@ -397,13 +490,14 @@ const SET_FIELDS=[
  ['carton_keywords','מילים לזיהוי קרטונים (לא נספר בארגזים)','list'],
  ['fruit_keywords','מילים לזיהוי פירות','list'],
  ['boxes_per_pallet','ארגזים למשטח (מעל זה = 2 משטחים)','num'],
- ['fruit_cartons_per_pallet','קרטוני פירות למשטח','num']];
+ ['fruit_cartons_per_pallet','קרטוני פירות למשטח','num'],
+ ['sheet_webapp_url','כתובת Google Sheet (Web App) לרישום משותף','text']];
 function renderSet(){ let h='<thead><tr><th>הגדרה</th><th>ערך</th></tr></thead><tbody>';
   SET_FIELDS.forEach(f=>{ const v=S[f[0]]; const val=f[2]==='list'?(Array.isArray(v)?v.join(', '):v):v;
     h+='<tr><td style="text-align:right">'+f[1]+'</td><td><input data-k="'+f[0]+'" data-t="'+f[2]+'" value="'+esc(val)+'" style="width:100%"></td></tr>'; });
   h+='</tbody>'; document.getElementById('setTbl').innerHTML=h; }
 function saveSet(){ document.querySelectorAll('#setTbl input').forEach(el=>{ const k=el.dataset.k,t=el.dataset.t;
-    S[k]= t==='list'? el.value.split(',').map(x=>x.trim()).filter(x=>x) : (parseFloat(el.value)||0); });
+    S[k]= t==='list'? el.value.split(',').map(x=>x.trim()).filter(x=>x) : t==='num'? (parseFloat(el.value)||0) : el.value.trim(); });
   saveSetLS(); flash('ההגדרות נשמרו ✓'); if(LAST&&WB)runSheet(LAST.sheet); }
 function resetSet(){ if(confirm('לאפס הגדרות?')){ S=JSON.parse(JSON.stringify(DEFAULTS)); saveSetLS(); renderSet(); } }
 function exportSet(){ dl(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),'settings2.json'); }

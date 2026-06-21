@@ -1,0 +1,11 @@
+{
+ "our_regions": ["מרכז 3", "צפון מזרח", "צפון מערב"],
+ "green_colors": ["FFC4D79B", "FF7CEB99"],
+ "orange_colors": ["FFFABF8F"],
+ "carton_keywords": ["קרטון", "אגס", "גזרונ"],
+ "fruit_keywords": ["אגס"],
+ "boxes_per_pallet": 60,
+ "fruit_cartons_per_pallet": 60,
+ "sheet_webapp_url": "https://script.google.com/macros/s/AKfycbwL3AMjd8dvF7mT88wPKHjviyNDbjdXsGoGdjx2ZSAWADxoGu-8C2AMsg5iX8gzl0WLXA/exec",
+ "meta_headers": ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל"]
+}
