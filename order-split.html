@@ -353,8 +353,9 @@ function render(R){
    +tile(R.fruitPallets,'משטחי פירות (היום)','var(--orange)')+'</div>'
    +'<div class="muted">נטו חיובי = עלומים חייבים לנו ארגזים. את מספר משטחי הפירות של היום אפשר להוסיף ליומן "מעקב משטחי פירות".</div></div>';
   h+=productTable(R);                  // 1) סיכום לפי מוצר — ראשון
-  h+=ourCombinedHtml(R);               // 2) האזורים שלנו לפי לקוח: מאצלנו/מעלומים/סה"כ
-  h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 3)
+  h+=lineProductHtml(R);               // 2) סיכום לפי מוצר וקו (אזור)
+  h+=ourCombinedHtml(R);               // 3) האזורים שלנו לפי לקוח: מאצלנו/מעלומים/סה"כ
+  h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 4)
   out.innerHTML=h;
 }
 function setView(v){ VIEW=v; if(LAST)render(LAST); }
@@ -364,6 +365,29 @@ function combinedOurs(R){ var m={};
       var e=m[reg][ck]||(m[reg][ck]={name:c.name,addr:c.addr,prods:{}});
       c.items.forEach(function(x){ var p=e.prods[x.product]||(e.prods[x.product]={us:0,al:0,isCarton:x.isCarton,isFruit:x.isFruit}); p[fld]+=x.qty; }); } } });
   return m; }
+function lineProducts(R){ var m=combinedOurs(R); var out={};
+  Object.keys(m).forEach(function(reg){ var prod={};
+    Object.keys(m[reg]).forEach(function(ck){ var c=m[reg][ck];
+      Object.keys(c.prods).forEach(function(p){ var v=c.prods[p];
+        var e=prod[p]||(prod[p]={us:0,al:0,isCarton:v.isCarton,isFruit:v.isFruit}); e.us+=v.us; e.al+=v.al; }); });
+    out[reg]=prod; });
+  return out; }
+function lineProductHtml(R){ var L=lineProducts(R); var regs=Object.keys(L).sort(function(a,b){return a.localeCompare(b,'he');});
+  if(!regs.length) return '';
+  var html='<div class="card sec-prepare"><h2>🏭 סיכום לפי מוצר וקו — לתכנון ייצור</h2>'
+    +'<p class="muted">לכל קו (אזור) — כמה מכל מוצר, כמה מאצלנו וכמה מעלומים. קרטונים מסומנים: לא נספרים בארגזים, אך כן במשטחים.</p>';
+  regs.forEach(function(reg){ var prod=L[reg];
+    var rows=Object.keys(prod).map(function(p){return [p,prod[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);});
+    var box=0,cart=0,units=0,fromUs=0,fromAl=0,body='';
+    rows.forEach(function(pr){ var v=pr[1]; var tot=v.us+v.al;
+      if(v.isCarton){ if(!v.isFruit) cart+=tot; } else { box+=tot; }
+      if(!v.isFruit) units+=tot; fromUs+=v.us; fromAl+=v.al;
+      body+='<tr><td style="text-align:right">'+esc(pr[0])+(v.isCarton?' <span class="muted">(קרטון)</span>':'')+'</td><td>'+(v.us||'—')+'</td><td class="alcell">'+(v.al||'—')+'</td><td><b>'+tot+'</b></td></tr>'; });
+    var pal=S.boxes_per_pallet>0?Math.ceil(units/S.boxes_per_pallet):0;
+    html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>'+box+' ארגז · '+cart+' קרטון · ~'+pal+' משטח · (מאצלנו '+fromUs+' · מעלומים '+fromAl+')</span></div>'
+      +'<table class="mini" style="min-width:75%"><thead><tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  });
+  return html+'</div>'; }
 function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort(function(a,b){return a.localeCompare(b,'he');});
   if(!regs.length) return '';
   var html='<div class="card sec-prepare"><h2>📋 האזורים שלנו — לפי לקוח (כמה ללקט מאצלנו · כמה מעלומים · סה"כ)</h2>';
@@ -479,6 +503,7 @@ function exportFruit(){ let h='<html dir="rtl"><head><meta charset="utf-8"></hea
 function exportXls(){ if(!LAST){alert('קודם טען דוח');return;}
   let h='<html dir="rtl"><head><meta charset="utf-8"></head><body>';
   h+=prodTableXls(LAST);
+  h+=prodLineXls(LAST);
   h+=secTable('להכין ולשלוח (האזורים שלנו)',LAST.buckets.prepare);
   h+=secTable('לקבל מעלומים',LAST.buckets.receive);
   h+=secTable('לשלוח לעלומים',LAST.buckets.send);
@@ -497,6 +522,14 @@ function prodTableXls(R){ const m=aggProducts(R);
   rows.forEach(p=>{const v=m[p];const prep=v.prepare+v.send;tprep+=prep;town+=v.prepare;ts+=v.send;tr+=v.receive;
     h+='<tr><td>'+p+(v.isCarton?' (קרטון)':'')+'</td><td>'+prep+'</td><td>'+v.prepare+'</td><td>'+v.send+'</td><td>'+v.receive+'</td></tr>';});
   h+='<tr><td><b>סה"כ</b></td><td><b>'+tprep+'</b></td><td>'+town+'</td><td>'+ts+'</td><td>'+tr+'</td></tr></table><br>';
+  return h; }
+function prodLineXls(R){ var L=lineProducts(R); var h='';
+  Object.keys(L).sort(function(a,b){return a.localeCompare(b,'he');}).forEach(function(reg){ var prod=L[reg];
+    h+='<table border="1"><tr><th colspan="4" style="background:#15517f;color:#fff">קו '+reg+' — לפי מוצר</th></tr>'
+      +'<tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr>';
+    Object.keys(prod).map(function(p){return [p,prod[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);}).forEach(function(pr){var v=pr[1];
+      h+='<tr><td>'+pr[0]+(v.isCarton?' (קרטון)':'')+'</td><td>'+v.us+'</td><td>'+v.al+'</td><td>'+(v.us+v.al)+'</td></tr>'; });
+    h+='</table><br>'; });
   return h; }
 function secTable(title,bucket){ let h='<table border="1"><tr><th colspan="4" style="background:#1f6fb2;color:#fff">'+title+'</th></tr><tr><th>מחוז</th><th>קיטרינג</th><th>כמות</th><th>מוצר</th></tr>';
   Object.keys(bucket).sort((a,b)=>a.localeCompare(b,'he')).forEach(reg=>{ Object.values(bucket[reg]).forEach(c=>{ c.items.forEach(x=>{
