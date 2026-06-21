@@ -276,11 +276,9 @@ async function autoRecord(R){ if(!S.sheet_webapp_url||!R) return;
   try{ const u=S.sheet_webapp_url+'?action=record&date='+encodeURIComponent(R.reportDate)+'&net='+R.dailyNet+'&fruit='+R.fruitPallets;
     const r=await jsonp(u); let msgs=[];
     if(r&&r.box){ if(r.box.status==='added')msgs.push('ארגזים: נרשם '+R.reportDate+' = '+(R.dailyNet>=0?'+':'')+R.dailyNet);
-      else if(r.box.status==='duplicate')msgs.push('ארגזים: כבר רשום אותו ערך ל-'+R.reportDate+' (לא נרשם שוב)');
-      else if(r.box.status==='conflict'){ syncBanner('⚠ <b>נדרשת בדיקה ידנית (ארגזים)</b>: ליום '+R.reportDate+' רשום '+r.box.existing+' אבל עכשיו חושב '+r.box.incoming+'. סומן בגיליון.','warn'); } }
+      else if(r.box.status==='updated')msgs.push('ארגזים: עודכן (נדרס הקודם) '+R.reportDate+' = '+(R.dailyNet>=0?'+':'')+R.dailyNet); }
     if(r&&r.fruit){ if(r.fruit.status==='added')msgs.push('פירות: נרשם '+R.fruitPallets+' משטחים');
-      else if(r.fruit.status==='duplicate')msgs.push('פירות: כבר רשום ל-'+R.reportDate);
-      else if(r.fruit.status==='conflict')msgs.push('⚠ פירות: בדיקה ידנית ('+r.fruit.existing+' מול '+r.fruit.incoming+')'); }
+      else if(r.fruit.status==='updated')msgs.push('פירות: עודכן '+R.fruitPallets+' משטחים'); }
     if(msgs.length) syncBanner('🔄 יומן משותף: '+msgs.join(' · '),'ok');
   }catch(e){ syncBanner('⚠ אין חיבור ליומן המשותף (בדוק כתובת Web App בהגדרות / אינטרנט).','warn'); }
 }
