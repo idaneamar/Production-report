@@ -6,6 +6,6 @@
  "fruit_keywords": ["אגס"],
  "boxes_per_pallet": 60,
  "fruit_cartons_per_pallet": 60,
- "sheet_webapp_url": "https://script.google.com/macros/s/AKfycbwL3AMjd8dvF7mT88wPKHjviyNDbjdXsGoGdjx2ZSAWADxoGu-8C2AMsg5iX8gzl0WLXA/exec",
+ "sheet_webapp_url": "https://script.google.com/macros/s/AKfycbxl3sy0G3z_O7Uh5E-7oMQ-AHMWt6bCRGm5pHmyvblQvWgAvxHvnSkkn6IS9uIDVcm51Q/exec",
  "meta_headers": ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל"]
 }
