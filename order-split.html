@@ -520,7 +520,7 @@ function productTable(R){ const m=aggProducts(R);
   let body='';
   rows.forEach(p=>{ const v=m[p]; const prep=v.prepare+v.send; tprep+=prep; ts+=v.send; tr+=v.receive; town+=v.prepare;
     let tag='', st='text-align:right';
-    if(v.isFruit){ const cn=Object.keys(v.custs).join(', '); tag=' (פרי'+(cn?' → '+esc(cn):'')+')'; st='text-align:right;color:var(--orange);font-weight:600'; }
+    if(v.isFruit){ const cn=Object.keys(v.custs).join(', '); tag=' <span style="font-size:10px;font-weight:400;color:var(--muted)">(פרי'+(cn?' ← '+esc(cn):'')+')</span>'; st='text-align:right;color:var(--orange);font-weight:600'; }
     else if(v.isCarton){ tag=' <span class="muted">(קרטון)</span>'; }
     body+='<tr><td style="'+st+'">'+esc(p)+tag+'</td><td><b>'+prep+'</b></td><td>'+(v.prepare||'—')+'</td><td>'+(v.send||'—')+'</td><td>'+(v.receive||'—')+'</td></tr>'; });
   return '<div class="card"><h2>סיכום לפי מוצר — לתכנון ייצור</h2>'
