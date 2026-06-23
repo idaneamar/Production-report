@@ -499,16 +499,30 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
   return html+'</div>'; }
 function aggProducts(R){ const m={};
   ['prepare','send','receive'].forEach(key=>{ const b=R.buckets[key];
-    for(const reg in b) for(const ck in b[reg]) b[reg][ck].items.forEach(x=>{
-      if(!m[x.product]) m[x.product]={prepare:0,send:0,receive:0,isCarton:x.isCarton}; m[x.product][key]+=x.qty; }); });
+    for(const reg in b) for(const ck in b[reg]){ const c=b[reg][ck];
+      c.items.forEach(x=>{
+        if(!m[x.product]) m[x.product]={prepare:0,send:0,receive:0,isCarton:x.isCarton,isFruit:x.isFruit,custs:{}};
+        m[x.product][key]+=x.qty;
+        if(x.isFruit) m[x.product].custs[c.name]=(m[x.product].custs[c.name]||0)+x.qty;
+      }); } });
   return m; }
+function prodSortKey(name){ var fam=5;
+  if(name.indexOf('ירק אישי')>=0) fam=1;
+  else if(name.indexOf('גנים')>=0) fam=2;
+  else if(name.indexOf('גזרונ')>=0) fam=7;
+  else if(/אגס|נקטרינ|תפוז|תפוע|תפוח/.test(name)) fam=9;
+  var g=99999; var mkg=name.match(/(\d+(?:\.\d+)?)\s*ק"?\s*ג/); var mg=name.match(/(\d+)\s*גר/);
+  if(mkg) g=parseFloat(mkg[1])*1000; else if(mg) g=parseInt(mg[1],10);
+  return fam*1e7 + g*10; }
 function productTable(R){ const m=aggProducts(R);
-  const rows=Object.keys(m).sort((a,b)=>(m[b].prepare+m[b].send+m[b].receive)-(m[a].prepare+m[a].send+m[a].receive));
+  const rows=Object.keys(m).sort((a,b)=>{ const ka=prodSortKey(a),kb=prodSortKey(b); return ka!==kb?ka-kb:a.localeCompare(b,'he'); });
   let tprep=0,ts=0,tr=0,town=0;
   let body='';
   rows.forEach(p=>{ const v=m[p]; const prep=v.prepare+v.send; tprep+=prep; ts+=v.send; tr+=v.receive; town+=v.prepare;
-    const u=v.isCarton?' <span class="muted">(קרטון)</span>':'';
-    body+='<tr><td style="text-align:right">'+esc(p)+u+'</td><td><b>'+prep+'</b></td><td>'+(v.prepare||'—')+'</td><td>'+(v.send||'—')+'</td><td>'+(v.receive||'—')+'</td></tr>'; });
+    let tag='', st='text-align:right';
+    if(v.isFruit){ const cn=Object.keys(v.custs).join(', '); tag=' (פרי'+(cn?' → '+esc(cn):'')+')'; st='text-align:right;color:var(--orange);font-weight:600'; }
+    else if(v.isCarton){ tag=' <span class="muted">(קרטון)</span>'; }
+    body+='<tr><td style="'+st+'">'+esc(p)+tag+'</td><td><b>'+prep+'</b></td><td>'+(v.prepare||'—')+'</td><td>'+(v.send||'—')+'</td><td>'+(v.receive||'—')+'</td></tr>'; });
   return '<div class="card"><h2>סיכום לפי מוצר — לתכנון ייצור</h2>'
    +'<p class="muted">"סה"כ להכין" = כל מה <b>שאנחנו</b> מכינים (כתום), בין לאזורים שלנו ובין לשלוח לעלומים. "לקבל מעלומים" = מה שעלומים מכינים עבור האזורים שלנו. כמויות בארגזים (פירות/גזרונים בקרטונים).</p>'
    +'<table><thead><tr><th>מוצר</th><th>סה"כ להכין</th><th>לאזורים שלנו</th><th>לשלוח לעלומים</th><th>לקבל מעלומים</th></tr></thead><tbody>'
