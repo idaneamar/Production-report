@@ -48,7 +48,9 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .carton{color:var(--orange)} .hidden{display:none} .chk{width:18px;height:18px}
 .pill{display:inline-block;background:#eef3f7;border-radius:20px;padding:1px 9px;font-size:12px;margin-right:6px}
 code{background:#eef3f7;padding:1px 5px;border-radius:4px}
-@media print{.tabs,.dropzone,.btn,#sheetbar,header .sub{display:none} .card{break-inside:avoid}}
+@media print{.tabs,.dropzone,.btn,#sheetbar,header .sub{display:none}
+.cust,.regblock>.reghead{break-inside:avoid;page-break-inside:avoid}
+.cust{page-break-inside:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}}
 </style></head>
 <body>
 <header><h1>חלוקת הזמנות — עלומים / טרי לי</h1>
@@ -131,6 +133,7 @@ const DEFAULT_SETTINGS = {
   carton_keywords: ["קרטון", "גזרונ"], // קרטונים שאינם פירות (לא נספרים בארגזים, כן במשטחים)
   fruit_keywords: ["אגס", "נקטרינ", "תפוז", "תפוע", "תפוח"], // פירות מעלומים (לא בארגזים ולא במשטחים)
   through_us_keys: ["טרי לי", "טרילי"], // "מעלומים לטרי לי ומשם ללקוח" = עובר דרכנו (מקבלים)
+  display_notes: [{ match: "שפע טעים", note: "בלאגן" }], // הוספת כינוי בסוגריים בתצוגה
   boxes_per_pallet: 60,
   fruit_cartons_per_pallet: 60,
   sheet_webapp_url: "",
@@ -402,7 +405,7 @@ function sectionHtml(title,cls,bucket,withChk){
   regs.forEach(reg=>{ const custs=Object.values(bucket[reg]).sort((a,b)=>a.name.localeCompare(b.name,'he'));
     let regBox=0, regUnits=0; let cb='';
     custs.forEach(c=>{ const bx=custBox(c.items); regBox+=bx; regUnits+=custUnits(c.items); totCust++;
-      cb+='<div class="cust"><div class="cn">'+esc(c.name)+(bx?' <span class="pill">'+bx+' ארגז</span>':'')+'</div>'+(c.addr?'<div class="addr">'+esc(c.addr)+'</div>':'');
+      cb+='<div class="cust"><div class="cn">'+custDisp(c.name)+(bx?' <span class="pill">'+bx+' ארגז</span>':'')+'</div>'+(c.addr?'<div class="addr">'+esc(c.addr)+'</div>':'');
       c.items.sort((x,y)=>y.qty-x.qty).forEach((x,i)=>{ const id='c_'+Math.random().toString(36).slice(2,8);
         cb+='<div class="it">'+(withChk?'<input class="chk" type="checkbox">':'')+'<span class="q'+(x.isCarton?' carton':'')+'">'+x.qty+(x.isCarton?' קרטון':' ארגז')+'</span><span>'+esc(x.product)+'</span></div>'; });
       cb+='</div>'; });
@@ -427,9 +430,10 @@ function render(R){
    +tile((R.dailyNet>=0?'+':'')+R.dailyNet,'מאזן נטו היום',R.dailyNet>=0?'var(--green)':'var(--orange)')
    +tile(R.fruitPallets,'משטחי פירות (היום)','var(--orange)')+'</div>'
    +'<div class="muted">נטו חיובי = עלומים חייבים לנו ארגזים. את מספר משטחי הפירות של היום אפשר להוסיף ליומן "מעקב משטחי פירות".</div></div>';
-  h+=productTable(R);                  // 1) סיכום לפי מוצר — ראשון
-  h+=lineProductHtml(R);               // 2) סיכום לפי מוצר וקו (אזור)
-  h+=ourCombinedHtml(R);               // 3) האזורים שלנו לפי לקוח: מאצלנו/מעלומים/סה"כ
+  h+=kosherLegendHtml();               // טבלת כשרויות (אחרי סיכום היום)
+  h+=productTable(R);                  // 1) סיכום לפי מוצר — לתכנון ייצור
+  h+=ourCombinedHtml(R);               // 2) האזורים שלנו לפי לקוח
+  h+=lineProductHtml(R);               // 3) סיכום לפי מוצר וקו (לפני "לשלוח לעלומים")
   h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 4)
   out.innerHTML=h;
 }
@@ -484,7 +488,7 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
         rows+='<tr><td style="text-align:right">'+esc(pr[0])+(v.isFruit?' <span class="muted">(פרי)</span>':v.isCarton?' <span class="muted">(קרטון)</span>':'')+'</td><td>'+(v.us||'—')+'</td><td class="alcell">'+(v.al||'—')+'</td><td><b>'+tot+'</b></td></tr>'; });
       var allTot=usBox+usCart+alBox+alCart;
       regUs+=usBox+usCart; regAl+=alBox+alCart;
-      cb+='<div class="cust"><div class="cn">'+esc(c.name)+' <span class="pill"><b>סה"כ '+allTot+'</b></span></div>'
+      cb+='<div class="cust"><div class="cn">'+custDisp(c.name)+' <span class="pill"><b>סה"כ '+allTot+'</b></span></div>'
         +(c.addr?'<div class="addr">'+esc(c.addr)+'</div>':'')
         +'<div class="custrow">'
         +'<table class="mini"><thead><tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr></thead><tbody>'+rows+'</tbody></table>'
@@ -497,6 +501,18 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
     var pal=S.boxes_per_pallet>0?Math.ceil(regUnits/S.boxes_per_pallet):0;
     html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>סה"כ '+(regUs+regAl)+' (מאצלנו '+regUs+' · מעלומים '+regAl+')'+(pal?' · ~'+pal+' משטח':'')+'</span></div>'+cb+'</div>'; });
   return html+'</div>'; }
+function custDisp(name){ var n=esc(name); (S.display_notes||[]).forEach(function(d){ if(name.indexOf(d.match)>=0) n+=' <span class="muted">('+esc(d.note)+')</span>'; }); return n; }
+function kosherLegendHtml(){
+  var COL={'לבן':'#ffffff','אדום':'#e24b4a','צהוב':'#f2c200','כחול':'#3a7bd5'};
+  var us=[['לבן','כשרות רגילה'],['אדום','שארית'],['צהוב','בד"ץ']];
+  var al=[['כחול','כשרות רגילה'],['אדום','לנדא'],['צהוב','בד"ץ']];
+  function tbl(rows){ var h='<table class="mini" style="min-width:0;width:auto"><thead><tr><th>צבע</th><th>כשרות</th></tr></thead><tbody>';
+    rows.forEach(function(r){ h+='<tr><td style="text-align:right"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid #bbb;background:'+COL[r[0]]+';vertical-align:-2px"></span> '+r[0]+'</td><td style="text-align:right">'+r[1]+'</td></tr>'; });
+    return h+'</tbody></table>'; }
+  return '<div class="card"><h2>כשרויות — צבעי סימון</h2><div style="display:flex;gap:28px;flex-wrap:wrap">'
+    +'<div><div style="font-weight:600;margin-bottom:4px">אצלנו</div>'+tbl(us)+'</div>'
+    +'<div><div style="font-weight:600;margin-bottom:4px">עלומים</div>'+tbl(al)+'</div></div></div>';
+}
 function aggProducts(R){ const m={};
   ['prepare','send','receive'].forEach(key=>{ const b=R.buckets[key];
     for(const reg in b) for(const ck in b[reg]){ const c=b[reg][ck];
