@@ -35,7 +35,11 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .cust{padding:6px 12px;border-top:1px solid var(--line)} .cust .cn{font-weight:600}
 .cust .addr{color:var(--muted);font-size:12px}
 .mini{margin:5px 0 4px;width:auto;min-width:60%}
-.sum2{max-width:380px;margin:4px 0 8px}
+.custrow{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-top:4px}
+.custrow>.mini{flex:1 1 340px;min-width:280px;margin:0}
+.custrow>.sum2{flex:0 0 200px}
+.sum2{font-size:11.5px;margin:0}
+.sum2 th,.sum2 td{padding:2px 7px}
 .sum2 td:first-child,.sum2 th:first-child{text-align:right;font-weight:600}
 .mini th{background:#eef3f7;font-size:12px;padding:4px 8px} .mini td{font-size:13px;padding:3px 8px}
 .alcell{background:var(--greenbg);font-weight:600}
@@ -219,7 +223,8 @@ function process(ws, S) {
   const producerOf = argb => S.green_colors.includes(argb) ? "alumim" : S.orange_colors.includes(argb) ? "us" : "unknown";
 
   const buckets = { prepare: {}, receive: {}, send: {} }; // region -> {custKey -> {name,addr,region,items:[]}}
-  const flags = []; let boxesOut = 0, boxesIn = 0, cartonsIn = 0, cartonsOut = 0, fruitCartons = 0;
+  const flags = []; let boxesOut = 0, boxesIn = 0, cartonsIn = 0, cartonsOut = 0, fruitCartons = 0, fruitPallets = 0;
+  const fcpp = S.fruit_cartons_per_pallet > 0 ? S.fruit_cartons_per_pallet : 60;
   const regionsSeen = new Set();
 
   function add(bucket, region, name, addr, prod, qty, isCarton, isFruit) {
@@ -250,7 +255,7 @@ function process(ws, S) {
         add("receive", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
         if (!p.isCarton) boxesIn += qty;
         else if (!p.isFruit) cartonsIn += qty;
-        if (p.isFruit) fruitCartons += qty;
+        if (p.isFruit) { fruitCartons += qty; fruitPallets += Math.ceil(qty / fcpp); } // כל משלוח פרי בנפרד; >60=2
       } else if (!ours && prod === "us") {
         add("send", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
         if (!p.isCarton) boxesOut += qty;
@@ -259,7 +264,6 @@ function process(ws, S) {
       // !ours && alumim -> מתעלמים
     }
   }
-  const fruitPallets = S.fruit_cartons_per_pallet > 0 ? Math.ceil(fruitCartons / S.fruit_cartons_per_pallet) : 0;
   return {
     headerRow: hr, productCount: products.length, regionsSeen: [...regionsSeen], reportDate: getReportDate(ws),
     buckets, flags, boxesOut, boxesIn, cartonsIn, cartonsOut, dailyNet: boxesOut - boxesIn,
@@ -482,12 +486,14 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
       regUs+=usBox+usCart; regAl+=alBox+alCart;
       cb+='<div class="cust"><div class="cn">'+esc(c.name)+' <span class="pill"><b>סה"כ '+allTot+'</b></span></div>'
         +(c.addr?'<div class="addr">'+esc(c.addr)+'</div>':'')
-        +'<table class="mini sum2"><thead><tr><th>מקור</th><th>ארגזים</th><th>קרטונים</th><th>סה"כ</th></tr></thead><tbody>'
+        +'<div class="custrow">'
+        +'<table class="mini"><thead><tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr></thead><tbody>'+rows+'</tbody></table>'
+        +'<table class="sum2"><thead><tr><th>מקור</th><th>ארגז</th><th>קרטון</th><th>סה"כ</th></tr></thead><tbody>'
         +'<tr><td>מאצלנו</td><td>'+usBox+'</td><td>'+usCart+'</td><td><b>'+(usBox+usCart)+'</b></td></tr>'
         +'<tr style="background:var(--greenbg)"><td>מעלומים</td><td>'+alBox+'</td><td>'+alCart+'</td><td><b>'+(alBox+alCart)+'</b></td></tr>'
         +'<tr style="font-weight:700;background:#eef3f7"><td>סה"כ</td><td>'+(usBox+alBox)+'</td><td>'+(usCart+alCart)+'</td><td>'+allTot+'</td></tr>'
         +'</tbody></table>'
-        +'<table class="mini"><thead><tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr></thead><tbody>'+rows+'</tbody></table></div>'; });
+        +'</div></div>'; });
     var pal=S.boxes_per_pallet>0?Math.ceil(regUnits/S.boxes_per_pallet):0;
     html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>סה"כ '+(regUs+regAl)+' (מאצלנו '+regUs+' · מעלומים '+regAl+')'+(pal?' · ~'+pal+' משטח':'')+'</span></div>'+cb+'</div>'; });
   return html+'</div>'; }
