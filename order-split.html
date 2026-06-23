@@ -124,8 +124,9 @@ const DEFAULT_SETTINGS = {
   our_regions: ["מרכז 3", "צפון מזרח", "צפון מערב"],
   green_colors: ["FFC4D79B", "FF7CEB99", "THEME6"],   // עלומים מכינים (כולל צבע ערכת-נושא)
   orange_colors: ["FFFABF8F"],                        // אנחנו מכינים
-  carton_keywords: ["קרטון", "אגס", "גזרונ"], // לא נספרים בתחשיב ארגזים
-  fruit_keywords: ["אגס"],
+  carton_keywords: ["קרטון", "גזרונ"], // קרטונים שאינם פירות (לא נספרים בארגזים, כן במשטחים)
+  fruit_keywords: ["אגס", "נקטרינ", "תפוז", "תפוע", "תפוח"], // פירות מעלומים (לא בארגזים ולא במשטחים)
+  through_us_keys: ["טרי לי", "טרילי"], // "מעלומים לטרי לי ומשם ללקוח" = עובר דרכנו (מקבלים)
   boxes_per_pallet: 60,
   fruit_cartons_per_pallet: 60,
   sheet_webapp_url: "",
@@ -141,7 +142,7 @@ const DEFAULT_SETTINGS = {
     { name: "שארית", keys: ["שארית"] },
     { name: "רגיל", keys: ["רגיל", "כשרות רגילה"], fillable: true }
   ],
-  meta_headers: ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל"]
+  meta_headers: ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל", "הערות", "טלפון", "איש קשר", "שעות", "מטבח"]
 };
 
 function cellNum(cell) {
@@ -200,7 +201,12 @@ function getColumns(ws, hr, S) {
     if (nameCol < 0 && h.indexOf("קיטרינג") >= 0) { nameCol = c; continue; }
     if (addrCol < 0 && h.indexOf("כתובת") >= 0) { addrCol = c; continue; }
     if (has(h, S.meta_headers)) continue; // עמודות מטא (כולל 'מספר משטחים', תאריכים, מובילים)
-    products.push({ col: c, header: h, isCarton: has(h, S.carton_keywords), isFruit: has(h, S.fruit_keywords) });
+    var isFruit = has(h, S.fruit_keywords);
+    var isCarton = has(h, S.carton_keywords) || isFruit; // פרי תמיד לא-ארגז
+    var fromAlumim = h.indexOf("מעלומים") >= 0;          // עמודה שמסומנת מפורשות "מעלומים"
+    var throughUs = (S.through_us_keys || []).some(function (k) { return h.indexOf(k) >= 0; });
+    var isDirect = fromAlumim && h.indexOf("ללקוח") >= 0 && !throughUs; // עלומים ישיר ללקוח — לא נוגע לנו
+    products.push({ col: c, header: h, isCarton: isCarton, isFruit: isFruit, fromAlumim: fromAlumim, isDirect: isDirect });
   }
   return { regionCol, nameCol, addrCol, products };
 }
@@ -213,7 +219,7 @@ function process(ws, S) {
   const producerOf = argb => S.green_colors.includes(argb) ? "alumim" : S.orange_colors.includes(argb) ? "us" : "unknown";
 
   const buckets = { prepare: {}, receive: {}, send: {} }; // region -> {custKey -> {name,addr,region,items:[]}}
-  const flags = []; let boxesOut = 0, boxesIn = 0, fruitCartons = 0;
+  const flags = []; let boxesOut = 0, boxesIn = 0, cartonsIn = 0, cartonsOut = 0, fruitCartons = 0;
   const regionsSeen = new Set();
 
   function add(bucket, region, name, addr, prod, qty, isCarton, isFruit) {
@@ -236,16 +242,19 @@ function process(ws, S) {
       const cell = row.getCell(p.col);
       const qty = cellNum(cell);
       if (!qty || qty <= 0) continue;
-      const prod = producerOf(fillARGB(cell));
+      if (p.isDirect) continue; // עלומים שולח ישיר ללקוח — לא באחריותנו
+      const prod = p.fromAlumim ? "alumim" : producerOf(fillARGB(cell)); // עמודת "מעלומים" = תמיד עלומים
       if (prod === "unknown") { flags.push({ region, name, product: p.header, qty }); continue; }
       if (ours && prod === "us") add("prepare", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
       else if (ours && prod === "alumim") {
         add("receive", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
         if (!p.isCarton) boxesIn += qty;
+        else if (!p.isFruit) cartonsIn += qty;
         if (p.isFruit) fruitCartons += qty;
       } else if (!ours && prod === "us") {
         add("send", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
         if (!p.isCarton) boxesOut += qty;
+        else if (!p.isFruit) cartonsOut += qty;
       }
       // !ours && alumim -> מתעלמים
     }
@@ -253,7 +262,7 @@ function process(ws, S) {
   const fruitPallets = S.fruit_cartons_per_pallet > 0 ? Math.ceil(fruitCartons / S.fruit_cartons_per_pallet) : 0;
   return {
     headerRow: hr, productCount: products.length, regionsSeen: [...regionsSeen], reportDate: getReportDate(ws),
-    buckets, flags, boxesOut, boxesIn, dailyNet: boxesOut - boxesIn,
+    buckets, flags, boxesOut, boxesIn, cartonsIn, cartonsOut, dailyNet: boxesOut - boxesIn,
     fruitCartons, fruitPallets, settings: S
   };
 }
@@ -410,6 +419,7 @@ function render(R){
   let h='<div class="card"><h2>סיכום היום</h2><div class="tot">'
    +tile(R.boxesOut,'ארגזים לשלוח לעלומים','var(--brand)')
    +tile(R.boxesIn,'ארגזים לקבל מעלומים','var(--green)')
+   +tile(R.cartonsIn,'קרטונים לקבל מעלומים','var(--green)')
    +tile((R.dailyNet>=0?'+':'')+R.dailyNet,'מאזן נטו היום',R.dailyNet>=0?'var(--green)':'var(--orange)')
    +tile(R.fruitPallets,'משטחי פירות (היום)','var(--orange)')+'</div>'
    +'<div class="muted">נטו חיובי = עלומים חייבים לנו ארגזים. את מספר משטחי הפירות של היום אפשר להוסיף ליומן "מעקב משטחי פירות".</div></div>';

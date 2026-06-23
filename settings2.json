@@ -2,10 +2,11 @@
  "our_regions": ["מרכז 3", "צפון מזרח", "צפון מערב"],
  "green_colors": ["FFC4D79B", "FF7CEB99", "THEME6"],
  "orange_colors": ["FFFABF8F"],
- "carton_keywords": ["קרטון", "אגס", "גזרונ"],
- "fruit_keywords": ["אגס"],
+ "carton_keywords": ["קרטון", "גזרונ"],
+ "fruit_keywords": ["אגס", "נקטרינ", "תפוז", "תפוע", "תפוח"],
+ "through_us_keys": ["טרי לי", "טרילי"],
  "boxes_per_pallet": 60,
  "fruit_cartons_per_pallet": 60,
  "sheet_webapp_url": "https://script.google.com/macros/s/AKfycbxl3sy0G3z_O7Uh5E-7oMQ-AHMWt6bCRGm5pHmyvblQvWgAvxHvnSkkn6IS9uIDVcm51Q/exec",
- "meta_headers": ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל"]
+ "meta_headers": ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל", "הערות", "טלפון", "איש קשר", "שעות", "מטבח"]
 }
