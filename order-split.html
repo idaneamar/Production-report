@@ -35,6 +35,8 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .cust{padding:6px 12px;border-top:1px solid var(--line)} .cust .cn{font-weight:600}
 .cust .addr{color:var(--muted);font-size:12px}
 .mini{margin:5px 0 4px;width:auto;min-width:60%}
+.sum2{max-width:380px;margin:4px 0 8px}
+.sum2 td:first-child,.sum2 th:first-child{text-align:right;font-weight:600}
 .mini th{background:#eef3f7;font-size:12px;padding:4px 8px} .mini td{font-size:13px;padding:3px 8px}
 .alcell{background:var(--greenbg);font-weight:600}
 .it{display:flex;gap:8px;align-items:center;padding:2px 0 2px 0;font-size:13px}
@@ -127,6 +129,18 @@ const DEFAULT_SETTINGS = {
   boxes_per_pallet: 60,
   fruit_cartons_per_pallet: 60,
   sheet_webapp_url: "",
+  pallet_limits: [
+    { match: "משי הוד", max: 50 },
+    { match: "איכילוב", max: 40 },
+    { match: "תל השומר", max: 40 },
+    { match: "שפע טעים", max: 40 }
+  ],
+  kosher_streams: [
+    { name: "בד\"ץ", keys: ["בד\"ץ", "בד\"צ", "בדץ"] },
+    { name: "לנדא", keys: ["לנדא"] },
+    { name: "שארית", keys: ["שארית"] },
+    { name: "רגיל", keys: ["רגיל", "כשרות רגילה"], fillable: true }
+  ],
   meta_headers: ["מחוז", "יצרן", "קיטרינג", "כתובת", "מובילים", "סידורי", "תאריך", "תעודת", "מספר משטחים", "אספקה ל"]
 };
 
@@ -244,7 +258,56 @@ function process(ws, S) {
   };
 }
 
-if (typeof module !== "undefined") module.exports = { process, DEFAULT_SETTINGS, detectHeader, getColumns };
+// ---------- תוכנית מלקט: בניית משטחים ----------
+function kosherOf(name, streams) {
+  for (var i = 0; i < streams.length; i++) { var s = streams[i];
+    for (var j = 0; j < s.keys.length; j++) { if (name.indexOf(s.keys[j]) >= 0) return s.name; } }
+  return "כללי";
+}
+function streamFillable(kosher, streams) {
+  for (var i = 0; i < streams.length; i++) if (streams[i].name === kosher) return !!streams[i].fillable;
+  return false;
+}
+function palletLimitFor(custName, limits, def) {
+  for (var i = 0; i < limits.length; i++) { if (custName.indexOf(limits[i].match) >= 0) return limits[i].max; }
+  return def;
+}
+function buildPickerPlan(R, S) {
+  S = Object.assign({}, DEFAULT_SETTINGS, S || {});
+  var def = S.boxes_per_pallet || 60, limits = S.pallet_limits || [], streams = S.kosher_streams || [];
+  // איחוד פריטים לפי לקוח (מאצלנו=prepare, מעלומים=receive); מדלגים על פירות
+  var cust = {}; // key -> {region,name,addr,prods:{product:{us,al}}}
+  [["prepare", "us"], ["receive", "al"]].forEach(function (pair) {
+    var bk = R.buckets[pair[0]];
+    for (var reg in bk) for (var ck in bk[reg]) { var c = bk[reg][ck];
+      var key = reg + "|" + ck; if (!cust[key]) cust[key] = { region: reg, name: c.name, addr: c.addr, prods: {} };
+      c.items.forEach(function (x) { if (x.isFruit) return; var p = cust[key].prods[x.product] || (cust[key].prods[x.product] = { us: 0, al: 0 }); p[pair[1]] += x.qty; });
+    }
+  });
+  var plan = [];
+  Object.keys(cust).forEach(function (key) {
+    var c = cust[key]; var limit = palletLimitFor(c.name, limits, def);
+    // קיבוץ לפי כשרות
+    var byK = {};
+    Object.keys(c.prods).forEach(function (p) { var v = c.prods[p]; var k = kosherOf(p, streams);
+      byK[k] = byK[k] || []; if (v.us > 0) byK[k].push({ product: p, qty: v.us, source: "us" }); if (v.al > 0) byK[k].push({ product: p, qty: v.al, source: "al" }); });
+    var pallets = [];
+    Object.keys(byK).sort().forEach(function (k) {
+      var units = byK[k].sort(function (a, b) { return (a.source === "us" ? 0 : 1) - (b.source === "us" ? 0 : 1); }); // שלנו קודם
+      var curP = { kosher: k, fillable: streamFillable(k, streams), limit: limit, items: [], boxes: 0, alBoxes: 0 };
+      units.forEach(function (u) { var remain = u.qty;
+        while (remain > 0) { var space = limit - curP.boxes; var take = Math.min(space, remain);
+          curP.items.push({ product: u.product, qty: take, source: u.source }); curP.boxes += take; if (u.source === "al") curP.alBoxes += take; remain -= take;
+          if (curP.boxes >= limit) { pallets.push(curP); curP = { kosher: k, fillable: streamFillable(k, streams), limit: limit, items: [], boxes: 0, alBoxes: 0 }; } } });
+      if (curP.boxes > 0) pallets.push(curP);
+    });
+    plan.push({ region: c.region, name: c.name, addr: c.addr, limit: limit, pallets: pallets });
+  });
+  plan.sort(function (a, b) { return (a.region + a.name).localeCompare(b.region + b.name, "he"); });
+  return plan;
+}
+
+if (typeof module !== "undefined") module.exports = { process, DEFAULT_SETTINGS, detectHeader, getColumns, buildPickerPlan, kosherOf };
 
 </script>
 <script>
@@ -397,17 +460,26 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
   var html='<div class="card sec-prepare"><h2>📋 האזורים שלנו — לפי לקוח (כמה ללקט מאצלנו · כמה מעלומים · סה"כ)</h2>';
   regs.forEach(function(reg){ var custs=Object.keys(m[reg]).map(function(k){return m[reg][k];}).sort(function(a,b){return a.name.localeCompare(b.name,'he');});
     var regUs=0,regAl=0,regUnits=0,cb='';
-    custs.forEach(function(c){ var us=0,al=0;
+    custs.forEach(function(c){ var usBox=0,usCart=0,alBox=0,alCart=0;
       var prods=Object.keys(c.prods).map(function(p){return [p,c.prods[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);});
       var rows='';
-      prods.forEach(function(pr){ var v=pr[1]; if(!v.isCarton){us+=v.us;al+=v.al;} if(!v.isFruit){regUnits+=v.us+v.al;} var tot=v.us+v.al;
-        rows+='<tr><td style="text-align:right">'+esc(pr[0])+(v.isCarton?' <span class="muted">(קרטון)</span>':'')+'</td><td>'+(v.us||'—')+'</td><td class="alcell">'+(v.al||'—')+'</td><td><b>'+tot+'</b></td></tr>'; });
-      regUs+=us; regAl+=al;
-      cb+='<div class="cust"><div class="cn">'+esc(c.name)+' <span class="pill">מאצלנו '+us+'</span><span class="pill" style="background:var(--greenbg);color:#3d6b1e">מעלומים '+al+'</span><span class="pill"><b>סה"כ '+(us+al)+'</b></span></div>'
+      prods.forEach(function(pr){ var v=pr[1];
+        if(!v.isCarton){ usBox+=v.us; alBox+=v.al; } else if(!v.isFruit){ usCart+=v.us; alCart+=v.al; }
+        if(!v.isFruit) regUnits+=v.us+v.al;
+        var tot=v.us+v.al;
+        rows+='<tr><td style="text-align:right">'+esc(pr[0])+(v.isFruit?' <span class="muted">(פרי)</span>':v.isCarton?' <span class="muted">(קרטון)</span>':'')+'</td><td>'+(v.us||'—')+'</td><td class="alcell">'+(v.al||'—')+'</td><td><b>'+tot+'</b></td></tr>'; });
+      var allTot=usBox+usCart+alBox+alCart;
+      regUs+=usBox+usCart; regAl+=alBox+alCart;
+      cb+='<div class="cust"><div class="cn">'+esc(c.name)+' <span class="pill"><b>סה"כ '+allTot+'</b></span></div>'
         +(c.addr?'<div class="addr">'+esc(c.addr)+'</div>':'')
-        +'<table class="mini"><thead><tr><th>מוצר</th><th>ללקט מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr></thead><tbody>'+rows+'</tbody></table></div>'; });
+        +'<table class="mini sum2"><thead><tr><th>מקור</th><th>ארגזים</th><th>קרטונים</th><th>סה"כ</th></tr></thead><tbody>'
+        +'<tr><td>מאצלנו</td><td>'+usBox+'</td><td>'+usCart+'</td><td><b>'+(usBox+usCart)+'</b></td></tr>'
+        +'<tr style="background:var(--greenbg)"><td>מעלומים</td><td>'+alBox+'</td><td>'+alCart+'</td><td><b>'+(alBox+alCart)+'</b></td></tr>'
+        +'<tr style="font-weight:700;background:#eef3f7"><td>סה"כ</td><td>'+(usBox+alBox)+'</td><td>'+(usCart+alCart)+'</td><td>'+allTot+'</td></tr>'
+        +'</tbody></table>'
+        +'<table class="mini"><thead><tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ</th></tr></thead><tbody>'+rows+'</tbody></table></div>'; });
     var pal=S.boxes_per_pallet>0?Math.ceil(regUnits/S.boxes_per_pallet):0;
-    html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>מאצלנו '+regUs+' · מעלומים '+regAl+' · סה"כ '+(regUs+regAl)+' ארגז'+(pal?' · ~'+pal+' משטח':'')+'</span></div>'+cb+'</div>'; });
+    html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>סה"כ '+(regUs+regAl)+' (מאצלנו '+regUs+' · מעלומים '+regAl+')'+(pal?' · ~'+pal+' משטח':'')+'</span></div>'+cb+'</div>'; });
   return html+'</div>'; }
 function aggProducts(R){ const m={};
   ['prepare','send','receive'].forEach(key=>{ const b=R.buckets[key];
