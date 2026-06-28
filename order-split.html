@@ -378,7 +378,7 @@ document.getElementById('file').addEventListener('change',ev=>{const f=ev.target
 window.addEventListener('dragover',e=>e.preventDefault()); window.addEventListener('drop',e=>e.preventDefault());
 
 const HEB=['א','ב','ג','ד','ה','ו','ש'];
-function tomorrowLetter(){ let t=(new Date().getDay()+1)%7; if(t===6)t=0; return HEB[t]; } // שבת -> ראשון
+function tomorrowLetter(){ let t=(new Date().getDay()+1)%7; if(t===5||t===6)t=0; return HEB[t]; } // אין יום שישי: חמישי/שישי/שבת -> ראשון
 async function loadFile(f){
   const info=document.getElementById('fileinfo'); info.textContent='קורא: '+f.name+' ...';
   document.getElementById('msg').innerHTML=''; document.getElementById('out').innerHTML='';
