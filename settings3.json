@@ -1,0 +1,245 @@
+{
+ "trucks": [
+  {
+   "id": "503",
+   "license": 15,
+   "loadTon": 16,
+   "maxPallets": 18,
+   "cooling": "good",
+   "terminal": true,
+   "active": true
+  },
+  {
+   "id": "702",
+   "license": 15,
+   "loadTon": 6,
+   "maxPallets": 15.5,
+   "cooling": "good",
+   "terminal": false,
+   "active": true
+  },
+  {
+   "id": "902",
+   "license": 12,
+   "loadTon": 15,
+   "maxPallets": 14,
+   "cooling": "weak",
+   "terminal": false,
+   "active": true
+  },
+  {
+   "id": "703",
+   "license": 12,
+   "loadTon": 5,
+   "maxPallets": 12,
+   "cooling": "good",
+   "terminal": false,
+   "active": true
+  },
+  {
+   "id": "704",
+   "license": 12,
+   "loadTon": 5,
+   "maxPallets": 14,
+   "cooling": "good",
+   "terminal": false,
+   "active": true
+  }
+ ],
+ "drivers": [
+  {
+   "name": "אלון",
+   "license": 15,
+   "terminal": true,
+   "contractor": false,
+   "active": true,
+   "truck": "503",
+   "checkin": "21:30",
+   "shift": "לילה"
+  },
+  {
+   "name": "יהודה",
+   "license": 15,
+   "terminal": true,
+   "contractor": false,
+   "active": true,
+   "truck": "503",
+   "checkin": "07:30",
+   "shift": "בוקר"
+  },
+  {
+   "name": "יניב דמרי",
+   "license": 15,
+   "terminal": false,
+   "contractor": false,
+   "active": true,
+   "truck": "703",
+   "checkin": "22:00",
+   "shift": "לילה"
+  },
+  {
+   "name": "שי",
+   "license": 15,
+   "terminal": false,
+   "contractor": false,
+   "active": true,
+   "truck": "704",
+   "checkin": "23:00",
+   "shift": "לילה"
+  },
+  {
+   "name": "מטר",
+   "license": 15,
+   "terminal": false,
+   "contractor": false,
+   "active": true,
+   "truck": "902",
+   "checkin": "22:30",
+   "shift": "לילה"
+  },
+  {
+   "name": "יניב מחלבני",
+   "license": 15,
+   "terminal": false,
+   "contractor": false,
+   "active": true,
+   "truck": "702",
+   "checkin": "16:00",
+   "shift": "לילה"
+  },
+  {
+   "name": "קבלן",
+   "license": 15,
+   "terminal": false,
+   "contractor": true,
+   "active": true,
+   "truck": "",
+   "checkin": "23:30",
+   "shift": "לילה"
+  }
+ ],
+ "customers": [
+  {
+   "name": "איכילוב",
+   "flags": [
+    "בית חולים"
+   ],
+   "from": "06:00",
+   "to": "",
+   "shift": "בוקר",
+   "north": false,
+   "note": ""
+  },
+  {
+   "name": "תל השומר",
+   "flags": [
+    "בית חולים"
+   ],
+   "from": "06:00",
+   "to": "",
+   "shift": "בוקר",
+   "north": false,
+   "note": ""
+  },
+  {
+   "name": "לוינשטיין",
+   "flags": [
+    "בית חולים"
+   ],
+   "from": "06:00",
+   "to": "",
+   "shift": "בוקר",
+   "north": false,
+   "note": ""
+  },
+  {
+   "name": "סלטי גל",
+   "flags": [],
+   "from": "06:00",
+   "to": "",
+   "shift": "בוקר",
+   "north": false,
+   "note": ""
+  },
+  {
+   "name": "ברכת עץ השדה",
+   "flags": [],
+   "from": "",
+   "to": "24:00",
+   "shift": "לילה",
+   "north": false,
+   "note": ""
+  },
+  {
+   "name": "משה קילופים",
+   "flags": [],
+   "from": "",
+   "to": "23:30",
+   "shift": "לילה",
+   "north": false,
+   "note": ""
+  },
+  {
+   "name": "אייסמן",
+   "flags": [],
+   "from": "",
+   "to": "11:30",
+   "shift": "בוקר",
+   "north": false,
+   "note": "לקוח בוקר"
+  },
+  {
+   "name": "מקדונלד",
+   "flags": [
+    "טרמינל"
+   ],
+   "from": "",
+   "to": "",
+   "shift": "לילה",
+   "north": false,
+   "note": "רק משאית 503 + נהג מורשה"
+  },
+  {
+   "name": "אברהם איליה",
+   "flags": [
+    "ספק",
+    "משקל"
+   ],
+   "from": "",
+   "to": "",
+   "shift": "לילה",
+   "north": false,
+   "note": "דולב 270-300 ק\"ג; דולבים ריקים"
+  },
+  {
+   "name": "גלאט עלים",
+   "flags": [
+    "ספק"
+   ],
+   "from": "",
+   "to": "",
+   "shift": "לילה",
+   "north": false,
+   "note": "אוספים רק כשנותנים סחורה"
+  },
+  {
+   "name": "כפר יעבץ",
+   "flags": [
+    "ספק",
+    "ראש בראש"
+   ],
+   "from": "",
+   "to": "",
+   "shift": "לילה",
+   "north": false,
+   "note": "יואב ורחמים; ראש בראש משטחים"
+  }
+ ],
+ "rules": {
+  "max_drive_hours": 12,
+  "break_after_hours": 6,
+  "ayalon_block": "06:30-09:00",
+  "contractor_last": true,
+  "boxes_per_pallet": 60
+ }
+}

@@ -1,0 +1,251 @@
+<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>סידור נהגים — טרי לי</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#1f2d3d;--muted:#6b7c93;--brand:#6b3fa0;--brand2:#4e2d77;--line:#e2e8f0;--ok:#2e7d32;--okbg:#edf7ed;--warn:#b45309;--warnbg:#fff7ed;--err:#c62828;--errbg:#fdecea;}
+*{box-sizing:border-box}body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+header{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:14px 20px}
+header h1{margin:0;font-size:20px}header .sub{opacity:.9;font-size:13px;margin-top:2px}
+.tabs{display:flex;gap:4px;background:#3b2259;padding:0 12px;flex-wrap:wrap}
+.tabs button{background:none;border:none;color:#d9cce8;padding:11px 16px;cursor:pointer;font-size:15px;border-bottom:3px solid transparent}
+.tabs button.active{color:#fff;border-bottom-color:#fff;font-weight:600}
+.wrap{max-width:1150px;margin:0 auto;padding:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.card h2{margin:0 0 10px;font-size:17px}.card h3{margin:10px 0 6px;font-size:15px}
+.btn{background:var(--brand);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:15px;cursor:pointer;font-weight:600}
+.btn:hover{background:var(--brand2)}.btn.sec{background:#fff;color:var(--brand2);border:1px solid var(--brand)}.btn.sec:hover{background:#f3eefa}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:Consolas,monospace;font-size:13px;direction:rtl}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+th{background:#f1edf7;font-weight:600}tbody tr:nth-child(even){background:#fafbfe}
+input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.muted{color:var(--muted);font-size:13px}.hidden{display:none}
+.pill{display:inline-block;border-radius:20px;padding:1px 9px;font-size:12px;margin:1px}
+.flag{background:#ede7f6;color:#4e2d77}.warnp{background:var(--warnbg);color:var(--warn)}.errp{background:var(--errbg);color:var(--err)}
+.drv{border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow:hidden}
+.drvhead{background:#f3eefa;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.drvhead .nm{font-weight:700;font-size:15px}
+.cap{height:8px;border-radius:6px;background:#e6e1ef;overflow:hidden;width:160px;display:inline-block;vertical-align:middle}
+.cap>i{display:block;height:100%;background:var(--ok)}.cap.over>i{background:var(--err)}
+.warnbox{background:var(--warnbg);border:1px solid #fed7aa;color:var(--warn);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
+.errbox{background:var(--errbg);border:1px solid #f5c6cb;color:var(--err);border-radius:8px;padding:8px;margin:8px 0;font-size:13px}
+.okbox{background:var(--okbg);border:1px solid #c8e6c9;color:var(--ok);border-radius:8px;padding:8px;margin-top:8px;font-size:13px}
+.shifthdr{background:#2e2150;color:#fff;border-radius:8px;padding:6px 12px;font-weight:700;margin:14px 0 6px}
+@media print{.tabs,.btn,header .sub,.noprint{display:none}.drv{break-inside:avoid}}
+</style></head><body>
+<header><h1>סידור נהגים — טרי לי</h1><div class="sub">משבץ לקוחות לנהגים ומשאיות לפי משטחים ואילוצים · פלט להדפסה</div></header>
+<div class="tabs">
+<button class="active" onclick="tab('plan',this)">סידור</button>
+<button onclick="tab('fleet',this)">נהגים ומשאיות</button>
+<button onclick="tab('cust',this)">לקוחות (אילוצים)</button>
+<button onclick="tab('help',this)">הוראות</button>
+</div>
+<div class="wrap">
+
+<div id="plan">
+ <div class="card noprint">
+  <h2>1. לקוחות היום + משטחים</h2>
+  <p class="muted">הדבק רשימה: כל שורה = <b>שם לקוח</b> ואז <b>מספר משטחים</b> (ואופציונלי מספר קרטונים), מופרד בטאב או פסיק. אפשר להעתיק מחלוקת ההזמנות.</p>
+  <textarea id="inp" placeholder="עדי	12&#10;המרכבה	1&#10;מקדונלד	6"></textarea>
+  <div class="row"><button class="btn" onclick="loadStops()">טען לקוחות ▶</button>
+   <button class="btn sec" onclick="demo()">דוגמה</button>
+   <span style="flex:1"></span>
+   <button class="btn" onclick="autoSuggest()">⚙ הצע שיבוץ אוטומטי</button></div>
+  <div id="msg"></div>
+ </div>
+ <div id="stops" class="card noprint hidden"><h2>2. שיבוץ — איזה לקוח לאיזה נהג</h2><div id="stopsTbl"></div>
+  <div class="row"><button class="btn" onclick="render()">בנה סידור ▼</button>
+   <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
+   <button class="btn sec" onclick="window.print()">🖨 הדפסה</button></div></div>
+ <div id="out"></div>
+</div>
+
+<div id="fleet" class="hidden">
+ <div class="card"><h2>נהגי היום</h2><p class="muted">סמן מי עובד, באיזו משאית, ושעת התייצבות. "קבלן" מועמס אחרון. נהג עם היתר טרמינל יכול לנסוע לטרמינל (מקדונלס נמל).</p>
+  <table id="drvTbl"></table>
+  <div class="row"><button class="btn sec" onclick="addDriver()">+ נהג</button></div></div>
+ <div class="card"><h2>משאיות</h2><p class="muted">סמן אילו פעילות (משאית במוסך = כבה). 902 קירור חלש → לא לצפון/רגיש. רק 503 רשומה לטרמינל.</p>
+  <table id="truckTbl"></table>
+  <div class="row"><button class="btn sec" onclick="addTruck()">+ משאית</button>
+   <button class="btn" onclick="saveSettings()">💾 שמור</button>
+   <button class="btn sec" onclick="resetSettings()">↺ איפוס</button></div></div>
+</div>
+
+<div id="cust" class="hidden">
+ <div class="card"><h2>לקוחות — אילוצים</h2><p class="muted">חלונות זמן, סימוני בית חולים/טרמינל/ספק, צפון (לקירור), הערות. משמש לאזהרות בשיבוץ.</p>
+  <div class="row"><button class="btn sec" onclick="addCust()">+ לקוח</button><button class="btn" onclick="saveSettings()">💾 שמור</button></div>
+  <div style="overflow:auto;margin-top:10px"><table id="custTbl"></table></div></div>
+</div>
+
+<div id="help" class="hidden"><div class="card"><h2>איך עובדים</h2>
+ <ol><li>בלשונית <b>סידור</b> מדביקים את הלקוחות + משטחים (מחלוקת ההזמנות) ולוחצים "טען".</li>
+ <li>לכל לקוח בוחרים <b>נהג</b> (או "הצע שיבוץ אוטומטי" ואז מתקנים).</li>
+ <li>"בנה סידור" מציג לכל נהג: משאית, שעת התייצבות, תחנות, סה"כ משטחים, ו<b>אזהרות</b> (חריגת קיבולת, 902 לצפון, טרמינל, בית חולים, חלון זמן).</li>
+ <li><b>ייצוא/הדפסה</b> בפורמט הסידור.</li></ol>
+ <p>בלשוניות <b>נהגים/משאיות</b> ו<b>לקוחות</b> עורכים את האילוצים. הכל נשמר במחשב; בהמשך נחבר ל-Gemini ל"הצעת סידור" חכמה יותר.</p></div></div>
+
+</div>
+<script>
+const DEFAULTS = {"trucks": [{"id": "503", "license": 15, "loadTon": 16, "maxPallets": 18, "cooling": "good", "terminal": true, "active": true}, {"id": "702", "license": 15, "loadTon": 6, "maxPallets": 15.5, "cooling": "good", "terminal": false, "active": true}, {"id": "902", "license": 12, "loadTon": 15, "maxPallets": 14, "cooling": "weak", "terminal": false, "active": true}, {"id": "703", "license": 12, "loadTon": 5, "maxPallets": 12, "cooling": "good", "terminal": false, "active": true}, {"id": "704", "license": 12, "loadTon": 5, "maxPallets": 14, "cooling": "good", "terminal": false, "active": true}], "drivers": [{"name": "אלון", "license": 15, "terminal": true, "contractor": false, "active": true, "truck": "503", "checkin": "21:30", "shift": "לילה"}, {"name": "יהודה", "license": 15, "terminal": true, "contractor": false, "active": true, "truck": "503", "checkin": "07:30", "shift": "בוקר"}, {"name": "יניב דמרי", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "703", "checkin": "22:00", "shift": "לילה"}, {"name": "שי", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "704", "checkin": "23:00", "shift": "לילה"}, {"name": "מטר", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "902", "checkin": "22:30", "shift": "לילה"}, {"name": "יניב מחלבני", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "702", "checkin": "16:00", "shift": "לילה"}, {"name": "קבלן", "license": 15, "terminal": false, "contractor": true, "active": true, "truck": "", "checkin": "23:30", "shift": "לילה"}], "customers": [{"name": "איכילוב", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "תל השומר", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "לוינשטיין", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "סלטי גל", "flags": [], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "ברכת עץ השדה", "flags": [], "from": "", "to": "24:00", "shift": "לילה", "north": false, "note": ""}, {"name": "משה קילופים", "flags": [], "from": "", "to": "23:30", "shift": "לילה", "north": false, "note": ""}, {"name": "אייסמן", "flags": [], "from": "", "to": "11:30", "shift": "בוקר", "north": false, "note": "לקוח בוקר"}, {"name": "מקדונלד", "flags": ["טרמינל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "רק משאית 503 + נהג מורשה"}, {"name": "אברהם איליה", "flags": ["ספק", "משקל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "דולב 270-300 ק\"ג; דולבים ריקים"}, {"name": "גלאט עלים", "flags": ["ספק"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "אוספים רק כשנותנים סחורה"}, {"name": "כפר יעבץ", "flags": ["ספק", "ראש בראש"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "יואב ורחמים; ראש בראש משטחים"}], "rules": {"max_drive_hours": 12, "break_after_hours": 6, "ayalon_block": "06:30-09:00", "contractor_last": true, "boxes_per_pallet": 60}};
+let DB = load();
+let STOPS = []; // [{name, pallets, cartons, driver, cust(attr)}]
+function load(){ try{const s=localStorage.getItem('drv_set'); if(s)return Object.assign({},JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(s));}catch(e){} return JSON.parse(JSON.stringify(DEFAULTS)); }
+function persist(){ try{localStorage.setItem('drv_set',JSON.stringify(DB));}catch(e){} }
+(async function(){ try{const r=await fetch('settings3.json?_='+Date.now(),{cache:'no-store'}); if(r.ok){const j=await r.json(); if(j&&j.trucks){DB=Object.assign({},DEFAULTS,j); renderFleet();renderCustSet();}}}catch(e){} })();
+
+function norm(s){return (s||'').toString().replace(/["'׳״]/g,'').replace(/\s+/g,' ').trim();}
+function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function findCust(name){ const n=norm(name); let best=null,bl=-1;
+  DB.customers.forEach(c=>{ const a=norm(c.name); if(n.indexOf(a)>=0||a.indexOf(n)>=0){ if(a.length>bl){best=c;bl=a.length;} } }); return best; }
+function activeDrivers(){ return DB.drivers.filter(d=>d.active); }
+function truckOf(dn){ const d=DB.drivers.find(x=>x.name===dn); if(!d)return null; return DB.trucks.find(t=>t.id===d.truck)||null; }
+
+/* ---------- קלט לקוחות ---------- */
+function loadStops(){ const t=document.getElementById('inp').value; const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim());
+  STOPS=[]; let unknown=[];
+  lines.forEach(l=>{ const p=l.split(/\t|,|;/).map(x=>x.trim()).filter(x=>x!=='');
+    if(!p.length)return; const name=p[0]; const pallets=parseFloat((p[1]||'').replace(/[^0-9.]/g,''))||0; const cartons=parseFloat((p[2]||'').replace(/[^0-9.]/g,''))||0;
+    if(!name||(pallets===0&&cartons===0&&p.length<2))return;
+    const c=findCust(name); STOPS.push({name:name,pallets:pallets,cartons:cartons,driver:'',cust:c}); });
+  document.getElementById('stops').classList.remove('hidden');
+  document.getElementById('msg').innerHTML='<div class="okbox">נטענו '+STOPS.length+' לקוחות. שבץ נהג לכל אחד (או "הצע שיבוץ אוטומטי").</div>';
+  renderStops(); document.getElementById('out').innerHTML='';
+}
+function renderStops(){ const drs=activeDrivers();
+  let h='<table><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>אילוצים</th><th>נהג</th></tr></thead><tbody>';
+  STOPS.forEach((s,i)=>{ const fl=s.cust?(s.cust.flags||[]).concat(s.cust.from?['מ-'+s.cust.from]:[],s.cust.to?['עד '+s.cust.to]:[],s.cust.north?['צפון']:[]):[];
+    h+='<tr><td style="text-align:right">'+esc(s.name)+'</td><td><input type="number" step="0.5" value="'+s.pallets+'" style="width:60px" onchange="STOPS['+i+'].pallets=parseFloat(this.value)||0"></td>'
+      +'<td><input type="number" value="'+s.cartons+'" style="width:60px" onchange="STOPS['+i+'].cartons=parseFloat(this.value)||0"></td>'
+      +'<td>'+(fl.length?fl.map(f=>'<span class="pill flag">'+esc(f)+'</span>').join(''):'<span class="muted">—</span>')+'</td>'
+      +'<td><select onchange="STOPS['+i+'].driver=this.value"><option value="">— בחר —</option>'
+      +drs.map(d=>'<option'+(s.driver===d.name?' selected':'')+'>'+esc(d.name)+'</option>').join('')+'</select></td></tr>'; });
+  h+='</tbody></table>'; document.getElementById('stopsTbl').innerHTML=h;
+}
+
+/* ---------- שיבוץ אוטומטי (כללים) ---------- */
+function autoSuggest(){ if(!STOPS.length){ loadStops(); if(!STOPS.length)return; }
+  const drs=activeDrivers().filter(d=>!d.contractor); const contractor=activeDrivers().find(d=>d.contractor);
+  // אתחול עומסים
+  const load={}; drs.forEach(d=>load[d.name]=0); if(contractor)load[contractor.name]=0;
+  STOPS.forEach(s=>{ s.driver=''; });
+  // מקדונלד/טרמינל -> נהג מורשה במשאית 503
+  STOPS.forEach(s=>{ if(s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0){ const d=drs.find(x=>x.terminal&&truckOf(x.name)&&truckOf(x.name).id==='503')||drs.find(x=>x.terminal); if(d){s.driver=d.name;load[d.name]+=s.pallets;} } });
+  // השאר: לנהג עם הכי הרבה מקום פנוי שעובר אילוצים
+  STOPS.forEach(s=>{ if(s.driver)return; let best=null,bestFree=-1;
+    drs.forEach(d=>{ const t=truckOf(d.name); if(!t)return; const cap=t.maxPallets-load[d.name];
+      if(s.cust&&s.cust.north&&t.cooling==='weak')return; // 902 לא לצפון
+      if(s.cust&&(s.cust.flags||[]).indexOf('בית חולים')>=0&&t.license>12){ /* פחות מועדף */ }
+      if(cap>bestFree){bestFree=cap;best=d.name;} });
+    if(best){s.driver=best;load[best]+=s.pallets;} });
+  renderStops(); render();
+  document.getElementById('msg').innerHTML='<div class="okbox">בוצע שיבוץ אוטומטי לפי כללים. עבור ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
+}
+
+/* ---------- בניית הסידור + אזהרות ---------- */
+function validateDriver(d, stops){ const t=truckOf(d.name); const warns=[],errs=[];
+  let pal=0,car=0; stops.forEach(s=>{pal+=s.pallets;car+=s.cartons;});
+  if(!t&&!d.contractor) errs.push('לא הוקצתה משאית');
+  if(t&&pal>t.maxPallets) errs.push('חריגת משטחים: '+pal+' > '+t.maxPallets+' (משאית '+t.id+')');
+  stops.forEach(s=>{ const c=s.cust; if(!c)return;
+    if((c.flags||[]).indexOf('טרמינל')>=0){ if(!t||t.id!=='503') errs.push(esc(s.name)+': טרמינל דורש משאית 503'); if(!d.terminal) errs.push(esc(s.name)+': טרמינל דורש נהג מורשה'); }
+    if(c.north&&t&&t.cooling==='weak') errs.push(esc(s.name)+': צפון/רגיש — משאית '+t.id+' קירור חלש');
+    if((c.flags||[]).indexOf('בית חולים')>=0&&t&&t.license>12) warns.push(esc(s.name)+': בית חולים — עדיף משאית עד 12 טון (איילון 6:30-9:00)');
+    if((c.flags||[]).indexOf('ספק')>=0&&(c.flags||[]).indexOf('משקל')>=0) warns.push(esc(s.name)+': איסוף כבד — לשים לב למשקל המשאית');
+  });
+  return {pal,car,warns,errs,t};
+}
+function render(){ const out=document.getElementById('out');
+  const byShift={'לילה':{},'בוקר':{}};
+  const drs=activeDrivers();
+  drs.forEach(d=>{ const sh=d.shift||'לילה'; byShift[sh][d.name]={d:d,stops:[]}; });
+  let unassigned=[];
+  STOPS.forEach(s=>{ if(!s.driver){unassigned.push(s);return;} const d=drs.find(x=>x.name===s.driver); if(!d){unassigned.push(s);return;}
+    const sh=d.shift||'לילה'; byShift[sh][d.name].stops.push(s); });
+  let html='<div class="card"><h2>הסידור</h2>';
+  if(unassigned.length) html+='<div class="warnbox">לקוחות ללא נהג: '+unassigned.map(s=>esc(s.name)).join(', ')+'</div>';
+  ['לילה','בוקר'].forEach(sh=>{ const ds=Object.values(byShift[sh]).filter(x=>x.stops.length||x.d.contractor);
+    // קבלן אחרון
+    ds.sort((a,b)=>(a.d.contractor?1:0)-(b.d.contractor?1:0));
+    if(!ds.length) return;
+    html+='<div class="shifthdr">'+(sh==='לילה'?'🌙 לילה':'☀ בוקר')+'</div>';
+    ds.forEach(x=>{ const v=validateDriver(x.d,x.stops); const t=v.t;
+      const cap=t?Math.min(100,Math.round(v.pal/t.maxPallets*100)):0; const over=t&&v.pal>t.maxPallets;
+      html+='<div class="drv"><div class="drvhead"><span class="nm">'+esc(x.d.name)+(x.d.contractor?' <span class="pill flag">קבלן</span>':'')+'</span>'
+        +'<span class="muted">משאית '+(t?t.id:'—')+' · התייצבות '+esc(x.d.checkin||'—')+' · '+v.pal+' משטחים'+(v.car?' · '+v.car+' קרטונים':'')+'</span>'
+        +'<span class="cap'+(over?' over':'')+'" title="'+v.pal+'/'+(t?t.maxPallets:'?')+'"><i style="width:'+cap+'%"></i></span></div>';
+      html+='<table><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>הערה</th></tr></thead><tbody>';
+      x.stops.forEach(s=>{ html+='<tr><td style="text-align:right">'+esc(s.name)+'</td><td>'+s.pallets+'</td><td>'+(s.cartons||'—')+'</td><td class="muted" style="text-align:right">'+esc(s.cust&&s.cust.note||'')+'</td></tr>'; });
+      if(!x.stops.length) html+='<tr><td colspan="4" class="muted">—</td></tr>';
+      html+='</tbody></table>';
+      v.errs.forEach(e=>html+='<div class="errbox">⛔ '+e+'</div>');
+      v.warns.forEach(w=>html+='<div class="warnbox">⚠ '+w+'</div>');
+      html+='</div>';
+    });
+  });
+  html+='</div>'; out.innerHTML=html;
+}
+
+/* ---------- ייצוא ---------- */
+function exportXls(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1">'
+  +'<tr><th>משמרת</th><th>נהג</th><th>משאית</th><th>התייצבות</th><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>הערה</th></tr>';
+  const drs=activeDrivers();
+  ['לילה','בוקר'].forEach(sh=>{ drs.filter(d=>(d.shift||'לילה')===sh).sort((a,b)=>(a.contractor?1:0)-(b.contractor?1:0)).forEach(d=>{
+    const stops=STOPS.filter(s=>s.driver===d.name); const t=truckOf(d.name); let pal=0;
+    stops.forEach(s=>{pal+=s.pallets; h+='<tr><td>'+sh+'</td><td>'+d.name+'</td><td>'+(t?t.id:'')+'</td><td>'+(d.checkin||'')+'</td><td>'+s.name+'</td><td>'+s.pallets+'</td><td>'+(s.cartons||'')+'</td><td>'+(s.cust&&s.cust.note||'')+'</td></tr>'; });
+    if(stops.length) h+='<tr><td colspan="5"><b>סה"כ '+d.name+'</b></td><td><b>'+pal+'</b></td><td colspan="2"></td></tr>';
+  }); });
+  h+='</table></body></html>'; const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='סידור נהגים.xls'; a.click();
+}
+
+/* ---------- הגדרות: נהגים/משאיות/לקוחות ---------- */
+function renderFleet(){
+  let h='<thead><tr><th>פעיל</th><th>נהג</th><th>רישיון(טון)</th><th>היתר טרמינל</th><th>קבלן</th><th>משאית</th><th>התייצבות</th><th>משמרת</th><th></th></tr></thead><tbody>';
+  DB.drivers.forEach((d,i)=>{ h+='<tr>'
+    +'<td><input type="checkbox" '+(d.active?'checked':'')+' onchange="DB.drivers['+i+'].active=this.checked"></td>'
+    +'<td><input value="'+esc(d.name)+'" onchange="DB.drivers['+i+'].name=this.value" style="width:90px"></td>'
+    +'<td><select onchange="DB.drivers['+i+'].license=+this.value"><option'+(d.license==15?' selected':'')+'>15</option><option'+(d.license==12?' selected':'')+'>12</option></select></td>'
+    +'<td><input type="checkbox" '+(d.terminal?'checked':'')+' onchange="DB.drivers['+i+'].terminal=this.checked"></td>'
+    +'<td><input type="checkbox" '+(d.contractor?'checked':'')+' onchange="DB.drivers['+i+'].contractor=this.checked"></td>'
+    +'<td><select onchange="DB.drivers['+i+'].truck=this.value"><option value="">—</option>'+DB.trucks.map(t=>'<option'+(d.truck===t.id?' selected':'')+'>'+t.id+'</option>').join('')+'</select></td>'
+    +'<td><input value="'+esc(d.checkin||'')+'" onchange="DB.drivers['+i+'].checkin=this.value" style="width:60px"></td>'
+    +'<td><select onchange="DB.drivers['+i+'].shift=this.value"><option'+(d.shift==='לילה'?' selected':'')+'>לילה</option><option'+(d.shift==='בוקר'?' selected':'')+'>בוקר</option></select></td>'
+    +'<td><button class="btn sec" style="padding:2px 7px" onclick="DB.drivers.splice('+i+',1);renderFleet()">✕</button></td></tr>'; });
+  h+='</tbody>'; document.getElementById('drvTbl').innerHTML=h;
+  let th='<thead><tr><th>פעיל</th><th>משאית</th><th>רישיון</th><th>העמסה(טון)</th><th>מקס משטחים</th><th>קירור</th><th>טרמינל</th><th></th></tr></thead><tbody>';
+  DB.trucks.forEach((t,i)=>{ th+='<tr>'
+    +'<td><input type="checkbox" '+(t.active?'checked':'')+' onchange="DB.trucks['+i+'].active=this.checked"></td>'
+    +'<td><input value="'+esc(t.id)+'" onchange="DB.trucks['+i+'].id=this.value" style="width:60px"></td>'
+    +'<td><input type="number" value="'+t.license+'" onchange="DB.trucks['+i+'].license=+this.value" style="width:50px"></td>'
+    +'<td><input type="number" value="'+t.loadTon+'" onchange="DB.trucks['+i+'].loadTon=+this.value" style="width:50px"></td>'
+    +'<td><input type="number" step="0.5" value="'+t.maxPallets+'" onchange="DB.trucks['+i+'].maxPallets=+this.value" style="width:60px"></td>'
+    +'<td><select onchange="DB.trucks['+i+'].cooling=this.value"><option value="good"'+(t.cooling==='good'?' selected':'')+'>תקין</option><option value="weak"'+(t.cooling==='weak'?' selected':'')+'>חלש</option></select></td>'
+    +'<td><input type="checkbox" '+(t.terminal?'checked':'')+' onchange="DB.trucks['+i+'].terminal=this.checked"></td>'
+    +'<td><button class="btn sec" style="padding:2px 7px" onclick="DB.trucks.splice('+i+',1);renderFleet()">✕</button></td></tr>'; });
+  th+='</tbody>'; document.getElementById('truckTbl').innerHTML=th;
+}
+const CFLAGS=['בית חולים','טרמינל','ספק','משקל','ראש בראש'];
+function renderCustSet(){ let h='<thead><tr><th>לקוח</th><th>מ-</th><th>עד</th><th>משמרת</th><th>צפון</th><th>סימונים</th><th>הערה</th><th></th></tr></thead><tbody>';
+  DB.customers.forEach((c,i)=>{ h+='<tr>'
+    +'<td><input value="'+esc(c.name)+'" onchange="DB.customers['+i+'].name=this.value" style="width:110px"></td>'
+    +'<td><input value="'+esc(c.from||'')+'" onchange="DB.customers['+i+'].from=this.value" style="width:55px"></td>'
+    +'<td><input value="'+esc(c.to||'')+'" onchange="DB.customers['+i+'].to=this.value" style="width:55px"></td>'
+    +'<td><select onchange="DB.customers['+i+'].shift=this.value"><option'+(c.shift==='לילה'?' selected':'')+'>לילה</option><option'+(c.shift==='בוקר'?' selected':'')+'>בוקר</option></select></td>'
+    +'<td><input type="checkbox" '+(c.north?'checked':'')+' onchange="DB.customers['+i+'].north=this.checked"></td>'
+    +'<td style="text-align:right">'+CFLAGS.map(f=>'<label style="font-size:12px;margin-left:6px"><input type="checkbox" '+((c.flags||[]).indexOf(f)>=0?'checked':'')+' onchange="toggleFlag('+i+',\''+f+'\',this.checked)">'+f+'</label>').join('')+'</td>'
+    +'<td><input value="'+esc(c.note||'')+'" onchange="DB.customers['+i+'].note=this.value" style="width:160px"></td>'
+    +'<td><button class="btn sec" style="padding:2px 7px" onclick="DB.customers.splice('+i+',1);renderCustSet()">✕</button></td></tr>'; });
+  h+='</tbody>'; document.getElementById('custTbl').innerHTML=h;
+}
+function toggleFlag(i,f,on){ let a=DB.customers[i].flags||(DB.customers[i].flags=[]); const k=a.indexOf(f); if(on&&k<0)a.push(f); if(!on&&k>=0)a.splice(k,1); }
+function addDriver(){ DB.drivers.push({name:'נהג חדש',license:15,terminal:false,contractor:false,active:true,truck:'',checkin:'',shift:'לילה'}); renderFleet(); }
+function addTruck(){ DB.trucks.push({id:'חדש',license:12,loadTon:5,maxPallets:12,cooling:'good',terminal:false,active:true}); renderFleet(); }
+function addCust(){ DB.customers.push({name:'לקוח חדש',flags:[],from:'',to:'',shift:'לילה',north:false,note:''}); renderCustSet(); }
+function saveSettings(){ persist(); flash('נשמר ✓'); }
+function resetSettings(){ if(confirm('לאפס הכל לברירת מחדל?')){ DB=JSON.parse(JSON.stringify(DEFAULTS)); persist(); renderFleet(); renderCustSet(); } }
+function flash(t){ const d=document.createElement('div'); d.textContent=t; d.style.cssText='position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#4e2d77;color:#fff;padding:10px 20px;border-radius:8px;z-index:99'; document.body.appendChild(d); setTimeout(()=>d.remove(),1400); }
+function demo(){ document.getElementById('inp').value="עדי\t12\nהמרכבה\t1\nטעמית פניני השף\t3\nעינת\t1\nזמן קפה\t1\nסלטי גל\t2\nברכת עץ השדה\t1\nלוינשטיין\t1\nהדר הפודים\t4\nהתעשיינים\t5\nמשי הוד\t3\nויויאן\t1\nמ.ג.ע\t1\nמשה קילופים\t1\nמקדונלד\t6\nמעדני עופר\t2\nצבר\t3\nאברהם איליה\t0\t20"; }
+function tab(id,btn){ ['plan','fleet','cust','help'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+  if(id==='fleet')renderFleet(); if(id==='cust')renderCustSet(); }
+renderFleet(); renderCustSet();
+</script></body></html>
