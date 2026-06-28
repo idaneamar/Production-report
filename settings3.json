@@ -241,5 +241,7 @@
   "ayalon_block": "06:30-09:00",
   "contractor_last": true,
   "boxes_per_pallet": 60
- }
+ },
+ "gemini_proxy_url": "",
+ "gemini_key": ""
 }
