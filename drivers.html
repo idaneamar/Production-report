@@ -66,12 +66,8 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
 </div>
 
 <div id="fleet" class="hidden">
- <div class="card"><h2>🤖 חיבור AI (Gemini)</h2>
-  <p class="muted"><b>מומלץ — Proxy:</b> כתובת שכבת ביניים (Cloudflare Worker) שמחזיקה את המפתח. ככה המפתח <b>נסתר מכולם</b> וה-AI עובד <b>מכל מחשב</b>. הכנס את הכתובת גם ל-settings3.json כדי שתחול על כולם.</p>
-  <div class="row">כתובת Proxy: <input id="gproxy" style="width:340px" placeholder="https://xxx.workers.dev"> <button class="btn" onclick="saveKey()">💾 שמור</button></div>
-  <p class="muted" style="margin-top:10px"><b>חלופה (מחשב בודד):</b> מפתח Gemini ישיר — נשמר רק בדפדפן הזה, פחות מומלץ. אם משתמשים — להגביל את המפתח ב-Google Cloud.</p>
-  <div class="row">מפתח Gemini: <input id="gkey" type="password" style="width:300px" placeholder="AIza..."></div>
-  <p class="muted">מפתח חינם: <b>aistudio.google.com</b> → Get API key. הוראות הקמת ה-Proxy בקובץ "הקמת Proxy ל-Gemini.txt".</p>
+ <div class="card"><h2>🤖 שיבוץ AI</h2>
+  <p class="muted">הכלי תומך בשיבוץ אוטומטי בעזרת AI. הגישה ל-AI מוגדרת <b>למורשים בלבד</b> — למידע נוסף פנו למפתח.</p>
  </div>
  <div class="card"><h2>נהגי היום</h2><p class="muted">סמן מי עובד, <b>איזו משאית הוא מקבל להיום</b> (כל נהג יכול לנהוג כל משאית), ושעת התייצבות. הקצאת המשאית היא יומית ולא קבועה. "קבלן" מועמס אחרון. נהג עם היתר טרמינל יכול לטרמינל (מקדונלס נמל).</p>
   <table id="drvTbl"></table>
@@ -103,7 +99,12 @@ let DB = load();
 let STOPS = []; // [{name, pallets, cartons, driver, cust(attr)}]
 function load(){ try{const s=localStorage.getItem('drv_set'); if(s)return Object.assign({},JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(s));}catch(e){} return JSON.parse(JSON.stringify(DEFAULTS)); }
 function persist(){ try{localStorage.setItem('drv_set',JSON.stringify(DB));}catch(e){} }
-(async function(){ try{const r=await fetch('settings3.json?_='+Date.now(),{cache:'no-store'}); if(r.ok){const j=await r.json(); if(j&&j.trucks){DB=Object.assign({},DEFAULTS,j); renderFleet();renderCustSet();}}}catch(e){} })();
+(async function(){ try{const r=await fetch('settings3.json?_='+Date.now(),{cache:'no-store'}); if(r.ok){const j=await r.json(); if(j&&j.trucks){const gp=DB.gemini_proxy_url||'',gk=DB.gemini_key||''; DB=Object.assign({},DEFAULTS,j,{gemini_proxy_url:gp,gemini_key:gk}); renderFleet();renderCustSet();}}}catch(e){} })();
+/* הזנת גישת AI (למורשה בלבד) דרך כתובת סודית: ...drivers.html?proxy=URL — נשמר בדפדפן ונמחק מהכתובת */
+(function(){ try{ const u=new URL(location.href); const p=u.searchParams.get('proxy'), k=u.searchParams.get('aikey'); let ch=false;
+  if(p){DB.gemini_proxy_url=p;ch=true;} if(k){DB.gemini_key=k;ch=true;}
+  if(ch){ persist(); u.searchParams.delete('proxy'); u.searchParams.delete('aikey'); history.replaceState(null,'',u.pathname+(u.search||'')+u.hash); }
+}catch(e){} })();
 
 function norm(s){return (s||'').toString().replace(/["'׳״]/g,'').replace(/\s+/g,' ').trim();}
 function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
@@ -243,8 +244,6 @@ function renderFleet(){
     +'<td><input type="checkbox" '+(t.terminal?'checked':'')+' onchange="DB.trucks['+i+'].terminal=this.checked"></td>'
     +'<td><button class="btn sec" style="padding:2px 7px" onclick="DB.trucks.splice('+i+',1);renderFleet()">✕</button></td></tr>'; });
   th+='</tbody>'; document.getElementById('truckTbl').innerHTML=th;
-  var gk=document.getElementById('gkey'); if(gk)gk.value=DB.gemini_key||'';
-  var gp=document.getElementById('gproxy'); if(gp)gp.value=DB.gemini_proxy_url||'';
 }
 const CFLAGS=['בית חולים','טרמינל','ספק','משקל','ראש בראש'];
 function renderCustSet(){ let h='<thead><tr><th>לקוח</th><th>מ-</th><th>עד</th><th>משמרת</th><th>צפון</th><th>סימונים</th><th>הערה</th><th></th></tr></thead><tbody>';
@@ -306,7 +305,7 @@ function buildPrompt(){ const trucks=DB.trucks.filter(t=>t.active).map(t=>({id:t
    +'אילוצים: לא לחרוג ממקס משטחים של המשאית. מקדונלד/דגל "טרמינל" רק במשאית 503 ונהג עם terminal=true. משאית cooling="weak" לא לדגל north. בית חולים עדיף משאית license<=12. נהג אחד למשאית באותה משמרת. הקבלן (contractor=true) מועמס אחרון. כבד חלונות זמן (from/to) ומשמרת (shift) לילה/בוקר. תמיד שבץ נהג ל"עלומים — החלפת סחורה" (נסיעה במהלך היום).\\n'
    +'משאיות: '+JSON.stringify(trucks)+'\\nנהגים: '+JSON.stringify(drivers)+'\\nלקוחות: '+JSON.stringify(stops); }
 async function aiSuggest(){ const proxy=DB.gemini_proxy_url, key=DB.gemini_key;
-  if(!proxy&&!key){ alert('הזן כתובת Proxy (מומלץ) או מפתח Gemini בלשונית "נהגים ומשאיות".'); document.querySelectorAll('.tabs button')[1].click(); return; }
+  if(!proxy&&!key){ document.getElementById('msg').innerHTML='<div class="warnbox">שיבוץ AI זמין למורשים בלבד. למידע נוסף פנה למפתח.</div>'; return; }
   if(!STOPS.length){ loadStops(); if(!STOPS.length){alert('אין לקוחות — גרור קבצים או הדבק רשימה.');return;} }
   document.getElementById('msg').innerHTML='<div class="okbox">שולח ל-Gemini... ⏳</div>';
   const reqBody=JSON.stringify({contents:[{parts:[{text:buildPrompt()}]}],generationConfig:{response_mime_type:'application/json',temperature:0.2}});
