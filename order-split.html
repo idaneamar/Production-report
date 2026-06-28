@@ -468,11 +468,10 @@ function lineProductHtml(R){ var L=lineProducts(R); var regs=Object.keys(L).sort
     var pal=S.boxes_per_pallet>0?Math.ceil(units/S.boxes_per_pallet):0;
     html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>~'+pal+' משטח</span></div>'
       +'<table class="mini" style="min-width:80%"><thead><tr><th>מוצר</th><th>מאצלנו</th><th>מעלומים</th><th>ארגזים</th><th>קרטונים</th></tr></thead><tbody>'+body
-      +'</tbody><tfoot>'
       +'<tr style="background:#fdf1e6"><td><b>סה"כ מאצלנו</b></td><td colspan="2">—</td><td><b>'+usBox+'</b> ארגזים</td><td><b>'+usCart+'</b> קרטונים</td></tr>'
       +'<tr style="background:var(--greenbg)"><td><b>סה"כ מעלומים</b></td><td colspan="2">—</td><td><b>'+alBox+'</b> ארגזים</td><td><b>'+alCart+'</b> קרטונים</td></tr>'
       +'<tr style="background:#eef3f7;font-weight:700"><td>סה"כ הכל</td><td colspan="2">—</td><td>'+box+' ארגזים</td><td>'+cart+' קרטונים</td></tr>'
-      +'</tfoot></table></div>';
+      +'</tbody></table></div>';
   });
   return html+'</div>'; }
 function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort(function(a,b){return a.localeCompare(b,'he');});
@@ -544,7 +543,7 @@ function productTable(R){ const m=aggProducts(R);
   return '<div class="card pgbreak"><h2>סיכום לפי מוצר — לתכנון ייצור</h2>'
    +'<p class="muted">"סה"כ להכין" = כל מה <b>שאנחנו</b> מכינים (כתום), בין לאזורים שלנו ובין לשלוח לעלומים. "לקבל מעלומים" = מה שעלומים מכינים עבור האזורים שלנו. כמויות בארגזים (פירות/גזרונים בקרטונים).</p>'
    +'<table><thead><tr><th>מוצר</th><th>סה"כ להכין</th><th>לאזורים שלנו</th><th>לשלוח לעלומים</th><th>לקבל מעלומים</th></tr></thead><tbody>'
-   +body+'</tbody><tfoot><tr style="font-weight:700;background:#eef3f7"><td>סה"כ</td><td>'+tprep+'</td><td>'+town+'</td><td>'+ts+'</td><td>'+tr+'</td></tr></tfoot></table></div>';
+   +body+'<tr style="font-weight:700;background:#eef3f7"><td>סה"כ</td><td>'+tprep+'</td><td>'+town+'</td><td>'+ts+'</td><td>'+tr+'</td></tr></tbody></table></div>';
 }
 function tile(n,l,col){ return '<div class="box" style="border-color:'+col+'"><div class="n" style="color:'+col+'">'+n+'</div><div class="l">'+l+'</div></div>'; }
 function esc(s){ return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
