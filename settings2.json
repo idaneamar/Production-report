@@ -1,7 +1,7 @@
 {
  "our_regions": ["מרכז 3", "צפון מזרח", "צפון מערב"],
  "green_colors": ["FFC4D79B", "FF7CEB99", "THEME6"],
- "orange_colors": ["FFFABF8F"],
+ "orange_colors": ["FFFABF8F", "THEME9"],
  "carton_keywords": ["קרטון", "גזרונ"],
  "fruit_keywords": ["אגס", "נקטרינ", "תפוז", "תפוע", "תפוח"],
  "through_us_keys": ["טרי לי", "טרילי"],
