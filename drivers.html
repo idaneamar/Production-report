@@ -18,6 +18,9 @@ textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8
 table{border-collapse:collapse;width:100%;font-size:14px}th,td{border:1px solid var(--line);padding:5px 8px;text-align:center}
 th{background:#f1edf7;font-weight:600}tbody tr:nth-child(even){background:#fafbfe}
 input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.dropzone{border:2px dashed #b9a7d6;border-radius:10px;padding:18px;text-align:center;color:var(--muted);background:#f7f3fc;margin-bottom:10px}
+.dropzone.over{border-color:var(--brand);background:#efe7fa}
+.lnk{color:var(--brand);text-decoration:underline;cursor:pointer;font-weight:600}
 .muted{color:var(--muted);font-size:13px}.hidden{display:none}
 .pill{display:inline-block;border-radius:20px;padding:1px 9px;font-size:12px;margin:1px}
 .flag{background:#ede7f6;color:#4e2d77}.warnp{background:var(--warnbg);color:var(--warn)}.errp{background:var(--errbg);color:var(--err)}
@@ -44,12 +47,15 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
 <div id="plan">
  <div class="card noprint">
   <h2>1. לקוחות היום + משטחים</h2>
-  <p class="muted">הדבק רשימה: כל שורה = <b>שם לקוח</b> ואז <b>מספר משטחים</b> (ואופציונלי מספר קרטונים), מופרד בטאב או פסיק. אפשר להעתיק מחלוקת ההזמנות.</p>
+  <p class="muted">גרור את קובצי הייצוא משני המחשבונים (חלוקת הזמנות "🚚 ייצוא לסידור נהגים", ומחשבון אריזה "ייצוא לאקסל") — או הדבק ידנית למטה.</p>
+  <div id="drop" class="dropzone">📁 גרור לכאן קבצים — או <label class="lnk">בחר קבצים<input type="file" id="file" multiple accept=".xls,.xlsx,.html,.csv" style="display:none"></label>
+   <div id="fileinfo" class="muted"></div></div>
   <textarea id="inp" placeholder="עדי	12&#10;המרכבה	1&#10;מקדונלד	6"></textarea>
   <div class="row"><button class="btn" onclick="loadStops()">טען לקוחות ▶</button>
    <button class="btn sec" onclick="demo()">דוגמה</button>
    <span style="flex:1"></span>
-   <button class="btn" onclick="autoSuggest()">⚙ הצע שיבוץ אוטומטי</button></div>
+   <button class="btn sec" onclick="autoSuggest()">⚙ שיבוץ אוטומטי (כללים)</button>
+   <button class="btn" onclick="aiSuggest()">🤖 הצע סידור (AI)</button></div>
   <div id="msg"></div>
  </div>
  <div id="stops" class="card noprint hidden"><h2>2. שיבוץ — איזה לקוח לאיזה נהג</h2><div id="stopsTbl"></div>
@@ -60,6 +66,11 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
 </div>
 
 <div id="fleet" class="hidden">
+ <div class="card"><h2>🤖 חיבור AI (Gemini)</h2>
+  <p class="muted">הדבק כאן מפתח Gemini API. הוא נשמר <b>רק בדפדפן הזה</b> (לא בקובץ הציבורי ולא נחשף לאחרים). מומלץ להגביל את המפתח ב-Google Cloud (לפי דומיין/API).</p>
+  <div class="row">מפתח Gemini: <input id="gkey" type="password" style="width:300px" placeholder="AIza..."> <button class="btn" onclick="saveKey()">💾 שמור מפתח</button></div>
+  <p class="muted">להשגת מפתח (חינם): היכנס ל-<b>aistudio.google.com</b> → "Get API key". אחר כך בלשונית "סידור" לחץ "🤖 הצע סידור (AI)".</p>
+ </div>
  <div class="card"><h2>נהגי היום</h2><p class="muted">סמן מי עובד, <b>איזו משאית הוא מקבל להיום</b> (כל נהג יכול לנהוג כל משאית), ושעת התייצבות. הקצאת המשאית היא יומית ולא קבועה. "קבלן" מועמס אחרון. נהג עם היתר טרמינל יכול לטרמינל (מקדונלס נמל).</p>
   <table id="drvTbl"></table>
   <div class="row"><button class="btn sec" onclick="addDriver()">+ נהג</button></div></div>
@@ -229,6 +240,7 @@ function renderFleet(){
     +'<td><input type="checkbox" '+(t.terminal?'checked':'')+' onchange="DB.trucks['+i+'].terminal=this.checked"></td>'
     +'<td><button class="btn sec" style="padding:2px 7px" onclick="DB.trucks.splice('+i+',1);renderFleet()">✕</button></td></tr>'; });
   th+='</tbody>'; document.getElementById('truckTbl').innerHTML=th;
+  var gk=document.getElementById('gkey'); if(gk)gk.value=DB.gemini_key||'';
 }
 const CFLAGS=['בית חולים','טרמינל','ספק','משקל','ראש בראש'];
 function renderCustSet(){ let h='<thead><tr><th>לקוח</th><th>מ-</th><th>עד</th><th>משמרת</th><th>צפון</th><th>סימונים</th><th>הערה</th><th></th></tr></thead><tbody>';
@@ -251,6 +263,60 @@ function saveSettings(){ persist(); flash('נשמר ✓'); }
 function resetSettings(){ if(confirm('לאפס הכל לברירת מחדל?')){ DB=JSON.parse(JSON.stringify(DEFAULTS)); persist(); renderFleet(); renderCustSet(); } }
 function flash(t){ const d=document.createElement('div'); d.textContent=t; d.style.cssText='position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#4e2d77;color:#fff;padding:10px 20px;border-radius:8px;z-index:99'; document.body.appendChild(d); setTimeout(()=>d.remove(),1400); }
 function demo(){ document.getElementById('inp').value="עדי\t12\nהמרכבה\t1\nטעמית פניני השף\t3\nעינת\t1\nזמן קפה\t1\nסלטי גל\t2\nברכת עץ השדה\t1\nלוינשטיין\t1\nהדר הפודים\t4\nהתעשיינים\t5\nמשי הוד\t3\nויויאן\t1\nמ.ג.ע\t1\nמשה קילופים\t1\nמקדונלד\t6\nמעדני עופר\t2\nצבר\t3\nאברהם איליה\t0\t20"; }
+/* ---------- גרירת קבצים מהמחשבונים ---------- */
+const dz=document.getElementById('drop');
+['dragover','dragenter'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('over');}));
+dz.addEventListener('dragleave',ev=>{ev.preventDefault();dz.classList.remove('over');});
+dz.addEventListener('drop',ev=>{ev.preventDefault();dz.classList.remove('over');handleFiles(ev.dataTransfer.files);});
+document.getElementById('file').addEventListener('change',ev=>handleFiles(ev.target.files));
+window.addEventListener('dragover',e=>e.preventDefault());window.addEventListener('drop',e=>e.preventDefault());
+function parseExportFile(text){ let doc; try{doc=new DOMParser().parseFromString(text,'text/html');}catch(e){return [];}
+  const tables=[].slice.call(doc.querySelectorAll('table')); let out=[];
+  tables.forEach(tbl=>{ const trs=[].slice.call(tbl.querySelectorAll('tr')); if(!trs.length)return;
+    let hi=-1,nc=-1,pc=-1,cc=-1;
+    for(let r=0;r<trs.length;r++){ const cells=[].slice.call(trs[r].children).map(x=>x.textContent.trim());
+      let a=-1,b=-1,c=-1; cells.forEach((t,i)=>{ if(a<0&&/לקוח|קיטרינג/.test(t))a=i; if(b<0&&/משטח/.test(t))b=i; if(c<0&&/קרטון/.test(t))c=i; });
+      if(a>=0&&b>=0){hi=r;nc=a;pc=b;cc=c;break;} }
+    if(hi<0)return;
+    for(let r=hi+1;r<trs.length;r++){ const cells=[].slice.call(trs[r].children).map(x=>x.textContent.trim());
+      const name=cells[nc]; if(!name||/סה.?כ/.test(name))continue;
+      const pal=parseFloat((cells[pc]||'').replace(/[^0-9.]/g,'')); if(isNaN(pal))continue;
+      const car=cc>=0?(parseFloat((cells[cc]||'').replace(/[^0-9.]/g,''))||0):0;
+      out.push({name:name,pallets:pal,cartons:car}); } });
+  return out; }
+async function handleFiles(files){ if(!files||!files.length)return; const merged={}; let n=0;
+  for(const f of files){ let text; try{text=await f.text();}catch(e){continue;} const rows=parseExportFile(text); n++;
+    rows.forEach(r=>{ const k=norm(r.name); if(!merged[k])merged[k]={name:r.name,pallets:0,cartons:0}; merged[k].pallets+=r.pallets; merged[k].cartons+=r.cartons; }); }
+  const list=Object.keys(merged).map(k=>merged[k]);
+  if(!list.length){ document.getElementById('fileinfo').innerHTML='<span style="color:#b45309">לא זוהו לקוחות. ודא שאלה קובצי ייצוא (xls) מהמחשבונים — טבלה עם עמודות "לקוח" ו"משטחים".</span>'; return; }
+  document.getElementById('inp').value=list.map(r=>r.name+'\t'+(Math.round(r.pallets*10)/10)+(r.cartons?'\t'+r.cartons:'')).join('\n');
+  document.getElementById('fileinfo').textContent='✓ נטענו '+list.length+' לקוחות מ-'+n+' קבצים';
+  loadStops(); }
+
+/* ---------- AI (Gemini) ---------- */
+function saveKey(){ DB.gemini_key=(document.getElementById('gkey').value||'').trim(); persist(); flash('המפתח נשמר ✓'); }
+function buildPrompt(){ const trucks=DB.trucks.filter(t=>t.active).map(t=>({id:t.id,maxPallets:t.maxPallets,license:t.license,cooling:t.cooling,terminal:t.terminal}));
+  const drivers=activeDrivers().map(d=>({name:d.name,license:d.license,terminal:d.terminal,contractor:d.contractor,shift:d.shift}));
+  const stops=STOPS.map(s=>({customer:s.name,pallets:s.pallets,cartons:s.cartons,flags:(s.cust&&s.cust.flags)||[],from:(s.cust&&s.cust.from)||'',to:(s.cust&&s.cust.to)||'',north:!!(s.cust&&s.cust.north),shift:(s.cust&&s.cust.shift)||'לילה'}));
+  return 'אתה משבץ נהגים לחברת הפצת מזון בישראל. שבץ כל לקוח לנהג ולמשאית לפי האילוצים. החזר JSON בלבד: מערך של אובייקטים {"customer","driver","truck","shift"}.\\n'
+   +'אילוצים: לא לחרוג ממקס משטחים של המשאית. מקדונלד/דגל "טרמינל" רק במשאית 503 ונהג עם terminal=true. משאית cooling="weak" לא לדגל north. בית חולים עדיף משאית license<=12. נהג אחד למשאית באותה משמרת. הקבלן (contractor=true) מועמס אחרון. כבד חלונות זמן (from/to) ומשמרת (shift) לילה/בוקר.\\n'
+   +'משאיות: '+JSON.stringify(trucks)+'\\nנהגים: '+JSON.stringify(drivers)+'\\nלקוחות: '+JSON.stringify(stops); }
+async function aiSuggest(){ const key=DB.gemini_key;
+  if(!key){ alert('קודם הזן מפתח Gemini בלשונית "נהגים ומשאיות".'); document.querySelectorAll('.tabs button')[1].click(); return; }
+  if(!STOPS.length){ loadStops(); if(!STOPS.length){alert('אין לקוחות — גרור קבצים או הדבק רשימה.');return;} }
+  document.getElementById('msg').innerHTML='<div class="okbox">שולח ל-Gemini... ⏳</div>';
+  try{ const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+encodeURIComponent(key),
+    {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:buildPrompt()}]}],generationConfig:{response_mime_type:'application/json',temperature:0.2}})});
+    const d=await r.json(); if(d.error)throw new Error(d.error.message||'שגיאת API');
+    const txt=d.candidates[0].content.parts[0].text; let plan=JSON.parse(txt); if(plan&&plan.assignments)plan=plan.assignments;
+    applyAiPlan(plan); document.getElementById('msg').innerHTML='<div class="okbox">Gemini הציע סידור — בדוק ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
+  }catch(e){ document.getElementById('msg').innerHTML='<div class="warnbox">לא התקבלה הצעה מ-Gemini: '+(e.message||e)+'<br>אם זו שגיאת רשת/CORS — נחבר דרך שכבת ביניים. בינתיים אפשר "שיבוץ אוטומטי (כללים)".</div>'; }
+}
+function applyAiPlan(plan){ if(!Array.isArray(plan))return; STOPS.forEach(s=>s.driver='');
+  plan.forEach(a=>{ if(!a||!a.customer)return; const s=STOPS.find(x=>norm(x.name)===norm(a.customer))||STOPS.find(x=>norm(x.name).indexOf(norm(a.customer))>=0||norm(a.customer).indexOf(norm(x.name))>=0);
+    if(s&&a.driver)s.driver=a.driver; const d=DB.drivers.find(x=>x.name===a.driver); if(d&&a.truck)d.truck=String(a.truck); if(d&&a.shift)d.shift=a.shift; });
+  renderStops(); render(); }
+
 function tab(id,btn){ ['plan','fleet','cust','help'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
   if(id==='fleet')renderFleet(); if(id==='cust')renderCustSet(); }
