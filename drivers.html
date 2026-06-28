@@ -60,7 +60,7 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
 </div>
 
 <div id="fleet" class="hidden">
- <div class="card"><h2>נהגי היום</h2><p class="muted">סמן מי עובד, באיזו משאית, ושעת התייצבות. "קבלן" מועמס אחרון. נהג עם היתר טרמינל יכול לנסוע לטרמינל (מקדונלס נמל).</p>
+ <div class="card"><h2>נהגי היום</h2><p class="muted">סמן מי עובד, <b>איזו משאית הוא מקבל להיום</b> (כל נהג יכול לנהוג כל משאית), ושעת התייצבות. הקצאת המשאית היא יומית ולא קבועה. "קבלן" מועמס אחרון. נהג עם היתר טרמינל יכול לטרמינל (מקדונלס נמל).</p>
   <table id="drvTbl"></table>
   <div class="row"><button class="btn sec" onclick="addDriver()">+ נהג</button></div></div>
  <div class="card"><h2>משאיות</h2><p class="muted">סמן אילו פעילות (משאית במוסך = כבה). 902 קירור חלש → לא לצפון/רגיש. רק 503 רשומה לטרמינל.</p>
@@ -123,21 +123,26 @@ function renderStops(){ const drs=activeDrivers();
 
 /* ---------- שיבוץ אוטומטי (כללים) ---------- */
 function autoSuggest(){ if(!STOPS.length){ loadStops(); if(!STOPS.length)return; }
-  const drs=activeDrivers().filter(d=>!d.contractor); const contractor=activeDrivers().find(d=>d.contractor);
-  // אתחול עומסים
-  const load={}; drs.forEach(d=>load[d.name]=0); if(contractor)load[contractor.name]=0;
+  const drs=activeDrivers().filter(d=>!d.contractor);
+  const trucks=DB.trucks.filter(t=>t.active);
   STOPS.forEach(s=>{ s.driver=''; });
-  // מקדונלד/טרמינל -> נהג מורשה במשאית 503
-  STOPS.forEach(s=>{ if(s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0){ const d=drs.find(x=>x.terminal&&truckOf(x.name)&&truckOf(x.name).id==='503')||drs.find(x=>x.terminal); if(d){s.driver=d.name;load[d.name]+=s.pallets;} } });
-  // השאר: לנהג עם הכי הרבה מקום פנוי שעובר אילוצים
+  const hasTerm=STOPS.some(s=>s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0);
+  // --- הקצאת משאיות לנהגים (חופשי, כל נהג כל משאית; ללא כפילות באותה משמרת) ---
+  ['לילה','בוקר'].forEach(sh=>{ const ds=drs.filter(d=>(d.shift||'לילה')===sh); const used={};
+    if(hasTerm){ const td=ds.find(d=>d.terminal); const t=trucks.find(t=>t.id==='503'); if(td&&t){ td.truck='503'; used['503']=1; } }
+    const pool=trucks.filter(t=>!used[t.id]).sort((a,b)=>b.maxPallets-a.maxPallets); let pi=0;
+    ds.forEach(d=>{ if(used['503']&&d.truck==='503')return; const t=pool[pi++]; if(t){ d.truck=t.id; used[t.id]=1; } else { d.truck=''; } });
+  });
+  // --- הקצאת לקוחות ---
+  const load={}; drs.forEach(d=>load[d.name]=0);
+  STOPS.forEach(s=>{ if(s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0){ const d=drs.find(x=>x.terminal&&truckOf(x.name)&&truckOf(x.name).id==='503'); if(d){s.driver=d.name;load[d.name]+=s.pallets;} } });
   STOPS.forEach(s=>{ if(s.driver)return; let best=null,bestFree=-1;
     drs.forEach(d=>{ const t=truckOf(d.name); if(!t)return; const cap=t.maxPallets-load[d.name];
       if(s.cust&&s.cust.north&&t.cooling==='weak')return; // 902 לא לצפון
-      if(s.cust&&(s.cust.flags||[]).indexOf('בית חולים')>=0&&t.license>12){ /* פחות מועדף */ }
       if(cap>bestFree){bestFree=cap;best=d.name;} });
     if(best){s.driver=best;load[best]+=s.pallets;} });
   renderStops(); render();
-  document.getElementById('msg').innerHTML='<div class="okbox">בוצע שיבוץ אוטומטי לפי כללים. עבור ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
+  document.getElementById('msg').innerHTML='<div class="okbox">שובץ אוטומטית (כולל הקצאת משאיות חופשית). עבור ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
 }
 
 /* ---------- בניית הסידור + אזהרות ---------- */
@@ -167,6 +172,8 @@ function render(){ const out=document.getElementById('out');
     ds.sort((a,b)=>(a.d.contractor?1:0)-(b.d.contractor?1:0));
     if(!ds.length) return;
     html+='<div class="shifthdr">'+(sh==='לילה'?'🌙 לילה':'☀ בוקר')+'</div>';
+    const tu={}; ds.forEach(x=>{ if(x.stops.length){const t=truckOf(x.d.name); if(t){tu[t.id]=(tu[t.id]||[]).concat(x.d.name);}} });
+    Object.keys(tu).forEach(tid=>{ if(tu[tid].length>1) html+='<div class="errbox">⛔ משאית '+tid+' משובצת לשני נהגים באותה משמרת: '+tu[tid].join(', ')+'</div>'; });
     ds.forEach(x=>{ const v=validateDriver(x.d,x.stops); const t=v.t;
       const cap=t?Math.min(100,Math.round(v.pal/t.maxPallets*100)):0; const over=t&&v.pal>t.maxPallets;
       html+='<div class="drv"><div class="drvhead"><span class="nm">'+esc(x.d.name)+(x.d.contractor?' <span class="pill flag">קבלן</span>':'')+'</span>'
