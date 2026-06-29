@@ -148,14 +148,17 @@ function autoSuggest(){ if(!STOPS.length){ loadStops(); if(!STOPS.length)return;
     const pool=trucks.filter(t=>!used[t.id]).sort((a,b)=>b.maxPallets-a.maxPallets); let pi=0;
     ds.forEach(d=>{ if(used['503']&&d.truck==='503')return; const t=pool[pi++]; if(t){ d.truck=t.id; used[t.id]=1; } else { d.truck=''; } });
   });
-  // --- הקצאת לקוחות ---
+  // --- הקצאת לקוחות (קיבולת = מגבלה פיזית קשיחה, אסור לחרוג) ---
   const load={}; drs.forEach(d=>load[d.name]=0);
   STOPS.forEach(s=>{ if(s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0){ const d=drs.find(x=>x.terminal&&truckOf(x.name)&&truckOf(x.name).id==='503'); if(d){s.driver=d.name;load[d.name]+=s.pallets;} } });
-  STOPS.forEach(s=>{ if(s.driver)return; let best=null,bestFree=-1;
-    drs.forEach(d=>{ const t=truckOf(d.name); if(!t)return; const cap=t.maxPallets-load[d.name];
+  // best-fit-decreasing: שובץ ללקוח את המשאית עם הכי פחות מקום פנוי שעדיין מספיק — בלי לחרוג
+  const rest=STOPS.filter(s=>!s.driver).slice().sort((a,b)=>b.pallets-a.pallets);
+  rest.forEach(s=>{ let best=null,bestRem=1e9;
+    drs.forEach(d=>{ const t=truckOf(d.name); if(!t)return;
       if(s.cust&&s.cust.north&&t.cooling==='weak')return; // 902 לא לצפון
-      if(cap>bestFree){bestFree=cap;best=d.name;} });
-    if(best){s.driver=best;load[best]+=s.pallets;} });
+      const rem=t.maxPallets-load[d.name]-s.pallets;
+      if(rem>=0 && rem<bestRem){bestRem=rem;best=d.name;} });
+    if(best){s.driver=best;load[best]+=s.pallets;} }); // אם אף משאית לא מספיקה — נשאר ללא נהג (אזהרה)
   renderStops(); render();
   document.getElementById('msg').innerHTML='<div class="okbox">שובץ אוטומטית (כולל הקצאת משאיות חופשית). עבור ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
 }
@@ -192,7 +195,7 @@ function render(){ const out=document.getElementById('out');
     ds.forEach(x=>{ const v=validateDriver(x.d,x.stops); const t=v.t;
       const cap=t?Math.min(100,Math.round(v.pal/t.maxPallets*100)):0; const over=t&&v.pal>t.maxPallets;
       html+='<div class="drv"><div class="drvhead"><span class="nm">'+esc(x.d.name)+(x.d.contractor?' <span class="pill flag">קבלן</span>':'')+'</span>'
-        +'<span class="muted">משאית '+(t?t.id:'—')+' · התייצבות '+esc(x.d.checkin||'—')+' · '+v.pal+' משטחים'+(v.car?' · '+v.car+' קרטונים':'')+'</span>'
+        +'<span class="muted">משאית '+(t?t.id:(x.d.contractor?'שלו (קבלן)':'—'))+' · התייצבות '+esc(x.d.checkin||'—')+' · '+v.pal+' משטחים'+(v.car?' · '+v.car+' קרטונים':'')+'</span>'
         +'<span class="cap'+(over?' over':'')+'" title="'+v.pal+'/'+(t?t.maxPallets:'?')+'"><i style="width:'+cap+'%"></i></span></div>';
       html+='<table><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>הערה</th></tr></thead><tbody>';
       x.stops.forEach(s=>{ html+='<tr><td style="text-align:right">'+esc(s.name)+'</td><td>'+s.pallets+'</td><td>'+(s.cartons||'—')+'</td><td class="muted" style="text-align:right">'+esc(s.cust&&s.cust.note||'')+'</td></tr>'; });
@@ -301,7 +304,9 @@ function buildPrompt(){ const trucks=DB.trucks.filter(t=>t.active).map(t=>({id:t
   const stops=STOPS.map(s=>({customer:s.name,pallets:s.pallets,cartons:s.cartons,flags:(s.cust&&s.cust.flags)||[],from:(s.cust&&s.cust.from)||'',to:(s.cust&&s.cust.to)||'',north:!!(s.cust&&s.cust.north),shift:(s.cust&&s.cust.shift)||'לילה'}));
   return 'אתה משבץ נהגים לחברת הפצת מזון בישראל. שבץ כל לקוח לנהג ולמשאית, וקבע לכל נהג משאית ושעת התייצבות לפי האילוצים. החזר JSON בלבד: מערך של אובייקטים {"customer","driver","truck","shift","checkin"}.\\n'
    +'אין משאית קבועה או שעה קבועה לנהג — אתה קובע אותן. המשאית (truck) ושעת ההתייצבות (checkin בפורמט HH:MM) נקבעות לפי השיבוץ והאילוצים.\\n'
-   +'אילוצים: לא לחרוג ממקס משטחים של המשאית. מקדונלד/דגל "טרמינל" רק במשאית 503 ונהג עם terminal=true. משאית cooling="weak" לא לדגל north. בית חולים עדיף משאית license<=12. נהג אחד למשאית באותה משמרת. הקבלן (contractor=true) מועמס אחרון. כבד חלונות זמן (from/to) ומשמרת (shift) לילה/בוקר. קבע checkin כך שהנהג יספיק להגיע בזמן ללקוחות שלו (לקוח בוקר מוקדם → התייצבות בוקר; משלוחי לילה → התייצבות לילה, מספיק זמן לפני חלון to). תמיד שבץ נהג ל"עלומים — החלפת סחורה" (נסיעה במהלך היום).\\n'
+   +'אילוצים: מקס משטחים של המשאית הוא מגבלה פיזית קשיחה — אסור לחרוג בשום אופן (אין מקום פיזי ליותר משטחים). פזר את הלקוחות בין המשאיות כך שאף משאית לא תעבור את הקיבולת; אם אין מספיק מקום לכולם, השאר לקוח ללא שיבוץ במקום לחרוג. מקדונלד/דגל "טרמינל" רק במשאית 503 ונהג עם terminal=true. משאית cooling="weak" לא לדגל north. בית חולים עדיף משאית license<=12. נהג אחד למשאית באותה משמרת. כבד חלונות זמן (from/to) ומשמרת (shift) לילה/בוקר. קבע checkin כך שהנהג יספיק להגיע בזמן ללקוחות שלו (לקוח בוקר מוקדם → התייצבות בוקר; משלוחי לילה → התייצבות לילה, מספיק זמן לפני חלון to).\\n'
+   +'הקבלן (contractor=true): מגיע עם משאית משלו — אל תקצה לו משאית מהצי (truck ריק) ואל תכלול אותו או את משאיתו בחישוב הקיבולת של הצי. הוא עושה רק את קו "צפון מזרח 7", משובץ אחרון, ומקבל רק שעת התייצבות (checkin) מתי לבוא להעמיס. הקבלן לעולם לא נוסע ל"עלומים".\\n'
+   +'תמיד שבץ נהג שאינו הקבלן ל"עלומים — החלפת סחורה" (נסיעה במהלך היום).\\n'
    +'משאיות: '+JSON.stringify(trucks)+'\\nנהגים: '+JSON.stringify(drivers)+'\\nלקוחות: '+JSON.stringify(stops); }
 async function aiSuggest(){ const proxy=DB.gemini_proxy_url, key=DB.gemini_key;
   if(!proxy&&!key){ document.getElementById('msg').innerHTML='<div class="warnbox">שיבוץ AI זמין למורשים בלבד. למידע נוסף פנה למפתח.</div>'; return; }
@@ -318,7 +323,9 @@ async function aiSuggest(){ const proxy=DB.gemini_proxy_url, key=DB.gemini_key;
 }
 function applyAiPlan(plan){ if(!Array.isArray(plan))return; STOPS.forEach(s=>s.driver='');
   plan.forEach(a=>{ if(!a||!a.customer)return; const s=STOPS.find(x=>norm(x.name)===norm(a.customer))||STOPS.find(x=>norm(x.name).indexOf(norm(a.customer))>=0||norm(a.customer).indexOf(norm(x.name))>=0);
-    if(s&&a.driver)s.driver=a.driver; const d=DB.drivers.find(x=>x.name===a.driver); if(d&&a.truck)d.truck=String(a.truck); if(d&&a.shift)d.shift=a.shift; if(d&&a.checkin)d.checkin=String(a.checkin); });
+    const d=DB.drivers.find(x=>x.name===a.driver);
+    if(s&&a.driver){ if(d&&d.contractor&&/עלומים/.test(s.name)){} else s.driver=a.driver; }
+    if(d){ if(d.contractor)d.truck=''; else if(a.truck)d.truck=String(a.truck); if(a.shift)d.shift=a.shift; if(a.checkin)d.checkin=String(a.checkin); } });
   renderStops(); render(); }
 
 function tab(id,btn){ ['plan','fleet','cust','help'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));
