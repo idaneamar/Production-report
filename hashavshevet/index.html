@@ -266,7 +266,7 @@ function buildPreview(){ document.getElementById('prevCard').hidden=false;
    '<td><input value="'+esc(r.qty)+'" onchange="ROWS['+i+'].qty=this.value"></td>'+
    '<td><select onchange="ROWS['+i+'].docType=this.value"><option value="20"'+(r.docType==='20'?' selected':'')+'>ת.משלוח</option><option value="1"'+(r.docType==='1'?' selected':'')+'>חשבונית</option></select></td></tr>'; });
  h+='</tbody>'; document.getElementById('prevTbl').innerHTML=h;
- const docs=new Set(ROWS.map(r=>r.acct+'|'+r.docType+'|'+r.docNum)).size;
+ const docs=new Set(ROWS.filter(r=>r.acct).map(r=>r.acct+'|'+r.docType)).size;
  document.getElementById('prevSum').textContent=ROWS.length+' שורות · '+docs+' מסמכים';
 }
 
@@ -277,11 +277,18 @@ function fmtDate(iso){ if(!iso)return ''; const p=iso.split('-'); return p[2]+'/
 const LAYOUT=[[2,1,15],[3,16,9],[4,25,2],[9,27,10],[10,37,10],[12,47,9],[22,56,20],[23,76,13]]; const RECLEN=88;
 function genFiles(){ if(!ROWS.length){alert('אין שורות');return;}
  const date=fmtDate(document.getElementById('docDate').value);
- let bad=ROWS.filter(r=>!r.acct||!r.mkt||!(parseFloat(r.qty)>0));
+ const valid=r=>r.acct&&r.mkt&&(parseFloat(r.qty)>0);
+ let bad=ROWS.filter(r=>!valid(r));
+ // מספר מסמך אחד לכל חשבון+סוג מסמך — כל מה שהלקוח הזמין באותה תעודה/חשבונית
+ let docMap={}, dn=0;
+ ROWS.forEach(r=>{ if(!valid(r))return; const k=r.acct+'|'+r.docType; if(!(k in docMap)){dn++;docMap[k]=dn;} });
+ // מיון כך שכל שורות אותו מסמך יהיו רצופות בקובץ
+ let recs=ROWS.filter(valid).map(r=>({r,dnum:docMap[r.acct+'|'+r.docType]}));
+ recs.sort((a,b)=>a.dnum-b.dnum);
  let lines=[];
- ROWS.forEach(r=>{ if(!r.acct||!r.mkt||!(parseFloat(r.qty)>0))return; let buf=Array(RECLEN).fill(' ');
+ recs.forEach(({r,dnum})=>{ let buf=Array(RECLEN).fill(' ');
    function put(start,len,val){ val=String(val==null?'':val); for(let i=0;i<len&&i<val.length;i++)buf[start-1+i]=val[i]; }
-   put(1,15,r.acct); put(16,9,r.docNum); put(25,2,r.docType); put(27,10,date); put(37,10,date); put(47,9,'1'); put(56,20,r.mkt); put(76,13,String(r.qty));
+   put(1,15,r.acct); put(16,9,dnum); put(25,2,r.docType); put(27,10,date); put(37,10,date); put(47,9,'1'); put(56,20,r.mkt); put(76,13,String(r.qty));
    lines.push(buf.join('')); });
  if(!lines.length){alert('אין שורות תקינות (צריך חשבון + מק"ט + כמות).');return;}
  const docTxt=lines.join('\r\n')+'\r\n';
