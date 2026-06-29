@@ -69,9 +69,12 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
  <div class="card"><h2>🤖 שיבוץ AI</h2>
   <p class="muted">הכלי תומך בשיבוץ אוטומטי בעזרת AI. הגישה ל-AI מוגדרת <b>למורשים בלבד</b> — למידע נוסף פנו למפתח.</p>
  </div>
- <div class="card"><h2>נהגי היום</h2><p class="muted">סמן מי עובד, <b>איזו משאית הוא מקבל להיום</b> (כל נהג יכול לנהוג כל משאית), ושעת התייצבות. הקצאת המשאית היא יומית ולא קבועה. "קבלן" מועמס אחרון. נהג עם היתר טרמינל יכול לטרמינל (מקדונלס נמל).</p>
+ <div class="card"><h2>נהגי היום</h2><p class="muted">סמן מי עובד היום, היתר טרמינל, וקבלן. הוסף <b>הערות/העדפות</b> לכל נהג (למשל "לא רוצה בוקר", "רוצה קו קטן") — השיבוץ מתחשב בהן. המשאית, המשמרת ושעת ההתייצבות נקבעות בשיבוץ; נהג יכול לעבוד בכמה משמרות (קו קטן בלילה + בוקר).</p>
   <table id="drvTbl"></table>
   <div class="row"><button class="btn sec" onclick="addDriver()">+ נהג</button></div></div>
+ <div class="card"><h2>🕓 נסיעת עלומים</h2><p class="muted">הנהג שנוסע לעלומים בצהריים עושה רק את זה באותו יום (לא משובץ ללילה). שניהם ניתנים לשינוי.</p>
+  <div class="row"><label>שעת יציאה: <input id="altime" style="width:80px" onchange="DB.rules.alumim_time=this.value"></label>
+   <label>נהג מועדף: <input id="aldrv" style="width:130px" onchange="DB.rules.alumim_driver=this.value"></label></div></div>
  <div class="card"><h2>משאיות</h2><p class="muted">סמן אילו פעילות (משאית במוסך = כבה). 902 קירור חלש → לא לצפון/רגיש. רק 503 רשומה לטרמינל.</p>
   <table id="truckTbl"></table>
   <div class="row"><button class="btn sec" onclick="addTruck()">+ משאית</button>
@@ -94,7 +97,7 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
 
 </div>
 <script>
-const DEFAULTS = {"trucks": [{"id": "503", "license": 15, "loadTon": 16, "maxPallets": 18, "cooling": "good", "terminal": true, "active": true}, {"id": "702", "license": 15, "loadTon": 6, "maxPallets": 15.5, "cooling": "good", "terminal": false, "active": true}, {"id": "902", "license": 12, "loadTon": 15, "maxPallets": 14, "cooling": "weak", "terminal": false, "active": true}, {"id": "703", "license": 12, "loadTon": 5, "maxPallets": 12, "cooling": "good", "terminal": false, "active": true}, {"id": "704", "license": 12, "loadTon": 5, "maxPallets": 14, "cooling": "good", "terminal": false, "active": true}], "drivers": [{"name": "אלון", "license": 15, "terminal": true, "contractor": false, "active": true, "truck": "", "checkin": "", "shift": "לילה"}, {"name": "יהודה", "license": 15, "terminal": true, "contractor": false, "active": true, "truck": "", "checkin": "", "shift": "בוקר"}, {"name": "יניב דמרי", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "", "checkin": "", "shift": "לילה"}, {"name": "שי", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "", "checkin": "", "shift": "לילה"}, {"name": "מטר", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "", "checkin": "", "shift": "לילה"}, {"name": "יניב מחלבני", "license": 15, "terminal": false, "contractor": false, "active": true, "truck": "", "checkin": "", "shift": "לילה"}, {"name": "קבלן", "license": 15, "terminal": false, "contractor": true, "active": true, "truck": "", "checkin": "", "shift": "לילה"}], "customers": [{"name": "איכילוב", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "תל השומר", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "לוינשטיין", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "סלטי גל", "flags": [], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "ברכת עץ השדה", "flags": [], "from": "", "to": "24:00", "shift": "לילה", "north": false, "note": ""}, {"name": "משה קילופים", "flags": [], "from": "", "to": "23:30", "shift": "לילה", "north": false, "note": ""}, {"name": "אייסמן", "flags": [], "from": "", "to": "11:30", "shift": "בוקר", "north": false, "note": "לקוח בוקר"}, {"name": "מקדונלד", "flags": ["טרמינל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "רק משאית 503 + נהג מורשה"}, {"name": "אברהם איליה", "flags": ["ספק", "משקל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "דולב 270-300 ק\"ג; דולבים ריקים"}, {"name": "גלאט עלים", "flags": ["ספק"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "אוספים רק כשנותנים סחורה"}, {"name": "כפר יעבץ", "flags": ["ספק", "ראש בראש"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "יואב ורחמים; ראש בראש משטחים"}], "rules": {"max_drive_hours": 12, "break_after_hours": 6, "ayalon_block": "06:30-09:00", "contractor_last": true, "boxes_per_pallet": 60}, "gemini_proxy_url": "", "gemini_key": ""};
+const DEFAULTS = {"trucks": [{"id": "503", "license": 15, "loadTon": 16, "maxPallets": 18, "cooling": "good", "terminal": true, "active": true}, {"id": "702", "license": 15, "loadTon": 6, "maxPallets": 15.5, "cooling": "good", "terminal": false, "active": true}, {"id": "902", "license": 12, "loadTon": 15, "maxPallets": 14, "cooling": "weak", "terminal": false, "active": true}, {"id": "703", "license": 12, "loadTon": 5, "maxPallets": 12, "cooling": "good", "terminal": false, "active": true}, {"id": "704", "license": 12, "loadTon": 5, "maxPallets": 14, "cooling": "good", "terminal": false, "active": true}], "drivers": [{"name": "אלון", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יהודה", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יניב דמרי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "שי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "מטר", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "יניב מחלבני", "license": 15, "terminal": false, "contractor": false, "active": true, "note": "בדרך כלל הנהג שנוסע לעלומים בצהריים"}, {"name": "קבלן", "license": 15, "terminal": false, "contractor": true, "active": true, "note": "מגיע עם משאית שלו; רק קו צפון מזרח 7; משובץ אחרון"}], "customers": [{"name": "איכילוב", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "תל השומר", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "לוינשטיין", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "סלטי גל", "flags": [], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "ברכת עץ השדה", "flags": [], "from": "", "to": "24:00", "shift": "לילה", "north": false, "note": ""}, {"name": "משה קילופים", "flags": [], "from": "", "to": "23:30", "shift": "לילה", "north": false, "note": ""}, {"name": "אייסמן", "flags": [], "from": "", "to": "11:30", "shift": "בוקר", "north": false, "note": "לקוח בוקר"}, {"name": "מקדונלד", "flags": ["טרמינל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "רק משאית 503 + נהג מורשה"}, {"name": "אברהם איליה", "flags": ["ספק", "משקל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "דולב 270-300 ק\"ג; דולבים ריקים"}, {"name": "גלאט עלים", "flags": ["ספק"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "אוספים רק כשנותנים סחורה"}, {"name": "כפר יעבץ", "flags": ["ספק", "ראש בראש"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "יואב ורחמים; ראש בראש משטחים"}], "rules": {"max_drive_hours": 12, "break_after_hours": 6, "ayalon_block": "06:30-09:00", "contractor_last": true, "boxes_per_pallet": 60, "alumim_time": "16:00", "alumim_driver": "יניב מחלבני"}, "gemini_proxy_url": "", "gemini_key": ""};
 let DB = load();
 let STOPS = []; // [{name, pallets, cartons, driver, cust(attr)}]
 function load(){ try{const s=localStorage.getItem('drv_set'); if(s)return Object.assign({},JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(s));}catch(e){} return JSON.parse(JSON.stringify(DEFAULTS)); }
@@ -111,7 +114,14 @@ function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt
 function findCust(name){ const n=norm(name); let best=null,bl=-1;
   DB.customers.forEach(c=>{ const a=norm(c.name); if(n.indexOf(a)>=0||a.indexOf(n)>=0){ if(a.length>bl){best=c;bl=a.length;} } }); return best; }
 function activeDrivers(){ return DB.drivers.filter(d=>d.active); }
-function truckOf(dn){ const d=DB.drivers.find(x=>x.name===dn); if(!d)return null; return DB.trucks.find(t=>t.id===d.truck)||null; }
+function truckById(id){ return DB.trucks.find(t=>t.id===id)||null; }
+/* משאית ושעת התייצבות הן לכל "ריצה" = נהג+משמרת (נהג יכול לעבוד בכמה משמרות) */
+let RUNS={}; // "נהג@@משמרת" -> {truck, checkin}
+function runKey(dr,sh){ return dr+'@@'+sh; }
+function getRun(dr,sh){ const k=runKey(dr,sh); if(!RUNS[k])RUNS[k]={truck:'',checkin:''}; return RUNS[k]; }
+function truckOfRun(dr,sh){ const r=RUNS[runKey(dr,sh)]; return r?truckById(r.truck):null; }
+const SHIFTS=['לילה','בוקר','צהריים'];
+function shiftLabel(sh){ return sh==='לילה'?'🌙 לילה':(sh==='בוקר'?'☀ בוקר':'🕓 צהריים (עלומים)'); }
 
 /* ---------- קלט לקוחות ---------- */
 function loadStops(){ const t=document.getElementById('inp').value; const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim());
@@ -119,18 +129,19 @@ function loadStops(){ const t=document.getElementById('inp').value; const lines=
   lines.forEach(l=>{ const p=l.split(/\t|,|;/).map(x=>x.trim()).filter(x=>x!=='');
     if(!p.length)return; const name=p[0]; const pallets=parseFloat((p[1]||'').replace(/[^0-9.]/g,''))||0; const cartons=parseFloat((p[2]||'').replace(/[^0-9.]/g,''))||0;
     if(!name||(pallets===0&&cartons===0&&p.length<2))return;
-    const c=findCust(name); STOPS.push({name:name,pallets:pallets,cartons:cartons,driver:'',cust:c}); });
-  if(!STOPS.some(s=>/עלומים/.test(s.name))) STOPS.push({name:'עלומים — החלפת סחורה',pallets:0,cartons:0,driver:'',cust:{flags:['החלפה'],note:'מביא לעלומים מה שהכנו להם, לוקח מהם מה שהכינו לנו'}});
+    const c=findCust(name); STOPS.push({name:name,pallets:pallets,cartons:cartons,driver:'',shift:(c&&c.shift)||'לילה',cust:c}); });
+  if(!STOPS.some(s=>/עלומים/.test(s.name))) STOPS.push({name:'עלומים — החלפת סחורה',pallets:0,cartons:0,driver:'',shift:'צהריים',cust:{flags:['החלפה'],note:'מביא לעלומים מה שהכנו להם, לוקח מהם מה שהכינו לנו'}});
   document.getElementById('stops').classList.remove('hidden');
   document.getElementById('msg').innerHTML='<div class="okbox">נטענו '+STOPS.length+' לקוחות. שבץ נהג לכל אחד (או "הצע שיבוץ אוטומטי").</div>';
   renderStops(); document.getElementById('out').innerHTML='';
 }
 function renderStops(){ const drs=activeDrivers();
-  let h='<table><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>אילוצים</th><th>נהג</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>אילוצים</th><th>משמרת</th><th>נהג</th></tr></thead><tbody>';
   STOPS.forEach((s,i)=>{ const fl=s.cust?(s.cust.flags||[]).concat(s.cust.from?['מ-'+s.cust.from]:[],s.cust.to?['עד '+s.cust.to]:[],s.cust.north?['צפון']:[]):[];
     h+='<tr><td style="text-align:right">'+esc(s.name)+'</td><td><input type="number" step="0.5" value="'+s.pallets+'" style="width:60px" onchange="STOPS['+i+'].pallets=parseFloat(this.value)||0"></td>'
       +'<td><input type="number" value="'+s.cartons+'" style="width:60px" onchange="STOPS['+i+'].cartons=parseFloat(this.value)||0"></td>'
       +'<td>'+(fl.length?fl.map(f=>'<span class="pill flag">'+esc(f)+'</span>').join(''):'<span class="muted">—</span>')+'</td>'
+      +'<td><select onchange="STOPS['+i+'].shift=this.value">'+SHIFTS.map(sh=>'<option'+((s.shift||'לילה')===sh?' selected':'')+'>'+sh+'</option>').join('')+'</select></td>'
       +'<td><select onchange="STOPS['+i+'].driver=this.value"><option value="">— בחר —</option>'
       +drs.map(d=>'<option'+(s.driver===d.name?' selected':'')+'>'+esc(d.name)+'</option>').join('')+'</select></td></tr>'; });
   h+='</tbody></table>'; document.getElementById('stopsTbl').innerHTML=h;
@@ -138,35 +149,37 @@ function renderStops(){ const drs=activeDrivers();
 
 /* ---------- שיבוץ אוטומטי (כללים) ---------- */
 function autoSuggest(){ if(!STOPS.length){ loadStops(); if(!STOPS.length)return; }
-  const drs=activeDrivers().filter(d=>!d.contractor);
+  RUNS={}; STOPS.forEach(s=>{ s.driver=''; });
   const trucks=DB.trucks.filter(t=>t.active);
-  STOPS.forEach(s=>{ s.driver=''; });
-  const hasTerm=STOPS.some(s=>s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0);
-  // --- הקצאת משאיות לנהגים (חופשי, כל נהג כל משאית; ללא כפילות באותה משמרת) ---
-  ['לילה','בוקר'].forEach(sh=>{ const ds=drs.filter(d=>(d.shift||'לילה')===sh); const used={};
-    if(hasTerm){ const td=ds.find(d=>d.terminal); const t=trucks.find(t=>t.id==='503'); if(td&&t){ td.truck='503'; used['503']=1; } }
+  const nonC=activeDrivers().filter(d=>!d.contractor);
+  // --- נהג עלומים (צהריים) — עושה רק עלומים, לא נכנס לשאר המשמרות ---
+  let alName=(DB.rules&&DB.rules.alumim_driver)||''; let alDr=nonC.find(d=>d.name===alName)||nonC[0]||null;
+  const alStops=STOPS.filter(s=>s.shift==='צהריים'||/עלומים/.test(s.name));
+  if(alDr&&alStops.length){ alStops.forEach(s=>{s.driver=alDr.name;s.shift='צהריים';}); const r=getRun(alDr.name,'צהריים'); r.truck='503'; r.checkin=(DB.rules&&DB.rules.alumim_time)||'16:00'; }
+  const workers=nonC.filter(d=>!alDr||d.name!==alDr.name);
+  // --- כל משמרת בנפרד; נהג יכול לעבוד בכמה משמרות ---
+  ['לילה','בוקר'].forEach(sh=>{
+    const stops=STOPS.filter(s=>s.shift===sh && !/עלומים/.test(s.name)); if(!stops.length) return;
+    const hasTerm=stops.some(s=>s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0); const used={};
+    if(hasTerm){ const td=workers.find(d=>d.terminal); if(td){ getRun(td.name,sh).truck='503'; used['503']=1; } }
     const pool=trucks.filter(t=>!used[t.id]).sort((a,b)=>b.maxPallets-a.maxPallets); let pi=0;
-    ds.forEach(d=>{ if(used['503']&&d.truck==='503')return; const t=pool[pi++]; if(t){ d.truck=t.id; used[t.id]=1; } else { d.truck=''; } });
+    workers.forEach(d=>{ const r=getRun(d.name,sh); if(r.truck==='503'&&used['503'])return; const t=pool[pi++]; if(t){r.truck=t.id;used[t.id]=1;} });
+    const load={}; workers.forEach(d=>load[d.name]=0);
+    stops.forEach(s=>{ if(s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0){ const d=workers.find(x=>x.terminal&&truckOfRun(x.name,sh)&&truckOfRun(x.name,sh).id==='503'); if(d){s.driver=d.name;load[d.name]+=s.pallets;} } });
+    const rest=stops.filter(s=>!s.driver).sort((a,b)=>b.pallets-a.pallets);
+    rest.forEach(s=>{ let best=null,bestRem=1e9;
+      workers.forEach(d=>{ const t=truckOfRun(d.name,sh); if(!t)return; if(s.cust&&s.cust.north&&t.cooling==='weak')return;
+        const rem=t.maxPallets-load[d.name]-s.pallets; if(rem>=0&&rem<bestRem){bestRem=rem;best=d.name;} });
+      if(best){s.driver=best;load[best]+=s.pallets;} });
   });
-  // --- הקצאת לקוחות (קיבולת = מגבלה פיזית קשיחה, אסור לחרוג) ---
-  const load={}; drs.forEach(d=>load[d.name]=0);
-  STOPS.forEach(s=>{ if(s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0){ const d=drs.find(x=>x.terminal&&truckOf(x.name)&&truckOf(x.name).id==='503'); if(d){s.driver=d.name;load[d.name]+=s.pallets;} } });
-  // best-fit-decreasing: שובץ ללקוח את המשאית עם הכי פחות מקום פנוי שעדיין מספיק — בלי לחרוג
-  const rest=STOPS.filter(s=>!s.driver).slice().sort((a,b)=>b.pallets-a.pallets);
-  rest.forEach(s=>{ let best=null,bestRem=1e9;
-    drs.forEach(d=>{ const t=truckOf(d.name); if(!t)return;
-      if(s.cust&&s.cust.north&&t.cooling==='weak')return; // 902 לא לצפון
-      const rem=t.maxPallets-load[d.name]-s.pallets;
-      if(rem>=0 && rem<bestRem){bestRem=rem;best=d.name;} });
-    if(best){s.driver=best;load[best]+=s.pallets;} }); // אם אף משאית לא מספיקה — נשאר ללא נהג (אזהרה)
   renderStops(); render();
-  document.getElementById('msg').innerHTML='<div class="okbox">שובץ אוטומטית (כולל הקצאת משאיות חופשית). עבור ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
+  document.getElementById('msg').innerHTML='<div class="okbox">שובץ אוטומטית (משמרות + עלומים). עבור ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
 }
 
 /* ---------- בניית הסידור + אזהרות ---------- */
-function validateDriver(d, stops){ const t=truckOf(d.name); const warns=[],errs=[];
+function validateDriver(d, stops, sh){ const t=truckOfRun(d.name,sh); const warns=[],errs=[];
   let pal=0,car=0; stops.forEach(s=>{pal+=s.pallets;car+=s.cartons;});
-  if(!t&&!d.contractor) errs.push('לא הוקצתה משאית');
+  if(!t&&!d.contractor&&stops.length) errs.push('לא הוקצתה משאית');
   if(t&&pal>t.maxPallets) errs.push('חריגת משטחים: '+pal+' > '+t.maxPallets+' (משאית '+t.id+')');
   stops.forEach(s=>{ const c=s.cust; if(!c)return;
     if((c.flags||[]).indexOf('טרמינל')>=0){ if(!t||t.id!=='503') errs.push(esc(s.name)+': טרמינל דורש משאית 503'); if(!d.terminal) errs.push(esc(s.name)+': טרמינל דורש נהג מורשה'); }
@@ -176,30 +189,26 @@ function validateDriver(d, stops){ const t=truckOf(d.name); const warns=[],errs=
   });
   return {pal,car,warns,errs,t};
 }
-function render(){ const out=document.getElementById('out');
-  const byShift={'לילה':{},'בוקר':{}};
-  const drs=activeDrivers();
-  drs.forEach(d=>{ const sh=d.shift||'לילה'; byShift[sh][d.name]={d:d,stops:[]}; });
-  let unassigned=[];
+function render(){ const out=document.getElementById('out'); const drs=activeDrivers();
+  const byShift={'לילה':{},'בוקר':{},'צהריים':{}}; let unassigned=[];
   STOPS.forEach(s=>{ if(!s.driver){unassigned.push(s);return;} const d=drs.find(x=>x.name===s.driver); if(!d){unassigned.push(s);return;}
-    const sh=d.shift||'לילה'; byShift[sh][d.name].stops.push(s); });
+    const sh=s.shift||'לילה'; if(!byShift[sh])byShift[sh]={}; (byShift[sh][d.name]=byShift[sh][d.name]||{d:d,stops:[]}).stops.push(s); });
+  const cd=drs.find(d=>d.contractor); if(cd&&!byShift['לילה'][cd.name]) byShift['לילה'][cd.name]={d:cd,stops:[]};
   let html='<div class="card"><h2>הסידור</h2>';
   if(unassigned.length) html+='<div class="warnbox">לקוחות ללא נהג: '+unassigned.map(s=>esc(s.name)).join(', ')+'</div>';
-  ['לילה','בוקר'].forEach(sh=>{ const ds=Object.values(byShift[sh]).filter(x=>x.stops.length||x.d.contractor);
-    // קבלן אחרון
-    ds.sort((a,b)=>(a.d.contractor?1:0)-(b.d.contractor?1:0));
-    if(!ds.length) return;
-    html+='<div class="shifthdr">'+(sh==='לילה'?'🌙 לילה':'☀ בוקר')+'</div>';
-    const tu={}; ds.forEach(x=>{ if(x.stops.length){const t=truckOf(x.d.name); if(t){tu[t.id]=(tu[t.id]||[]).concat(x.d.name);}} });
+  SHIFTS.forEach(sh=>{ const ds=Object.values(byShift[sh]).filter(x=>x.stops.length||x.d.contractor);
+    ds.sort((a,b)=>(a.d.contractor?1:0)-(b.d.contractor?1:0)); if(!ds.length) return;
+    html+='<div class="shifthdr">'+shiftLabel(sh)+'</div>';
+    const tu={}; ds.forEach(x=>{ if(x.stops.length){const t=truckOfRun(x.d.name,sh); if(t){tu[t.id]=(tu[t.id]||[]).concat(x.d.name);}} });
     Object.keys(tu).forEach(tid=>{ if(tu[tid].length>1) html+='<div class="errbox">⛔ משאית '+tid+' משובצת לשני נהגים באותה משמרת: '+tu[tid].join(', ')+'</div>'; });
-    ds.forEach(x=>{ const v=validateDriver(x.d,x.stops); const t=v.t;
+    ds.forEach(x=>{ const v=validateDriver(x.d,x.stops,sh); const t=v.t; const run=RUNS[runKey(x.d.name,sh)]||{};
       const cap=t?Math.min(100,Math.round(v.pal/t.maxPallets*100)):0; const over=t&&v.pal>t.maxPallets;
       html+='<div class="drv"><div class="drvhead"><span class="nm">'+esc(x.d.name)+(x.d.contractor?' <span class="pill flag">קבלן</span>':'')+'</span>'
-        +'<span class="muted">משאית '+(t?t.id:(x.d.contractor?'שלו (קבלן)':'—'))+' · התייצבות '+esc(x.d.checkin||'—')+' · '+v.pal+' משטחים'+(v.car?' · '+v.car+' קרטונים':'')+'</span>'
+        +'<span class="muted">משאית '+(t?t.id:(x.d.contractor?'שלו (קבלן)':'—'))+' · התייצבות '+esc(run.checkin||'—')+' · '+v.pal+' משטחים'+(v.car?' · '+v.car+' קרטונים':'')+'</span>'
         +'<span class="cap'+(over?' over':'')+'" title="'+v.pal+'/'+(t?t.maxPallets:'?')+'"><i style="width:'+cap+'%"></i></span></div>';
       html+='<table><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>הערה</th></tr></thead><tbody>';
       x.stops.forEach(s=>{ html+='<tr><td style="text-align:right">'+esc(s.name)+'</td><td>'+s.pallets+'</td><td>'+(s.cartons||'—')+'</td><td class="muted" style="text-align:right">'+esc(s.cust&&s.cust.note||'')+'</td></tr>'; });
-      if(!x.stops.length) html+='<tr><td colspan="4" class="muted">—</td></tr>';
+      if(!x.stops.length) html+='<tr><td colspan="4" class="muted">— (התייצבות בלבד)</td></tr>';
       html+='</tbody></table>';
       v.errs.forEach(e=>html+='<div class="errbox">⛔ '+e+'</div>');
       v.warns.forEach(w=>html+='<div class="warnbox">⚠ '+w+'</div>');
@@ -213,10 +222,10 @@ function render(){ const out=document.getElementById('out');
 function exportXls(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1">'
   +'<tr><th>משמרת</th><th>נהג</th><th>משאית</th><th>התייצבות</th><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>הערה</th></tr>';
   const drs=activeDrivers();
-  ['לילה','בוקר'].forEach(sh=>{ drs.filter(d=>(d.shift||'לילה')===sh).sort((a,b)=>(a.contractor?1:0)-(b.contractor?1:0)).forEach(d=>{
-    const stops=STOPS.filter(s=>s.driver===d.name); const t=truckOf(d.name); let pal=0;
-    stops.forEach(s=>{pal+=s.pallets; h+='<tr><td>'+sh+'</td><td>'+d.name+'</td><td>'+(t?t.id:'')+'</td><td>'+(d.checkin||'')+'</td><td>'+s.name+'</td><td>'+s.pallets+'</td><td>'+(s.cartons||'')+'</td><td>'+(s.cust&&s.cust.note||'')+'</td></tr>'; });
-    if(stops.length) h+='<tr><td colspan="5"><b>סה"כ '+d.name+'</b></td><td><b>'+pal+'</b></td><td colspan="2"></td></tr>';
+  SHIFTS.forEach(sh=>{ drs.slice().sort((a,b)=>(a.contractor?1:0)-(b.contractor?1:0)).forEach(d=>{
+    const stops=STOPS.filter(s=>s.driver===d.name&&(s.shift||'לילה')===sh); const t=truckOfRun(d.name,sh); const run=RUNS[runKey(d.name,sh)]||{}; let pal=0;
+    stops.forEach(s=>{pal+=s.pallets; h+='<tr><td>'+sh+'</td><td>'+d.name+'</td><td>'+(t?t.id:(d.contractor?'שלו':''))+'</td><td>'+(run.checkin||'')+'</td><td>'+s.name+'</td><td>'+s.pallets+'</td><td>'+(s.cartons||'')+'</td><td>'+(s.cust&&s.cust.note||'')+'</td></tr>'; });
+    if(stops.length) h+='<tr><td colspan="5"><b>סה"כ '+d.name+' ('+sh+')</b></td><td><b>'+pal+'</b></td><td colspan="2"></td></tr>';
   }); });
   h+='</table></body></html>'; const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='סידור נהגים.xls'; a.click();
@@ -224,16 +233,18 @@ function exportXls(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head>
 
 /* ---------- הגדרות: נהגים/משאיות/לקוחות ---------- */
 function renderFleet(){
-  let h='<thead><tr><th>פעיל</th><th>נהג</th><th>רישיון(טון)</th><th>היתר טרמינל</th><th>קבלן</th><th>משמרת</th><th></th></tr></thead><tbody>';
+  let h='<thead><tr><th>פעיל</th><th>נהג</th><th>רישיון(טון)</th><th>היתר טרמינל</th><th>קבלן</th><th>הערות / העדפות</th><th></th></tr></thead><tbody>';
   DB.drivers.forEach((d,i)=>{ h+='<tr>'
     +'<td><input type="checkbox" '+(d.active?'checked':'')+' onchange="DB.drivers['+i+'].active=this.checked"></td>'
     +'<td><input value="'+esc(d.name)+'" onchange="DB.drivers['+i+'].name=this.value" style="width:90px"></td>'
     +'<td><select onchange="DB.drivers['+i+'].license=+this.value"><option'+(d.license==15?' selected':'')+'>15</option><option'+(d.license==12?' selected':'')+'>12</option></select></td>'
     +'<td><input type="checkbox" '+(d.terminal?'checked':'')+' onchange="DB.drivers['+i+'].terminal=this.checked"></td>'
     +'<td><input type="checkbox" '+(d.contractor?'checked':'')+' onchange="DB.drivers['+i+'].contractor=this.checked"></td>'
-    +'<td><select onchange="DB.drivers['+i+'].shift=this.value"><option'+(d.shift==='לילה'?' selected':'')+'>לילה</option><option'+(d.shift==='בוקר'?' selected':'')+'>בוקר</option></select></td>'
+    +'<td><input value="'+esc(d.note||'')+'" placeholder="למשל: לא רוצה בוקר / קו קטן" onchange="DB.drivers['+i+'].note=this.value" style="width:230px"></td>'
     +'<td><button class="btn sec" style="padding:2px 7px" onclick="DB.drivers.splice('+i+',1);renderFleet()">✕</button></td></tr>'; });
   h+='</tbody>'; document.getElementById('drvTbl').innerHTML=h;
+  if(!DB.rules)DB.rules={}; var at=document.getElementById('altime'),ad=document.getElementById('aldrv');
+  if(at)at.value=DB.rules.alumim_time||'16:00'; if(ad)ad.value=DB.rules.alumim_driver||'';
   let th='<thead><tr><th>פעיל</th><th>משאית</th><th>רישיון</th><th>העמסה(טון)</th><th>מקס משטחים</th><th>קירור</th><th>טרמינל</th><th></th></tr></thead><tbody>';
   DB.trucks.forEach((t,i)=>{ th+='<tr>'
     +'<td><input type="checkbox" '+(t.active?'checked':'')+' onchange="DB.trucks['+i+'].active=this.checked"></td>'
@@ -260,7 +271,7 @@ function renderCustSet(){ let h='<thead><tr><th>לקוח</th><th>מ-</th><th>ע�
   h+='</tbody>'; document.getElementById('custTbl').innerHTML=h;
 }
 function toggleFlag(i,f,on){ let a=DB.customers[i].flags||(DB.customers[i].flags=[]); const k=a.indexOf(f); if(on&&k<0)a.push(f); if(!on&&k>=0)a.splice(k,1); }
-function addDriver(){ DB.drivers.push({name:'נהג חדש',license:15,terminal:false,contractor:false,active:true,truck:'',checkin:'',shift:'לילה'}); renderFleet(); }
+function addDriver(){ DB.drivers.push({name:'נהג חדש',license:15,terminal:false,contractor:false,active:true,note:''}); renderFleet(); }
 function addTruck(){ DB.trucks.push({id:'חדש',license:12,loadTon:5,maxPallets:12,cooling:'good',terminal:false,active:true}); renderFleet(); }
 function addCust(){ DB.customers.push({name:'לקוח חדש',flags:[],from:'',to:'',shift:'לילה',north:false,note:''}); renderCustSet(); }
 function saveSettings(){ persist(); flash('נשמר ✓'); }
@@ -300,13 +311,14 @@ async function handleFiles(files){ if(!files||!files.length)return; const merged
 /* ---------- AI (Gemini) ---------- */
 function saveKey(){ DB.gemini_key=(document.getElementById('gkey').value||'').trim(); DB.gemini_proxy_url=(document.getElementById('gproxy').value||'').trim(); persist(); flash('נשמר ✓'); }
 function buildPrompt(){ const trucks=DB.trucks.filter(t=>t.active).map(t=>({id:t.id,maxPallets:t.maxPallets,license:t.license,cooling:t.cooling,terminal:t.terminal}));
-  const drivers=activeDrivers().map(d=>({name:d.name,license:d.license,terminal:d.terminal,contractor:d.contractor,shift:d.shift}));
-  const stops=STOPS.map(s=>({customer:s.name,pallets:s.pallets,cartons:s.cartons,flags:(s.cust&&s.cust.flags)||[],from:(s.cust&&s.cust.from)||'',to:(s.cust&&s.cust.to)||'',north:!!(s.cust&&s.cust.north),shift:(s.cust&&s.cust.shift)||'לילה'}));
-  return 'אתה משבץ נהגים לחברת הפצת מזון בישראל. שבץ כל לקוח לנהג ולמשאית, וקבע לכל נהג משאית ושעת התייצבות לפי האילוצים. החזר JSON בלבד: מערך של אובייקטים {"customer","driver","truck","shift","checkin"}.\\n'
-   +'אין משאית קבועה או שעה קבועה לנהג — אתה קובע אותן. המשאית (truck) ושעת ההתייצבות (checkin בפורמט HH:MM) נקבעות לפי השיבוץ והאילוצים.\\n'
-   +'אילוצים: מקס משטחים של המשאית הוא מגבלה פיזית קשיחה — אסור לחרוג בשום אופן (אין מקום פיזי ליותר משטחים). פזר את הלקוחות בין המשאיות כך שאף משאית לא תעבור את הקיבולת; אם אין מספיק מקום לכולם, השאר לקוח ללא שיבוץ במקום לחרוג. מקדונלד/דגל "טרמינל" רק במשאית 503 ונהג עם terminal=true. משאית cooling="weak" לא לדגל north. בית חולים עדיף משאית license<=12. נהג אחד למשאית באותה משמרת. כבד חלונות זמן (from/to) ומשמרת (shift) לילה/בוקר. קבע checkin כך שהנהג יספיק להגיע בזמן ללקוחות שלו (לקוח בוקר מוקדם → התייצבות בוקר; משלוחי לילה → התייצבות לילה, מספיק זמן לפני חלון to).\\n'
-   +'הקבלן (contractor=true): מגיע עם משאית משלו — אל תקצה לו משאית מהצי (truck ריק) ואל תכלול אותו או את משאיתו בחישוב הקיבולת של הצי. הוא עושה רק את קו "צפון מזרח 7", משובץ אחרון, ומקבל רק שעת התייצבות (checkin) מתי לבוא להעמיס. הקבלן לעולם לא נוסע ל"עלומים".\\n'
-   +'תמיד שבץ נהג שאינו הקבלן ל"עלומים — החלפת סחורה" (נסיעה במהלך היום).\\n'
+  const drivers=activeDrivers().map(d=>({name:d.name,license:d.license,terminal:d.terminal,contractor:d.contractor,note:d.note||''}));
+  const stops=STOPS.map(s=>({customer:s.name,pallets:s.pallets,cartons:s.cartons,flags:(s.cust&&s.cust.flags)||[],from:(s.cust&&s.cust.from)||'',to:(s.cust&&s.cust.to)||'',north:!!(s.cust&&s.cust.north),shift:s.shift||'לילה'}));
+  const alt=(DB.rules&&DB.rules.alumim_time)||'16:00', ald=(DB.rules&&DB.rules.alumim_driver)||'';
+  return 'אתה משבץ נהגים לחברת הפצת מזון בישראל. שבץ כל לקוח לנהג, למשמרת ולמשאית, וקבע שעת התייצבות. החזר JSON בלבד: מערך של אובייקטים {"customer","driver","shift","truck","checkin"}.\\n'
+   +'משמרת (shift) = "לילה" / "בוקר" / "צהריים". אין משמרת קבועה לנהג — נהג יכול לעבוד בכמה משמרות (למשל קו קטן בתחילת הלילה וגם משמרת בוקר). אין משאית קבועה — המשאית ושעת ההתייצבות (checkin בפורמט HH:MM) נקבעות לכל ריצה (נהג+משמרת).\\n'
+   +'אילוצים: מקס משטחים של המשאית הוא מגבלה פיזית קשיחה — אסור לחרוג (אין מקום פיזי). פזר לקוחות כך שאף משאית לא תעבור את הקיבולת; אם אין מקום, השאר לקוח ללא שיבוץ במקום לחרוג. מקדונלד/דגל "טרמינל" רק במשאית 503 ונהג terminal=true. משאית cooling="weak" לא לדגל north. בית חולים עדיף license<=12. נהג אחד למשאית באותה משמרת. כבד חלונות זמן (from/to). קבע checkin כך שהנהג יספיק להגיע בזמן (בוקר מוקדם→התייצבות בוקר; לילה→התייצבות לילה לפני חלון to). התחשב בהערות/העדפות הנהג (note) — למשל "לא רוצה בוקר" או "רוצה קו קטן".\\n'
+   +'עלומים: שבץ נהג אחד למשמרת "צהריים" עבור "עלומים — החלפת סחורה" עם checkin="'+alt+'" (משתנה). הנהג הזה עושה רק את עלומים באותו יום ולא משובץ ללילה/בוקר. מועדף: '+(ald||'לפי שיקולך')+'. הקבלן לעולם לא נוסע לעלומים.\\n'
+   +'הקבלן (contractor=true): מגיע עם משאית משלו — truck ריק, לא נכלל בחישוב הקיבולת. עושה רק קו "צפון מזרח 7", משובץ אחרון, מקבל רק checkin.\\n'
    +'משאיות: '+JSON.stringify(trucks)+'\\nנהגים: '+JSON.stringify(drivers)+'\\nלקוחות: '+JSON.stringify(stops); }
 async function aiSuggest(){ const proxy=DB.gemini_proxy_url, key=DB.gemini_key;
   if(!proxy&&!key){ document.getElementById('msg').innerHTML='<div class="warnbox">שיבוץ AI זמין למורשים בלבד. למידע נוסף פנה למפתח.</div>'; return; }
@@ -321,11 +333,14 @@ async function aiSuggest(){ const proxy=DB.gemini_proxy_url, key=DB.gemini_key;
     applyAiPlan(plan); document.getElementById('msg').innerHTML='<div class="okbox">Gemini הציע סידור — בדוק ותקן לפי הצורך, ולחץ "בנה סידור".</div>';
   }catch(e){ document.getElementById('msg').innerHTML='<div class="warnbox">לא התקבלה הצעה מ-Gemini: '+(e.message||e)+'<br>אם זו שגיאת רשת/CORS — נחבר דרך שכבת ביניים. בינתיים אפשר "שיבוץ אוטומטי (כללים)".</div>'; }
 }
-function applyAiPlan(plan){ if(!Array.isArray(plan))return; STOPS.forEach(s=>s.driver='');
+function applyAiPlan(plan){ if(!Array.isArray(plan))return; RUNS={}; STOPS.forEach(s=>s.driver='');
   plan.forEach(a=>{ if(!a||!a.customer)return; const s=STOPS.find(x=>norm(x.name)===norm(a.customer))||STOPS.find(x=>norm(x.name).indexOf(norm(a.customer))>=0||norm(a.customer).indexOf(norm(x.name))>=0);
-    const d=DB.drivers.find(x=>x.name===a.driver);
-    if(s&&a.driver){ if(d&&d.contractor&&/עלומים/.test(s.name)){} else s.driver=a.driver; }
-    if(d){ if(d.contractor)d.truck=''; else if(a.truck)d.truck=String(a.truck); if(a.shift)d.shift=a.shift; if(a.checkin)d.checkin=String(a.checkin); } });
+    const d=DB.drivers.find(x=>x.name===a.driver); if(!s||!d)return;
+    if(d.contractor&&/עלומים/.test(s.name)) return; // קבלן לא לעלומים
+    s.driver=a.driver; if(a.shift)s.shift=a.shift;
+    const r=getRun(a.driver, s.shift||'לילה');
+    if(d.contractor){ r.truck=''; } else if(a.truck){ r.truck=String(a.truck); }
+    if(a.checkin) r.checkin=String(a.checkin); });
   renderStops(); render(); }
 
 function tab(id,btn){ ['plan','fleet','cust','help'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id));
