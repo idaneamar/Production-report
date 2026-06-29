@@ -307,7 +307,7 @@ async function aiSuggest(){ const proxy=DB.gemini_proxy_url, key=DB.gemini_key;
   if(!proxy&&!key){ document.getElementById('msg').innerHTML='<div class="warnbox">שיבוץ AI זמין למורשים בלבד. למידע נוסף פנה למפתח.</div>'; return; }
   if(!STOPS.length){ loadStops(); if(!STOPS.length){alert('אין לקוחות — גרור קבצים או הדבק רשימה.');return;} }
   document.getElementById('msg').innerHTML='<div class="okbox">שולח ל-Gemini... ⏳</div>';
-  const reqBody=JSON.stringify({contents:[{parts:[{text:buildPrompt()}]}],generationConfig:{response_mime_type:'application/json',temperature:0.2}});
+  const reqBody=JSON.stringify({contents:[{parts:[{text:buildPrompt()}]}],generationConfig:{response_mime_type:'application/json',temperature:0.2,thinkingConfig:{thinkingBudget:0}}});
   const MODEL='gemini-2.5-flash';
   const url=proxy?(proxy+(proxy.indexOf('?')>=0?'&':'?')+'model='+MODEL):('https://generativelanguage.googleapis.com/v1beta/models/'+MODEL+':generateContent?key='+encodeURIComponent(key));
   try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:reqBody});
