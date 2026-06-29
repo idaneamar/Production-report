@@ -5,7 +5,7 @@
  "carton_keywords": ["קרטון", "גזרונ"],
  "fruit_keywords": ["אגס", "נקטרינ", "תפוז", "תפוע", "תפוח"],
  "through_us_keys": ["טרי לי", "טרילי"],
- "display_notes": [{"match": "שפע טעים", "note": "בלאגן"}],
+ "display_notes": [{"match": "שפע טעים", "note": "בלאגן"}, {"match": "משי הוד", "note": "עד 45 ארגז במשטח"}],
  "boxes_per_pallet": 60,
  "fruit_cartons_per_pallet": 60,
  "sheet_webapp_url": "https://script.google.com/macros/s/AKfycbxl3sy0G3z_O7Uh5E-7oMQ-AHMWt6bCRGm5pHmyvblQvWgAvxHvnSkkn6IS9uIDVcm51Q/exec",

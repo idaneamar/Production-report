@@ -48,7 +48,8 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .carton{color:var(--orange)} .hidden{display:none} .chk{width:18px;height:18px}
 .pill{display:inline-block;background:#eef3f7;border-radius:20px;padding:1px 9px;font-size:12px;margin-right:6px}
 code{background:#eef3f7;padding:1px 5px;border-radius:4px}
-@media print{.tabs,.dropzone,.btn,#sheetbar,header .sub{display:none}
+@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+.tabs,.dropzone,.btn,#sheetbar,header .sub{display:none}
 .cust,.regblock>.reghead{break-inside:avoid;page-break-inside:avoid}
 .cust{page-break-inside:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}
 .pgbreak{page-break-before:always}}
@@ -135,7 +136,7 @@ const DEFAULT_SETTINGS = {
   carton_keywords: ["קרטון", "גזרונ"], // קרטונים שאינם פירות (לא נספרים בארגזים, כן במשטחים)
   fruit_keywords: ["אגס", "נקטרינ", "תפוז", "תפוע", "תפוח"], // פירות מעלומים (לא בארגזים ולא במשטחים)
   through_us_keys: ["טרי לי", "טרילי"], // "מעלומים לטרי לי ומשם ללקוח" = עובר דרכנו (מקבלים)
-  display_notes: [{ match: "שפע טעים", note: "בלאגן" }], // הוספת כינוי בסוגריים בתצוגה
+  display_notes: [{ match: "שפע טעים", note: "בלאגן" }, { match: "משי הוד", note: "עד 45 ארגז במשטח" }], // הוספת כינוי בסוגריים בתצוגה
   boxes_per_pallet: 60,
   fruit_cartons_per_pallet: 60,
   sheet_webapp_url: "",
@@ -504,15 +505,15 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
   return html+'</div>'; }
 function custDisp(name){ var n=esc(name); (S.display_notes||[]).forEach(function(d){ if(name.indexOf(d.match)>=0) n+=' <span class="muted">('+esc(d.note)+')</span>'; }); return n; }
 function kosherLegendHtml(){
-  var COL={'לבן':'#ffffff','אדום':'#e24b4a','צהוב':'#f2c200','כחול':'#3a7bd5'};
-  var us=[['לבן','כשרות רגילה'],['אדום','שארית'],['צהוב','בד"ץ']];
+  var COL={'לבן':'#ffffff','אדום':'#e24b4a','צהוב':'#f2c200','כחול':'#3a7bd5','ירוק':'#3aaa35'};
+  var us=[['לבן','כשרות רגילה'],['אדום','שארית'],['צהוב','בד"ץ'],['ירוק','שקית 100 גרם - בד"ץ']];
   var al=[['כחול','כשרות רגילה'],['אדום','לנדא'],['צהוב','בד"ץ']];
-  function tbl(rows){ var h='<table class="mini" style="min-width:0;width:auto"><thead><tr><th>צבע</th><th>כשרות</th></tr></thead><tbody>';
-    rows.forEach(function(r){ h+='<tr><td style="text-align:right"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid #bbb;background:'+COL[r[0]]+';vertical-align:-2px"></span> '+r[0]+'</td><td style="text-align:right">'+r[1]+'</td></tr>'; });
+  function tbl(rows,colHdr){ var h='<table class="mini" style="min-width:0;width:auto"><thead><tr><th>'+colHdr+'</th><th>כשרות</th></tr></thead><tbody>';
+    rows.forEach(function(r){ h+='<tr><td style="text-align:right"><span style="display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid #bbb;background:'+COL[r[0]]+';vertical-align:-2px;-webkit-print-color-adjust:exact;print-color-adjust:exact"></span> '+r[0]+'</td><td style="text-align:right">'+r[1]+'</td></tr>'; });
     return h+'</tbody></table>'; }
   return '<div class="card"><h2>כשרויות — צבעי סימון</h2><div style="display:flex;gap:28px;flex-wrap:wrap">'
-    +'<div><div style="font-weight:600;margin-bottom:4px">אצלנו</div>'+tbl(us)+'</div>'
-    +'<div><div style="font-weight:600;margin-bottom:4px">עלומים</div>'+tbl(al)+'</div></div></div>';
+    +'<div><div style="font-weight:600;margin-bottom:4px">אצלנו</div>'+tbl(us,'צבע המדבקה')+'</div>'
+    +'<div><div style="font-weight:600;margin-bottom:4px">עלומים</div>'+tbl(al,'צבע')+'</div></div></div>';
 }
 function aggProducts(R){ const m={};
   ['prepare','send','receive'].forEach(key=>{ const b=R.buckets[key];
