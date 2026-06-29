@@ -91,6 +91,7 @@ ol li,ul li{margin:5px 0}
       <button class="btn sec" onclick="loadDemo()">טען דוגמה</button>
       <button class="btn sec" onclick="document.getElementById('inp').value=''">נקה</button>
       <span style="flex:1"></span>
+      <button class="btn sec" onclick="exportDriversPack()">🚚 ייצוא לסידור נהגים</button>
       <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
       <button class="btn sec" onclick="window.print()">🖨 הדפסה</button>
     </div>
@@ -392,6 +393,13 @@ function exportXls(){
   h+='</table></body></html>';
   const blob=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
   dl(blob,'חישוב_אריזה_'+new Date().toISOString().slice(0,10)+'.xls');
+}
+function exportDriversPack(){
+  if(!LAST){ alert('קודם לחץ "חשב"'); return; }
+  let h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1"><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th></tr>';
+  LAST.forEach(r=>{ h+='<tr><td>'+r.cust.name+'</td><td>'+(r.agg.pallets||0)+'</td><td>'+(r.agg.boxes||0)+'</td></tr>'; });
+  h+='</table></body></html>';
+  dl(new Blob(['﻿'+h],{type:'application/vnd.ms-excel'}),'אריזה לסידור נהגים.xls');
 }
 function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
 
