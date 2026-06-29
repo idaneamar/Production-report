@@ -308,7 +308,8 @@ async function aiSuggest(){ const proxy=DB.gemini_proxy_url, key=DB.gemini_key;
   if(!STOPS.length){ loadStops(); if(!STOPS.length){alert('אין לקוחות — גרור קבצים או הדבק רשימה.');return;} }
   document.getElementById('msg').innerHTML='<div class="okbox">שולח ל-Gemini... ⏳</div>';
   const reqBody=JSON.stringify({contents:[{parts:[{text:buildPrompt()}]}],generationConfig:{response_mime_type:'application/json',temperature:0.2}});
-  const url=proxy||('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+encodeURIComponent(key));
+  const MODEL='gemini-2.5-flash';
+  const url=proxy?(proxy+(proxy.indexOf('?')>=0?'&':'?')+'model='+MODEL):('https://generativelanguage.googleapis.com/v1beta/models/'+MODEL+':generateContent?key='+encodeURIComponent(key));
   try{ const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:reqBody});
     const d=await r.json(); if(d.error)throw new Error(d.error.message||'שגיאת API');
     const txt=d.candidates[0].content.parts[0].text; let plan=JSON.parse(txt); if(plan&&plan.assignments)plan=plan.assignments;
