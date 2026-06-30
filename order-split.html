@@ -35,6 +35,13 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .cust{padding:6px 12px;border-top:1px solid var(--line)} .cust .cn{font-weight:600}
 .cust .addr{color:var(--muted);font-size:12px}
 .mini{margin:5px 0 4px;width:auto;min-width:60%}
+.matrix{font-size:11px;border-collapse:collapse;min-width:0;width:auto}
+.matrix th,.matrix td{border:1px solid var(--line);padding:2px 5px;text-align:center;min-width:24px}
+.matrix td:first-child,.matrix th:first-child{text-align:right;white-space:nowrap;position:sticky;right:0;background:#fff;font-weight:600;z-index:1}
+.matrix th.rot{writing-mode:vertical-rl;white-space:nowrap;height:118px;vertical-align:bottom;font-weight:600}
+.matrix tr.sec-prepare>td,.matrix tr.sec-prepare>th{background:#fdf1e6}
+.matrix tr.sec-receive>td,.matrix tr.sec-receive>th{background:var(--greenbg)}
+.matrix .z{color:#cfd8e3}
 .custrow{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;margin-top:4px}
 .custrow>.mini{flex:1 1 340px;min-width:280px;margin:0}
 .custrow>.sum2{flex:0 0 200px}
@@ -436,6 +443,7 @@ function render(R){
   h+=kosherLegendHtml();               // טבלת כשרויות (אחרי סיכום היום)
   h+=productTable(R);                  // 1) סיכום לפי מוצר — לתכנון ייצור
   h+=ourCombinedHtml(R);               // 2) האזורים שלנו לפי לקוח
+  h+=prodCustMatrixHtml(R);            // 2.5) מוצר × לקוח
   h+=lineProductHtml(R);               // 3) סיכום לפי מוצר וקו (לפני "לשלוח לעלומים")
   h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 4)
   out.innerHTML=h;
@@ -447,6 +455,29 @@ function combinedOurs(R){ var m={};
       var e=m[reg][ck]||(m[reg][ck]={name:c.name,addr:c.addr,prods:{}});
       c.items.forEach(function(x){ var p=e.prods[x.product]||(e.prods[x.product]={us:0,al:0,isCarton:x.isCarton,isFruit:x.isFruit}); p[fld]+=x.qty; }); } } });
   return m; }
+/* טבלת מוצר × לקוח: לאילו לקוחות הולך כל מוצר וכמה ארגזים. חלק עליון=מלקטים אצלנו, תחתון=מעלומים */
+function prodCustMatrixHtml(R){ var m=combinedOurs(R);
+  var custs=[], seen={}, ourP={}, alP={};
+  Object.keys(m).forEach(function(reg){ Object.keys(m[reg]).forEach(function(ck){ var c=m[reg][ck]; var cn=c.name;
+    Object.keys(c.prods).forEach(function(p){ var v=c.prods[p]; if(v.isFruit)return;
+      if(v.us>0){ if(!seen[cn]){seen[cn]=1;custs.push(cn);} (ourP[p]=ourP[p]||{})[cn]=((ourP[p]||{})[cn]||0)+v.us; }
+      if(v.al>0){ if(!seen[cn]){seen[cn]=1;custs.push(cn);} (alP[p]=alP[p]||{})[cn]=((alP[p]||{})[cn]||0)+v.al; } }); }); });
+  custs.sort(function(a,b){return a.localeCompare(b,'he');});
+  if(!custs.length) return '';
+  function colTotals(P){ var t={}; Object.keys(P).forEach(function(p){ custs.forEach(function(cn){ t[cn]=(t[cn]||0)+(P[p][cn]||0); }); }); return t; }
+  function section(title,P,cls){ var prods=Object.keys(P).sort(function(a,b){return a.localeCompare(b,'he');}); if(!prods.length) return '';
+    var h='<tr class="'+cls+'"><th>'+title+'</th>'+custs.map(function(){return '<th></th>';}).join('')+'<th></th></tr>';
+    prods.forEach(function(p){ var rt=0; h+='<tr><td>'+esc(p)+'</td>';
+      custs.forEach(function(cn){ var q=P[p][cn]||0; rt+=q; h+='<td'+(q?'':' class="z"')+'>'+(q||'·')+'</td>'; });
+      h+='<td><b>'+rt+'</b></td></tr>'; });
+    var ct=colTotals(P); var gt=0;
+    h+='<tr style="font-weight:bold"><td>סה"כ</td>'+custs.map(function(cn){ gt+=ct[cn]||0; return '<td>'+(ct[cn]||'')+'</td>'; }).join('')+'<td>'+gt+'</td></tr>';
+    return h; }
+  var header='<tr><th>מוצר \\ לקוח</th>'+custs.map(function(cn){return '<th class="rot">'+esc(cn)+'</th>';}).join('')+'<th>סה"כ</th></tr>';
+  var body=section('🟧 מלקטים אצלנו',ourP,'sec-prepare')+section('🟩 מעלומים',alP,'sec-receive');
+  return '<div class="card sec-prepare"><h2>🧩 מוצר × לקוח — מי מקבל מה (ארגזים)</h2>'
+    +'<p class="muted">לכל מוצר: לאילו לקוחות הוא הולך וכמה ארגזים. החלק העליון = מה שמלקטים אצלנו, התחתון = מה שמגיע מעלומים. (פירות לא נכללים — נספרים בנפרד.)</p>'
+    +'<div style="overflow-x:auto"><table class="matrix"><thead>'+header+'</thead><tbody>'+body+'</tbody></table></div></div>'; }
 function lineProducts(R){ var m=combinedOurs(R); var out={};
   Object.keys(m).forEach(function(reg){ var prod={};
     Object.keys(m[reg]).forEach(function(ck){ var c=m[reg][ck];
