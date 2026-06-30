@@ -97,7 +97,7 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
 
 </div>
 <script>
-const DEFAULTS = {"trucks": [{"id": "503", "license": 15, "loadTon": 16, "maxPallets": 18, "cooling": "good", "terminal": true, "active": true}, {"id": "702", "license": 15, "loadTon": 6, "maxPallets": 15.5, "cooling": "good", "terminal": false, "active": true}, {"id": "902", "license": 12, "loadTon": 15, "maxPallets": 14, "cooling": "weak", "terminal": false, "active": true}, {"id": "703", "license": 12, "loadTon": 5, "maxPallets": 12, "cooling": "good", "terminal": false, "active": true}, {"id": "704", "license": 12, "loadTon": 5, "maxPallets": 14, "cooling": "good", "terminal": false, "active": true}], "drivers": [{"name": "אלון", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יהודה", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יניב דמרי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "שי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "מטר", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "יניב מחלבני", "license": 15, "terminal": false, "contractor": false, "active": true, "note": "בדרך כלל הנהג שנוסע לעלומים בצהריים"}, {"name": "קבלן", "license": 15, "terminal": false, "contractor": true, "active": true, "note": "מגיע עם משאית שלו; רק קו צפון מזרח 7; משובץ אחרון"}], "customers": [{"name": "איכילוב", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "תל השומר", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "לוינשטיין", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "סלטי גל", "flags": [], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "ברכת עץ השדה", "flags": [], "from": "", "to": "24:00", "shift": "לילה", "north": false, "note": ""}, {"name": "משה קילופים", "flags": [], "from": "", "to": "23:30", "shift": "לילה", "north": false, "note": ""}, {"name": "אייסמן", "flags": [], "from": "", "to": "11:30", "shift": "בוקר", "north": false, "note": "לקוח בוקר"}, {"name": "מקדונלד", "flags": ["טרמינל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "רק משאית 503 + נהג מורשה"}, {"name": "אברהם איליה", "flags": ["ספק", "משקל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "דולב 270-300 ק\"ג; דולבים ריקים"}, {"name": "גלאט עלים", "flags": ["ספק"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "אוספים רק כשנותנים סחורה"}, {"name": "כפר יעבץ", "flags": ["ספק", "ראש בראש"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "יואב ורחמים; ראש בראש משטחים"}], "rules": {"max_drive_hours": 12, "break_after_hours": 6, "ayalon_block": "06:30-09:00", "contractor_last": true, "boxes_per_pallet": 60, "alumim_time": "16:00", "alumim_driver": "יניב מחלבני"}, "gemini_proxy_url": "", "gemini_key": ""};
+const DEFAULTS = {"trucks": [{"id": "503", "license": 15, "loadTon": 16, "maxPallets": 18, "cooling": "good", "terminal": true, "active": true}, {"id": "702", "license": 15, "loadTon": 6, "maxPallets": 15.5, "cooling": "good", "terminal": false, "active": true}, {"id": "902", "license": 12, "loadTon": 15, "maxPallets": 14, "cooling": "weak", "terminal": false, "active": true}, {"id": "703", "license": 12, "loadTon": 5, "maxPallets": 12, "cooling": "good", "terminal": false, "active": true}, {"id": "704", "license": 12, "loadTon": 5, "maxPallets": 14, "cooling": "good", "terminal": false, "active": true}], "drivers": [{"name": "אלון", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יהודה", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יניב דמרי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "שי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "מטר", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "יניב מחלבני", "license": 15, "terminal": false, "contractor": false, "active": true, "note": "בדרך כלל הנהג שנוסע לעלומים בצהריים"}, {"name": "קבלן", "license": 15, "terminal": false, "contractor": true, "active": true, "note": "מגיע עם משאית שלו; רק קו צפון מזרח 7; משובץ אחרון"}], "customers": [{"name": "איכילוב", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "תל השומר", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "לוינשטיין", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "סלטי גל", "flags": [], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "ברכת עץ השדה", "flags": [], "from": "", "to": "24:00", "shift": "לילה", "north": false, "note": ""}, {"name": "משה קילופים", "flags": [], "from": "", "to": "23:30", "shift": "לילה", "north": false, "note": ""}, {"name": "אייסמן", "flags": [], "from": "", "to": "11:30", "shift": "בוקר", "north": false, "note": "לקוח בוקר"}, {"name": "טרמינל", "flags": ["טרמינל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "נמל — רק משאית 503 + נהג מורשה (מקדונלד רגיל אינו טרמינל)"}, {"name": "אברהם איליה", "flags": ["ספק", "משקל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "דולב 270-300 ק\"ג; דולבים ריקים"}, {"name": "גלאט עלים", "flags": ["ספק"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "אוספים רק כשנותנים סחורה"}, {"name": "כפר יעבץ", "flags": ["ספק", "ראש בראש"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "יואב ורחמים; ראש בראש משטחים"}], "rules": {"max_drive_hours": 12, "break_after_hours": 6, "ayalon_block": "06:30-09:00", "contractor_last": true, "boxes_per_pallet": 60, "alumim_time": "16:00", "alumim_driver": "יניב מחלבני"}, "gemini_proxy_url": "", "gemini_key": ""};
 let DB = load();
 let STOPS = []; // [{name, pallets, cartons, driver, cust(attr)}]
 function load(){ try{const s=localStorage.getItem('drv_set'); if(s)return Object.assign({},JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(s));}catch(e){} return JSON.parse(JSON.stringify(DEFAULTS)); }
@@ -127,10 +127,10 @@ function shiftLabel(sh){ return sh==='לילה'?'🌙 לילה':(sh==='בוקר'
 /* ---------- קלט לקוחות ---------- */
 function loadStops(){ const t=document.getElementById('inp').value; const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim());
   STOPS=[]; let unknown=[];
-  lines.forEach(l=>{ const p=l.split(/\t|,|;/).map(x=>x.trim()).filter(x=>x!=='');
-    if(!p.length)return; const name=p[0]; const pallets=parseFloat((p[1]||'').replace(/[^0-9.]/g,''))||0; const cartons=parseFloat((p[2]||'').replace(/[^0-9.]/g,''))||0;
+  lines.forEach(l=>{ const p=l.split(/\t|;/).map(x=>x.trim());
+    if(!p.length)return; const name=p[0]; const pallets=parseFloat((p[1]||'').replace(/[^0-9.]/g,''))||0; const cartons=parseFloat((p[2]||'').replace(/[^0-9.]/g,''))||0; const region=(p[3]||'').trim();
     if(!name||(pallets===0&&cartons===0&&p.length<2))return;
-    const c=findCust(name); STOPS.push({name:name,pallets:pallets,cartons:cartons,driver:'',shift:(c&&c.shift)||'לילה',cust:c}); });
+    const c=findCust(name); STOPS.push({name:name,pallets:pallets,cartons:cartons,driver:'',shift:(c&&c.shift)||'לילה',region:region,cust:c}); });
   if(!STOPS.some(s=>/עלומים/.test(s.name))) STOPS.push({name:'עלומים — החלפת סחורה',pallets:0,cartons:0,driver:'',shift:'צהריים',cust:{flags:['החלפה'],note:'מביא לעלומים מה שהכנו להם, לוקח מהם מה שהכינו לנו'}});
   document.getElementById('stops').classList.remove('hidden');
   document.getElementById('msg').innerHTML='<div class="okbox">נטענו '+STOPS.length+' לקוחות. שבץ נהג לכל אחד (או "הצע שיבוץ אוטומטי").</div>';
@@ -138,7 +138,7 @@ function loadStops(){ const t=document.getElementById('inp').value; const lines=
 }
 function renderStops(){ const drs=activeDrivers();
   let h='<table><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>אילוצים</th><th>משמרת</th><th>נהג</th></tr></thead><tbody>';
-  STOPS.forEach((s,i)=>{ const fl=s.cust?(s.cust.flags||[]).concat(s.cust.from?['מ-'+s.cust.from]:[],s.cust.to?['עד '+s.cust.to]:[],s.cust.north?['צפון']:[]):[];
+  STOPS.forEach((s,i)=>{ const fl=(s.cust?(s.cust.flags||[]).concat(s.cust.from?['מ-'+s.cust.from]:[],s.cust.to?['עד '+s.cust.to]:[],s.cust.north?['צפון']:[]):[]).concat(s.region?['אזור '+s.region]:[]);
     h+='<tr><td style="text-align:right">'+esc(s.name)+'</td><td><input type="number" step="0.5" value="'+s.pallets+'" style="width:60px" onchange="STOPS['+i+'].pallets=parseFloat(this.value)||0"></td>'
       +'<td><input type="number" value="'+s.cartons+'" style="width:60px" onchange="STOPS['+i+'].cartons=parseFloat(this.value)||0"></td>'
       +'<td>'+(fl.length?fl.map(f=>'<span class="pill flag">'+esc(f)+'</span>').join(''):'<span class="muted">—</span>')+'</td>'
@@ -167,11 +167,17 @@ function autoSuggest(){ if(!STOPS.length){ loadStops(); if(!STOPS.length)return;
     workers.forEach(d=>{ const r=getRun(d.name,sh); if(r.truck==='503'&&used['503'])return; const t=pool[pi++]; if(t){r.truck=t.id;used[t.id]=1;} });
     const load={}; workers.forEach(d=>load[d.name]=0);
     stops.forEach(s=>{ if(s.cust&&(s.cust.flags||[]).indexOf('טרמינל')>=0){ const d=workers.find(x=>x.terminal&&truckOfRun(x.name,sh)&&truckOfRun(x.name,sh).id==='503'); if(d){s.driver=d.name;load[d.name]+=s.pallets;} } });
-    const rest=stops.filter(s=>!s.driver).sort((a,b)=>b.pallets-a.pallets);
-    rest.forEach(s=>{ let best=null,bestRem=1e9;
-      workers.forEach(d=>{ const t=truckOfRun(d.name,sh); if(!t)return; if(s.cust&&s.cust.north&&t.cooling==='weak')return;
-        const rem=t.maxPallets-load[d.name]-s.pallets; if(rem>=0&&rem<bestRem){bestRem=rem;best=d.name;} });
-      if(best){s.driver=best;load[best]+=s.pallets;} });
+    // --- פיזור לפי אזורים: לקוחות מאותו מחוז יחד על אותו נהג, בלי לחרוג מהקיבולת ---
+    function fitStop(s){ let best=null,bestRem=1e9; workers.forEach(d=>{ const t=truckOfRun(d.name,sh); if(!t)return; if(s.cust&&s.cust.north&&t.cooling==='weak')return; const rem=t.maxPallets-load[d.name]-s.pallets; if(rem>=0&&rem<bestRem){bestRem=rem;best=d.name;} }); if(best){s.driver=best;load[best]+=s.pallets;} }
+    const rest=stops.filter(s=>!s.driver);
+    const byReg={}; rest.forEach(s=>{ const rg=s.region||'—'; (byReg[rg]=byReg[rg]||[]).push(s); });
+    const regs=Object.keys(byReg).sort((a,b)=>byReg[b].reduce((x,s)=>x+s.pallets,0)-byReg[a].reduce((x,s)=>x+s.pallets,0));
+    regs.forEach(rg=>{ const items=byReg[rg]; const tot=items.reduce((x,s)=>x+s.pallets,0); const anyNorth=items.some(s=>s.cust&&s.cust.north);
+      if(rg!=='—'){ let best=null,bestRem=1e9; // נסה נהג אחד לכל האזור
+        workers.forEach(d=>{ const t=truckOfRun(d.name,sh); if(!t)return; if(anyNorth&&t.cooling==='weak')return; const rem=t.maxPallets-load[d.name]-tot; if(rem>=0&&rem<bestRem){bestRem=rem;best=d.name;} });
+        if(best){ items.forEach(s=>{s.driver=best;}); load[best]+=tot; return; } }
+      // אזור לא ידוע, או לא נכנס לאף משאית כשלם — פצל לפי best-fit פר לקוח
+      items.sort((a,b)=>b.pallets-a.pallets).forEach(fitStop); });
     // שעת התייצבות ברירת מחדל לכל ריצה עם לקוחות (ניתן לעריכה בפלט)
     workers.forEach(d=>{ const k=runKey(d.name,sh); if(RUNS[k]&&STOPS.some(s=>s.driver===d.name&&(s.shift||'לילה')===sh)) RUNS[k].checkin=RUNS[k].checkin||(sh==='לילה'?'22:00':'07:00'); });
   });
@@ -291,23 +297,24 @@ window.addEventListener('dragover',e=>e.preventDefault());window.addEventListene
 function parseExportFile(text){ let doc; try{doc=new DOMParser().parseFromString(text,'text/html');}catch(e){return [];}
   const tables=[].slice.call(doc.querySelectorAll('table')); let out=[];
   tables.forEach(tbl=>{ const trs=[].slice.call(tbl.querySelectorAll('tr')); if(!trs.length)return;
-    let hi=-1,nc=-1,pc=-1,cc=-1;
+    let hi=-1,nc=-1,pc=-1,cc=-1,rc=-1;
     for(let r=0;r<trs.length;r++){ const cells=[].slice.call(trs[r].children).map(x=>x.textContent.trim());
-      let a=-1,b=-1,c=-1; cells.forEach((t,i)=>{ if(a<0&&/לקוח|קיטרינג/.test(t))a=i; if(b<0&&/משטח/.test(t))b=i; if(c<0&&/קרטון/.test(t))c=i; });
-      if(a>=0&&b>=0){hi=r;nc=a;pc=b;cc=c;break;} }
+      let a=-1,b=-1,c=-1,d2=-1; cells.forEach((t,i)=>{ if(a<0&&/לקוח|קיטרינג/.test(t))a=i; if(b<0&&/משטח/.test(t))b=i; if(c<0&&/קרטון/.test(t))c=i; if(d2<0&&/מחוז|אזור/.test(t))d2=i; });
+      if(a>=0&&b>=0){hi=r;nc=a;pc=b;cc=c;rc=d2;break;} }
     if(hi<0)return;
     for(let r=hi+1;r<trs.length;r++){ const cells=[].slice.call(trs[r].children).map(x=>x.textContent.trim());
       const name=cells[nc]; if(!name||/סה.?כ/.test(name))continue;
       const pal=parseFloat((cells[pc]||'').replace(/[^0-9.]/g,'')); if(isNaN(pal))continue;
       const car=cc>=0?(parseFloat((cells[cc]||'').replace(/[^0-9.]/g,''))||0):0;
-      out.push({name:name,pallets:pal,cartons:car}); } });
+      const reg=rc>=0?(cells[rc]||'').trim():'';
+      out.push({name:name,pallets:pal,cartons:car,region:reg}); } });
   return out; }
 async function handleFiles(files){ if(!files||!files.length)return; const merged={}; let n=0;
   for(const f of files){ let text; try{text=await f.text();}catch(e){continue;} const rows=parseExportFile(text); n++;
-    rows.forEach(r=>{ const k=norm(r.name); if(!merged[k])merged[k]={name:r.name,pallets:0,cartons:0}; merged[k].pallets+=r.pallets; merged[k].cartons+=r.cartons; }); }
+    rows.forEach(r=>{ const k=norm(r.name); if(!merged[k])merged[k]={name:r.name,pallets:0,cartons:0,region:''}; merged[k].pallets+=r.pallets; merged[k].cartons+=r.cartons; if(r.region&&!merged[k].region)merged[k].region=r.region; }); }
   const list=Object.keys(merged).map(k=>merged[k]);
   if(!list.length){ document.getElementById('fileinfo').innerHTML='<span style="color:#b45309">לא זוהו לקוחות. ודא שאלה קובצי ייצוא (xls) מהמחשבונים — טבלה עם עמודות "לקוח" ו"משטחים".</span>'; return; }
-  document.getElementById('inp').value=list.map(r=>r.name+'\t'+(Math.round(r.pallets*10)/10)+(r.cartons?'\t'+r.cartons:'')).join('\n');
+  document.getElementById('inp').value=list.map(r=>r.name+'\t'+(Math.round(r.pallets*10)/10)+'\t'+(r.cartons||'')+'\t'+(r.region||'')).join('\n');
   document.getElementById('fileinfo').textContent='✓ נטענו '+list.length+' לקוחות מ-'+n+' קבצים';
   loadStops(); }
 
@@ -315,11 +322,12 @@ async function handleFiles(files){ if(!files||!files.length)return; const merged
 function saveKey(){ DB.gemini_key=(document.getElementById('gkey').value||'').trim(); DB.gemini_proxy_url=(document.getElementById('gproxy').value||'').trim(); persist(); flash('נשמר ✓'); }
 function buildPrompt(){ const trucks=DB.trucks.filter(t=>t.active).map(t=>({id:t.id,maxPallets:t.maxPallets,license:t.license,cooling:t.cooling,terminal:t.terminal}));
   const drivers=activeDrivers().map(d=>({name:d.name,license:d.license,terminal:d.terminal,contractor:d.contractor,note:d.note||''}));
-  const stops=STOPS.map(s=>({customer:s.name,pallets:s.pallets,cartons:s.cartons,flags:(s.cust&&s.cust.flags)||[],from:(s.cust&&s.cust.from)||'',to:(s.cust&&s.cust.to)||'',north:!!(s.cust&&s.cust.north),shift:s.shift||'לילה'}));
+  const stops=STOPS.map(s=>({customer:s.name,pallets:s.pallets,cartons:s.cartons,region:s.region||'',flags:(s.cust&&s.cust.flags)||[],from:(s.cust&&s.cust.from)||'',to:(s.cust&&s.cust.to)||'',north:!!(s.cust&&s.cust.north),shift:s.shift||'לילה'}));
   const alt=(DB.rules&&DB.rules.alumim_time)||'16:00', ald=(DB.rules&&DB.rules.alumim_driver)||'';
   return 'אתה משבץ נהגים לחברת הפצת מזון בישראל. שבץ כל לקוח לנהג, למשמרת ולמשאית, וקבע שעת התייצבות. החזר JSON בלבד: מערך של אובייקטים {"customer","driver","shift","truck","checkin"}.\\n'
    +'משמרת (shift) = "לילה" / "בוקר" / "צהריים". אין משמרת קבועה לנהג — נהג יכול לעבוד בכמה משמרות (למשל קו קטן בתחילת הלילה וגם משמרת בוקר). אין משאית קבועה — המשאית ושעת ההתייצבות (checkin בפורמט HH:MM) נקבעות לכל ריצה (נהג+משמרת).\\n'
-   +'אילוצים: מקס משטחים של המשאית הוא מגבלה פיזית קשיחה — אסור לחרוג (אין מקום פיזי). פזר לקוחות כך שאף משאית לא תעבור את הקיבולת; אם אין מקום, השאר לקוח ללא שיבוץ במקום לחרוג. מקדונלד/דגל "טרמינל" רק במשאית 503 ונהג terminal=true. משאית cooling="weak" לא לדגל north. בית חולים עדיף license<=12. נהג אחד למשאית באותה משמרת. כבד חלונות זמן (from/to). קבע checkin כך שהנהג יספיק להגיע בזמן (בוקר מוקדם→התייצבות בוקר; לילה→התייצבות לילה לפני חלון to). התחשב בהערות/העדפות הנהג (note) — למשל "לא רוצה בוקר" או "רוצה קו קטן".\\n'
+   +'פזר לפי אזורים (region): לקוחות מאותו מחוז עדיף שיהיו על אותו נהג/משאית, כדי שהקווים יהיו הגיוניים גאוגרפית.\\n'
+   +'אילוצים: מקס משטחים של המשאית הוא מגבלה פיזית קשיחה — אסור לחרוג (אין מקום פיזי). פזר לקוחות כך שאף משאית לא תעבור את הקיבולת; אם אין מקום, השאר לקוח ללא שיבוץ במקום לחרוג. דגל "טרמינל" (הנמל) רק במשאית 503 ונהג terminal=true — מקדונלד רגיל אינו טרמינל ויכול בכל משאית. משאית cooling="weak" לא לדגל north. בית חולים עדיף license<=12. נהג אחד למשאית באותה משמרת. כבד חלונות זמן (from/to). קבע checkin כך שהנהג יספיק להגיע בזמן (בוקר מוקדם→התייצבות בוקר; לילה→התייצבות לילה לפני חלון to). התחשב בהערות/העדפות הנהג (note) — למשל "לא רוצה בוקר" או "רוצה קו קטן".\\n'
    +'עלומים: שבץ נהג אחד למשמרת "צהריים" עבור "עלומים — החלפת סחורה" עם checkin="'+alt+'" (משתנה). עלומים הוא בצהריים, ולכן אותו נהג כן יכול לעשות גם קו לילה/בוקר באותו סידור. מועדף לעלומים: '+(ald||'לפי שיקולך')+'. הקבלן לעולם לא נוסע לעלומים.\\n'
    +'הקבלן (contractor=true): מגיע עם משאית משלו — truck ריק, לא נכלל בחישוב הקיבולת. עושה רק קו "צפון מזרח 7", משובץ אחרון, מקבל רק checkin.\\n'
    +'משאיות: '+JSON.stringify(trucks)+'\\nנהגים: '+JSON.stringify(drivers)+'\\nלקוחות: '+JSON.stringify(stops); }
