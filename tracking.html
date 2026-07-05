@@ -60,6 +60,27 @@
 
 <div id="v-cover" class="view">
   <div class="card">
+    <h2 style="font-size:16px;color:var(--green-dark);margin-bottom:6px">📄 העלאת סידור נהגים (PDF)</h2>
+    <p class="muted" style="margin-bottom:10px">גרור לכאן את קובץ ה-PDF היומי או בחר קובץ — המערכת תזהה את הנסיעות ותציג אותן לאישור לפני שמירה.</p>
+    <div id="pdfDrop" style="border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;color:#6b7f74">
+      📁 גרור PDF לכאן — או לחץ לבחירת קובץ
+      <input type="file" id="pdfFile" accept=".pdf" style="display:none">
+    </div>
+    <div id="pdfReview" class="hidden" style="margin-top:14px">
+      <div class="row">
+        <b>נסיעות שזוהו — בדוק ותקן לפני שמירה:</b>
+        <label>תאריך הסידור <input type="date" id="pdfDate"></label>
+      </div>
+      <div style="max-height:50vh;overflow:auto" id="pdfTbl"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="savePdf()">💾 שמור לענן</button>
+        <button class="btn sec" onclick="document.getElementById('pdfReview').classList.add('hidden')">ביטול</button>
+        <span class="muted">שמירה מחליפה רישום קודם של אותו תאריך</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="row">
       <button class="btn sec nav" onclick="moveMonth(-1)">‹ חודש קודם</button>
       <input type="month" id="coverMonth" onchange="renderCover()">
@@ -130,6 +151,7 @@
   </div>
 </div>
 
+<script src="./vendor/pdf.min.js"></script>
 <script>
 const SB_URL='https://dddczmvjfokcbibeahyn.supabase.co/rest/v1';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
@@ -354,6 +376,124 @@ async function setPlace(sel,place){
   try{ await loadMeta(); }catch(e){ document.getElementById('coverBanner').innerHTML='<div class="banner bad">שגיאת חיבור למסד הנתונים: '+esc(e.message)+'</div>'; }
   renderCover();
 })();
+
+/* ---------- PDF upload & parse ---------- */
+const pdfDrop=document.getElementById('pdfDrop'), pdfFile=document.getElementById('pdfFile');
+pdfDrop.onclick=()=>pdfFile.click();
+pdfFile.onchange=()=>{ if(pdfFile.files[0]) handlePdf(pdfFile.files[0]); pdfFile.value=''; };
+pdfDrop.ondragover=e=>{ e.preventDefault(); pdfDrop.style.background='var(--green-light)'; };
+pdfDrop.ondragleave=()=>pdfDrop.style.background='';
+pdfDrop.ondrop=e=>{ e.preventDefault(); pdfDrop.style.background=''; const f=e.dataTransfer.files[0]; if(f) handlePdf(f); };
+
+const normS=s2=>String(s2||'').replace(/[\s"\u201d'\u05f3\u05f4]/g,'');
+function parseSidurItems(items){
+  const H2={driver:'שםהנהג',place:'שםלקוח',note:'הערות',truck:'משאית',time:'התייצבות',pallets:'משטחים',cartons:'קרטונים'};
+  const hdrDriver=items.find(i=>normS(i.str).includes(H2.driver));
+  if(!hdrDriver) throw new Error('לא נמצאו כותרות טבלת הסידור');
+  const anchors=[];
+  for(const k in H2){ const it=items.find(i=>normS(i.str).includes(H2[k])); if(it) anchors.push({k,cx:it.cx}); }
+  anchors.sort((a,b)=>b.cx-a.cx);
+  const rows=[];
+  const pages=[...new Set(items.map(i=>i.page))].sort((a,b)=>a-b);
+  pages.forEach(pg=>{
+    const its=items.filter(i=>i.page===pg && (pg>1 || i.y<hdrDriver.y-2)).sort((a,b)=>b.y-a.y);
+    let cur=null,curY=null;
+    its.forEach(i=>{ if(curY===null||Math.abs(i.y-curY)>2.5){ cur=[]; rows.push(cur); curY=i.y; } cur.push(i); });
+  });
+  function colOf(cx){
+    for(let i=0;i<anchors.length;i++){
+      const right=i===0?Infinity:(anchors[i-1].cx+anchors[i].cx)/2;
+      const left=i===anchors.length-1?-Infinity:(anchors[i].cx+anchors[i+1].cx)/2;
+      if(cx<=right&&cx>left) return anchors[i].k;
+    }
+    return null;
+  }
+  let shift='לילה', out=[], block=[], meta={driver:'',truck:'',time:''};
+  function flush(){
+    block.forEach(b=>{
+      let sh=shift;
+      if(meta.time){ const hh=parseInt(meta.time); if(hh>=11&&hh<20) sh='צהריים'; }
+      out.push({driver:b.ownDriver||meta.driver, place:b.place, pallets:b.pallets, note:b.note, truck:meta.truck, time:meta.time, shift:sh});
+    });
+    block=[]; meta={driver:'',truck:'',time:''};
+  }
+  rows.forEach(r=>{
+    const o={};
+    r.sort((a,b)=>b.cx-a.cx).forEach(i=>{ const c=colOf(i.cx); if(c) o[c]=(o[c]?o[c]+' ':'')+i.str.trim(); });
+    const j=normS(r.map(i=>i.str).join(''));
+    if(j==='בוקר'){ flush(); shift='בוקר'; return; }
+    const rowDriver=(o.driver||'').replace(/סה\s*["\u201d]?\s*כ/g,'').trim();
+    if(j.includes('סהכ')){ flush(); if(rowDriver) meta.driver=rowDriver; return; }
+    if(rowDriver && !normS(rowDriver).includes(H2.driver)){ if(meta.driver && meta.driver!==rowDriver){ flush(); } meta.driver=rowDriver; }
+    if(o.truck){ const m=o.truck.match(/\d{3}/); if(m) meta.truck=m[0]; }
+    if(o.time){ const m=o.time.match(/\d{1,2}:\d{2}/); if(m) meta.time=m[0]; }
+    let place=(o.place||'').trim().replace(/\s*\.\s*/g,'.');
+    if(!place || normS(place)==='איןקבלן') return;
+    block.push({place, ownDriver:rowDriver||'', pallets:parseFloat(String(o.pallets||'').replace(/[^\d.]/g,''))||0, note:(o.note||'').trim()});
+  });
+  flush();
+  return out.filter(r=>r.driver&&r.place);
+}
+
+let PDF_ROWS=[];
+async function handlePdf(file){
+  if(!window.pdfjsLib){ alert('רכיב קריאת ה-PDF לא נטען — רענן את הדף'); return; }
+  pdfjsLib.GlobalWorkerOptions.workerSrc='./vendor/pdf.worker.min.js';
+  loader.style.display='block';
+  try{
+    const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    const items=[];
+    for(let p=1;p<=doc.numPages;p++){
+      const page=await doc.getPage(p);
+      const tc=await page.getTextContent();
+      tc.items.forEach(it=>{ if(it.str.trim()) items.push({str:it.str, cx:it.transform[4]+(it.width||0)/2, y:it.transform[5], page:p}); });
+    }
+    PDF_ROWS=parseSidurItems(items);
+    if(!PDF_ROWS.length){ alert('לא זוהו נסיעות בקובץ — ודא שזה קובץ סידור נהגים'); return; }
+    const m=file.name.match(/(\d{4}-\d{2}-\d{2})/);
+    document.getElementById('pdfDate').value=m?m[1]:'';
+    renderPdfReview();
+  }catch(e){ alert('שגיאה בפענוח הקובץ: '+e.message); }
+  finally{ loader.style.display='none'; }
+}
+function renderPdfReview(){
+  let h='<table><tr><th>✓</th><th>משמרת</th><th>נהג</th><th>מקום</th><th>משטחים</th><th>משאית</th><th>הערה</th></tr>';
+  PDF_ROWS.forEach((r,i)=>{
+    h+='<tr>'
+      +'<td><input type="checkbox" id="pr_on_'+i+'" checked></td>'
+      +'<td><select id="pr_sh_'+i+'">'+['לילה','בוקר','צהריים'].map(x=>'<option '+(x===r.shift?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
+      +'<td><input id="pr_dr_'+i+'" value="'+esc(r.driver)+'" style="width:110px"></td>'
+      +'<td><input id="pr_pl_'+i+'" value="'+esc(r.place)+'" style="width:160px"></td>'
+      +'<td><input id="pr_pa_'+i+'" type="number" step="0.5" value="'+r.pallets+'" style="width:70px"></td>'
+      +'<td><input id="pr_tr_'+i+'" value="'+esc(r.truck||'')+'" style="width:60px"></td>'
+      +'<td><input id="pr_no_'+i+'" value="'+esc(r.note||'')+'" style="width:190px"></td>'
+      +'</tr>';
+  });
+  h+='</table><p class="muted" style="margin-top:6px">'+PDF_ROWS.length+' נסיעות זוהו</p>';
+  document.getElementById('pdfTbl').innerHTML=h;
+  document.getElementById('pdfReview').classList.remove('hidden');
+}
+async function savePdf(){
+  const date=document.getElementById('pdfDate').value;
+  if(!date){ alert('בחר תאריך לסידור'); return; }
+  const rows=[];
+  PDF_ROWS.forEach((r,i)=>{
+    if(!document.getElementById('pr_on_'+i).checked) return;
+    const dr=document.getElementById('pr_dr_'+i).value.trim(), pl=document.getElementById('pr_pl_'+i).value.trim();
+    if(!dr||!pl) return;
+    rows.push({log_date:date, driver:dr, place:pl, shift:document.getElementById('pr_sh_'+i).value,
+      truck:document.getElementById('pr_tr_'+i).value.trim(), pallets:parseFloat(document.getElementById('pr_pa_'+i).value)||0,
+      note:document.getElementById('pr_no_'+i).value.trim(), source:'pdf'});
+  });
+  if(!rows.length){ alert('לא נבחרו נסיעות'); return; }
+  if(!confirm('לשמור '+rows.length+' נסיעות לתאריך '+date+'?\n(רישום קודם של תאריך זה יוחלף)')) return;
+  await sb('/driver_log?log_date=eq.'+date,{method:'DELETE'});
+  await sb('/driver_log',{method:'POST',body:JSON.stringify(rows)});
+  document.getElementById('pdfReview').classList.add('hidden');
+  alert('✔ נשמר: '+rows.length+' נסיעות בתאריך '+date);
+  renderCover();
+}
+
 </script>
 </body>
 </html>

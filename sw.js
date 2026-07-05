@@ -1,5 +1,5 @@
 /* טרי לי — service worker */
-const CACHE = 'trelee-v4';
+const CACHE = 'trelee-v5';
 const SHELL = [
   './app.html',
   './manifest.webmanifest',
