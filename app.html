@@ -40,15 +40,12 @@
   }
   /* ---- layout ---- */
   #wrap{flex:1; display:flex; overflow:hidden; position:relative;}
-  /* sidebar (right side in RTL = inline-start) */
   aside{
     width:var(--sidebar-w); flex-shrink:0;
     background:#fff; border-inline-end:1px solid var(--border);
     display:flex; flex-direction:column;
-    transition:margin-inline-start .2s ease;
     z-index:25;
   }
-  /* drawer mode (not pinned): overlay from the right */
   body:not(.pinned) aside{
     position:absolute; inset-inline-start:0; top:0; bottom:0;
     transform:translateX(100%); transition:transform .2s ease;
@@ -70,16 +67,35 @@
   }
   body.pinned #pinBtnEl{background:var(--green-light); border-color:var(--green); color:var(--green-dark); font-weight:700;}
   .side-menu{flex:1; overflow-y:auto; padding:8px;}
-  .side-menu button{
-    display:flex; align-items:center; gap:10px; width:100%;
+  .side-menu .item{display:flex; align-items:stretch; margin-bottom:2px;}
+  .side-menu .item > button.main{
+    display:flex; align-items:center; gap:10px; flex:1;
     background:transparent; border:none; text-align:right;
     font-family:inherit; font-size:15px; color:var(--text);
-    padding:11px 12px; border-radius:10px; cursor:pointer; margin-bottom:2px;
+    padding:11px 12px; border-radius:10px; cursor:pointer;
   }
-  .side-menu button:hover{background:var(--green-light);}
-  .side-menu button.active{background:var(--green); color:#fff; font-weight:700;}
+  .side-menu .item > button.main:hover{background:var(--green-light);}
+  .side-menu .item > button.main.active{background:var(--green); color:#fff; font-weight:700;}
+  .side-menu .item > button.chev{
+    background:transparent; border:none; cursor:pointer;
+    font-size:12px; color:#6b7f74; padding:0 10px; border-radius:10px;
+    transition:transform .15s;
+  }
+  .side-menu .item > button.chev:hover{background:var(--green-light);}
+  .side-menu .item.expanded > button.chev{transform:rotate(180deg);}
+  .side-menu .sub{display:none; padding-inline-start:14px;}
+  .side-menu .sub.open{display:block;}
+  .side-menu .sub button{
+    display:flex; align-items:center; gap:8px; width:100%;
+    background:transparent; border:none; text-align:right;
+    font-family:inherit; font-size:14px; color:var(--text);
+    padding:9px 12px; border-radius:10px; cursor:pointer; margin-bottom:2px;
+    border-inline-start:2px solid var(--border);
+    border-radius:0 10px 10px 0;
+  }
+  .side-menu .sub button:hover{background:var(--green-light);}
+  .side-menu .sub button.active{background:var(--green); color:#fff; font-weight:700; border-inline-start-color:var(--green-dark);}
   .side-menu .sep{border-top:1px solid var(--border); margin:8px 4px;}
-  .side-menu .group{font-size:12px; color:#8aa094; padding:8px 12px 2px;}
   .side-foot{padding:10px 14px; border-top:1px solid var(--border); font-size:12px; color:#8aa094;}
   main{flex:1; position:relative; overflow:hidden;}
   .pane{position:absolute; inset:0; display:none;}
@@ -106,13 +122,8 @@
   }
   .btn:hover{background:var(--green-dark);}
   .btn.ghost{background:#fff; color:var(--green-dark); border:1px solid var(--green);}
-  .btn.danger{background:#c0392b;}
   .del{background:none; border:none; color:#c0392b; cursor:pointer; font-size:15px;}
   .badge{display:inline-block; background:#fdf3e0; color:#8a6d1a; border:1px solid #ecd9a7; border-radius:8px; padding:6px 12px; font-size:13px;}
-  #lockScreen{max-width:420px; margin:60px auto; text-align:center;}
-  #lockScreen .card{padding:32px;}
-  #lockScreen input{width:100%; margin:12px 0; text-align:center;}
-  #lockScreen .explain{font-size:13px; color:#6b7f74; text-align:right; background:var(--green-light); border-radius:10px; padding:12px 14px; margin-top:14px; line-height:1.6;}
 </style>
 </head>
 <body>
@@ -135,21 +146,7 @@
   </aside>
   <main id="panes">
     <div class="pane" id="pane-admin">
-      <div id="lockScreen">
-        <div class="card">
-          <h2>🔒 אזור ניהול</h2>
-          <p class="hint" id="lockHint"></p>
-          <input type="password" id="pinInput" placeholder="סיסמה">
-          <button class="btn" id="pinBtn">כניסה</button>
-          <div class="explain">
-            <b>איך זה עובד?</b><br>
-            בכניסה הראשונה במחשב זה — הסיסמה שתקליד תיקבע כסיסמת המנהל.<br>
-            מהפעם הבאה — תידרש אותה סיסמה כדי להיכנס.<br>
-            אפשר לשנות אותה בכל רגע מתוך אזור הניהול.
-          </div>
-        </div>
-      </div>
-      <div class="admin-wrap" id="adminContent" style="display:none">
+      <div class="admin-wrap" id="adminContent">
         <div class="card">
           <h2>👥 אנשי קשר לקבלת דוחות</h2>
           <p class="hint">אנשי הקשר שיקבלו במייל את תוצאות המחשבונים באופן אוטומטי.</p>
@@ -192,7 +189,6 @@
             <button class="btn ghost" onclick="exportSettings()">ייצוא הגדרות</button>
             <button class="btn ghost" onclick="document.getElementById('importFile').click()">ייבוא הגדרות</button>
             <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSettings(this)">
-            <button class="btn danger" onclick="changePin()">שינוי סיסמת אדמין</button>
           </div>
         </div>
       </div>
@@ -200,47 +196,79 @@
   </main>
 </div>
 <script>
-const APP_VERSION='1.1.0';
+const APP_VERSION='1.2.0';
 document.getElementById('verEl').textContent=APP_VERSION;
 
 /* ---------------- tabs / sidebar ---------------- */
 const TABS = [
-  {id:'packing',   label:'📦 מחשבון אריזה',        src:'./index.html'},
-  {sep:true, group:'עלומים'},
-  {id:'order-split', label:'🔀 חלוקת הזמנות',      src:'./order-split.html', frame:'os', inner:'proc'},
-  {id:'ledger',    label:'🗃️ מאזן ארגזים',          src:'./order-split.html', frame:'os', inner:'ledger'},
-  {id:'fruit',     label:'🍊 מעקב משטחי פירות',     src:'./order-split.html', frame:'os', inner:'fruit'},
-  {sep:true},
-  {id:'drivers',   label:'🚚 סידור נהגים',          src:'./drivers.html'},
-  {id:'hashav',    label:'🧾 חשבשבת',               src:'./hashavshevet/index.html'},
+  {id:'packing',   label:'📦 מחשבון אריזה', src:'./index.html'},
+  {id:'order-split', label:'🔀 חלוקת הזמנות עלומים', src:'./order-split.html', frame:'os', inner:'proc',
+   children:[
+     {id:'ledger', label:'🗃️ מאזן ארגזים',       src:'./order-split.html', frame:'os', inner:'ledger'},
+     {id:'fruit',  label:'🍊 מעקב משטחי פירות',  src:'./order-split.html', frame:'os', inner:'fruit'},
+   ]},
+  {id:'drivers',   label:'🚚 סידור נהגים', src:'./drivers.html'},
+  {id:'hashav',    label:'🧾 חשבשבת',      src:'./hashavshevet/index.html'},
   {sep:true},
   {id:'admin',     label:'⚙️ ניהול'},
 ];
+const ALL_TABS=[];
+TABS.forEach(t=>{ if(t.id){ ALL_TABS.push(t); (t.children||[]).forEach(c=>{ c.parent=t.id; ALL_TABS.push(c); }); } });
+
 const menuEl=document.getElementById('sideMenu');
 const panesEl=document.getElementById('panes');
 const curTabEl=document.getElementById('curTab');
-TABS.forEach(t=>{
-  if(t.sep){
-    const d=document.createElement('div');
-    d.className = t.group ? 'group' : 'sep';
-    if(t.group) d.textContent=t.group;
-    menuEl.appendChild(d);
-    return;
-  }
-  const b=document.createElement('button');
-  b.textContent=t.label; b.dataset.tab=t.id;
-  b.onclick=()=>{ activate(t.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
-  menuEl.appendChild(b);
+const EXPKEY='trelee_menu_expanded';
+
+function ensurePane(t){
   const paneId='pane-'+(t.frame||t.id);
   if(t.src && !document.getElementById(paneId)){
     const d=document.createElement('div');
     d.className='pane'; d.id=paneId; d.dataset.src=t.src;
     panesEl.appendChild(d);
   }
+}
+TABS.forEach(t=>{
+  if(t.sep){ const d=document.createElement('div'); d.className='sep'; menuEl.appendChild(d); return; }
+  ensurePane(t);
+  const item=document.createElement('div'); item.className='item';
+  const b=document.createElement('button');
+  b.className='main'; b.textContent=t.label; b.dataset.tab=t.id;
+  b.onclick=()=>{ activate(t.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
+  item.appendChild(b);
+  menuEl.appendChild(item);
+  if(t.children && t.children.length){
+    const chev=document.createElement('button');
+    chev.className='chev'; chev.textContent='▼'; chev.title='הצג עוד';
+    const sub=document.createElement('div'); sub.className='sub';
+    t.children.forEach(c=>{
+      ensurePane(c);
+      const cb=document.createElement('button');
+      cb.textContent=c.label; cb.dataset.tab=c.id;
+      cb.onclick=()=>{ activate(c.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
+      sub.appendChild(cb);
+    });
+    chev.onclick=(e)=>{ e.stopPropagation(); toggleSub(item, sub); };
+    item.appendChild(chev);
+    menuEl.appendChild(sub);
+    if(localStorage.getItem(EXPKEY)==='1'){ item.classList.add('expanded'); sub.classList.add('open'); }
+    item.dataset.hasSub='1'; sub.dataset.parent=t.id;
+  }
 });
+function toggleSub(item, sub, force){
+  const open = force!==undefined ? force : !sub.classList.contains('open');
+  sub.classList.toggle('open', open);
+  item.classList.toggle('expanded', open);
+  localStorage.setItem(EXPKEY, open?'1':'0');
+}
 function activate(id){
-  const t=TABS.find(x=>x.id===id) || TABS[0];
-  document.querySelectorAll('.side-menu button').forEach(b=>b.classList.toggle('active', b.dataset.tab===t.id));
+  const t=ALL_TABS.find(x=>x.id===id) || ALL_TABS[0];
+  document.querySelectorAll('.side-menu button[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===t.id));
+  /* expand parent submenu when a child is chosen */
+  if(t.parent){
+    const sub=document.querySelector('.sub[data-parent="'+t.parent+'"]');
+    if(sub && !sub.classList.contains('open')) toggleSub(sub.previousElementSibling, sub, true);
+  }
   const paneId='pane-'+(t.frame||t.id);
   document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active', p.id===paneId));
   curTabEl.textContent='· '+t.label.replace(/^\S+\s/,'');
@@ -306,11 +334,9 @@ installBtn.onclick=async ()=>{
 /* ---------------- auto-update ---------------- */
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').then(reg=>{
-    // check for a new version: on load, when window regains focus, and every 15 minutes
     reg.update();
     setInterval(()=>reg.update(), 15*60*1000);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) reg.update(); });
-    // when a new SW is installed, activate it immediately
     reg.addEventListener('updatefound', ()=>{
       const nw=reg.installing;
       if(nw) nw.addEventListener('statechange', ()=>{
@@ -320,7 +346,6 @@ if('serviceWorker' in navigator){
       });
     });
   }).catch(()=>{});
-  // reload once when the new SW takes control (skip on very first install)
   let hadController=!!navigator.serviceWorker.controller, refreshing=false;
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
     if(!hadController){ hadController=true; return; }
@@ -331,33 +356,11 @@ if('serviceWorker' in navigator){
 
 /* ---------------- admin settings ---------------- */
 const SKEY='trelee_admin_settings';
-function loadS(){ try{return JSON.parse(localStorage.getItem(SKEY))||{contacts:[],rules:[],pin:null};}catch(e){return {contacts:[],rules:[],pin:null};} }
+function loadS(){ try{return JSON.parse(localStorage.getItem(SKEY))||{contacts:[],rules:[]};}catch(e){return {contacts:[],rules:[]};} }
 function saveS(s){ localStorage.setItem(SKEY, JSON.stringify(s)); }
 let S=loadS();
-
-/* pin gate */
-const lockScreen=document.getElementById('lockScreen');
-const adminContent=document.getElementById('adminContent');
-const lockHint=document.getElementById('lockHint');
-lockHint.textContent = S.pin ? 'הזן את סיסמת המנהל' : 'כניסה ראשונה — בחר סיסמה חדשה (היא תיקבע כסיסמת המנהל)';
-async function hash(t){
-  const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
-  return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
-}
-document.getElementById('pinBtn').onclick=async ()=>{
-  const v=document.getElementById('pinInput').value.trim();
-  if(!v) return;
-  const h=await hash(v);
-  if(!S.pin){ S.pin=h; saveS(S); unlock(); }
-  else if(S.pin===h){ unlock(); }
-  else{ lockHint.textContent='סיסמה שגויה, נסה שוב'; lockHint.style.color='#c0392b'; }
-};
-document.getElementById('pinInput').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('pinBtn').click(); });
-function unlock(){ lockScreen.style.display='none'; adminContent.style.display='block'; render(); }
-function changePin(){
-  const v=prompt('סיסמת אדמין חדשה:');
-  if(v && v.trim()){ hash(v.trim()).then(h=>{ S.pin=h; saveS(S); alert('הסיסמה עודכנה'); }); }
-}
+if(!Array.isArray(S.contacts)) S.contacts=[];
+if(!Array.isArray(S.rules)) S.rules=[];
 
 /* contacts */
 function addContact(){
@@ -403,6 +406,7 @@ function render(){
   if(!S.rules.length) rt.innerHTML='<tr><td colspan="4" style="color:#999">אין חוקים עדיין</td></tr>';
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+render();
 
 /* backup */
 function exportSettings(){
