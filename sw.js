@@ -1,11 +1,15 @@
 /* טרי לי — service worker */
-const CACHE = 'trelee-v1';
+const CACHE = 'trelee-v2';
 const SHELL = [
   './app.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
+
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

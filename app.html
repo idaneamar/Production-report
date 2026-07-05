@@ -10,7 +10,7 @@
 <style>
   :root{
     --green:#1a7a4a; --green-dark:#14603a; --green-light:#e8f5ee;
-    --bg:#f4f6f5; --text:#1c2b23; --border:#d8e2dc;
+    --bg:#f4f6f5; --text:#1c2b23; --border:#d8e2dc; --sidebar-w:230px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -21,28 +21,67 @@
   }
   header{
     background:var(--green); color:#fff;
-    display:flex; align-items:center; gap:8px;
-    padding:0 12px; height:52px; flex-shrink:0;
-    box-shadow:0 2px 6px rgba(0,0,0,.15);
+    display:flex; align-items:center; gap:10px;
+    padding:0 12px; height:50px; flex-shrink:0;
+    box-shadow:0 2px 6px rgba(0,0,0,.15); z-index:30;
   }
+  #menuBtn{
+    background:transparent; border:none; color:#fff; font-size:22px;
+    cursor:pointer; padding:6px 10px; border-radius:8px;
+  }
+  #menuBtn:hover{background:rgba(255,255,255,.15);}
   .brand{font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; white-space:nowrap;}
-  .brand .logo{font-size:22px;}
-  nav{display:flex; gap:4px; margin-inline-start:18px; overflow-x:auto; flex:1;}
-  nav button{
-    background:transparent; border:none; color:#dff0e7;
-    font-size:15px; font-family:inherit; cursor:pointer;
-    padding:8px 14px; border-radius:8px 8px 0 0;
-    border-bottom:3px solid transparent; white-space:nowrap;
-    transition:background .15s;
-  }
-  nav button:hover{background:rgba(255,255,255,.12);}
-  nav button.active{background:var(--bg); color:var(--green-dark); font-weight:700; border-bottom-color:var(--green-dark);}
+  #curTab{font-size:14px; color:#d5ecdf; margin-inline-start:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .spacer{flex:1;}
   #installBtn{
     display:none; background:#fff; color:var(--green-dark); border:none;
     font-family:inherit; font-weight:700; font-size:13px;
     padding:7px 14px; border-radius:20px; cursor:pointer; white-space:nowrap;
   }
-  main{flex:1; position:relative;}
+  /* ---- layout ---- */
+  #wrap{flex:1; display:flex; overflow:hidden; position:relative;}
+  /* sidebar (right side in RTL = inline-start) */
+  aside{
+    width:var(--sidebar-w); flex-shrink:0;
+    background:#fff; border-inline-end:1px solid var(--border);
+    display:flex; flex-direction:column;
+    transition:margin-inline-start .2s ease;
+    z-index:25;
+  }
+  /* drawer mode (not pinned): overlay from the right */
+  body:not(.pinned) aside{
+    position:absolute; inset-inline-start:0; top:0; bottom:0;
+    transform:translateX(100%); transition:transform .2s ease;
+    box-shadow:-4px 0 18px rgba(0,0,0,.18);
+  }
+  body:not(.pinned).menu-open aside{transform:translateX(0);}
+  #backdrop{
+    display:none; position:absolute; inset:0; background:rgba(0,0,0,.35); z-index:20;
+  }
+  body:not(.pinned).menu-open #backdrop{display:block;}
+  .side-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; border-bottom:1px solid var(--border);
+    font-size:13px; color:#6b7f74;
+  }
+  #pinBtnEl{
+    background:none; border:1px solid var(--border); border-radius:8px;
+    font-family:inherit; font-size:12px; padding:4px 10px; cursor:pointer; color:var(--text);
+  }
+  body.pinned #pinBtnEl{background:var(--green-light); border-color:var(--green); color:var(--green-dark); font-weight:700;}
+  .side-menu{flex:1; overflow-y:auto; padding:8px;}
+  .side-menu button{
+    display:flex; align-items:center; gap:10px; width:100%;
+    background:transparent; border:none; text-align:right;
+    font-family:inherit; font-size:15px; color:var(--text);
+    padding:11px 12px; border-radius:10px; cursor:pointer; margin-bottom:2px;
+  }
+  .side-menu button:hover{background:var(--green-light);}
+  .side-menu button.active{background:var(--green); color:#fff; font-weight:700;}
+  .side-menu .sep{border-top:1px solid var(--border); margin:8px 4px;}
+  .side-menu .group{font-size:12px; color:#8aa094; padding:8px 12px 2px;}
+  .side-foot{padding:10px 14px; border-top:1px solid var(--border); font-size:12px; color:#8aa094;}
+  main{flex:1; position:relative; overflow:hidden;}
   .pane{position:absolute; inset:0; display:none;}
   .pane.active{display:block;}
   .pane iframe{width:100%; height:100%; border:none; background:#fff;}
@@ -70,109 +109,185 @@
   .btn.danger{background:#c0392b;}
   .del{background:none; border:none; color:#c0392b; cursor:pointer; font-size:15px;}
   .badge{display:inline-block; background:#fdf3e0; color:#8a6d1a; border:1px solid #ecd9a7; border-radius:8px; padding:6px 12px; font-size:13px;}
-  #lockScreen{max-width:380px; margin:60px auto; text-align:center;}
+  #lockScreen{max-width:420px; margin:60px auto; text-align:center;}
   #lockScreen .card{padding:32px;}
   #lockScreen input{width:100%; margin:12px 0; text-align:center;}
+  #lockScreen .explain{font-size:13px; color:#6b7f74; text-align:right; background:var(--green-light); border-radius:10px; padding:12px 14px; margin-top:14px; line-height:1.6;}
 </style>
 </head>
 <body>
 <header>
-  <div class="brand"><span class="logo">🥬</span> טרי לי</div>
-  <nav id="tabs"></nav>
+  <button id="menuBtn" title="תפריט">☰</button>
+  <div class="brand"><span>🥬</span> טרי לי</div>
+  <span id="curTab"></span>
+  <div class="spacer"></div>
   <button id="installBtn">📥 התקנה על המחשב</button>
 </header>
-<main id="panes">
-  <div class="pane" id="pane-admin">
-    <div id="lockScreen">
-      <div class="card">
-        <h2>🔒 אזור ניהול</h2>
-        <p class="hint" id="lockHint">הזן סיסמת אדמין</p>
-        <input type="password" id="pinInput" placeholder="סיסמה">
-        <button class="btn" id="pinBtn">כניסה</button>
+<div id="wrap">
+  <div id="backdrop"></div>
+  <aside>
+    <div class="side-head">
+      <span>תפריט</span>
+      <button id="pinBtnEl" title="קיבוע התפריט בצד">📌 קבע</button>
+    </div>
+    <div class="side-menu" id="sideMenu"></div>
+    <div class="side-foot">גרסה <span id="verEl"></span> · מתעדכן אוטומטית</div>
+  </aside>
+  <main id="panes">
+    <div class="pane" id="pane-admin">
+      <div id="lockScreen">
+        <div class="card">
+          <h2>🔒 אזור ניהול</h2>
+          <p class="hint" id="lockHint"></p>
+          <input type="password" id="pinInput" placeholder="סיסמה">
+          <button class="btn" id="pinBtn">כניסה</button>
+          <div class="explain">
+            <b>איך זה עובד?</b><br>
+            בכניסה הראשונה במחשב זה — הסיסמה שתקליד תיקבע כסיסמת המנהל.<br>
+            מהפעם הבאה — תידרש אותה סיסמה כדי להיכנס.<br>
+            אפשר לשנות אותה בכל רגע מתוך אזור הניהול.
+          </div>
+        </div>
+      </div>
+      <div class="admin-wrap" id="adminContent" style="display:none">
+        <div class="card">
+          <h2>👥 אנשי קשר לקבלת דוחות</h2>
+          <p class="hint">אנשי הקשר שיקבלו במייל את תוצאות המחשבונים באופן אוטומטי.</p>
+          <table id="contactsTable">
+            <thead><tr><th>שם</th><th>אימייל</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="row">
+            <input id="cName" placeholder="שם">
+            <input id="cEmail" type="email" placeholder="אימייל">
+            <button class="btn" onclick="addContact()">➕ הוספה</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>🔁 חוקי ניתוב — דוח נכנס ← מחשבון ← נמענים</h2>
+          <p class="hint">כשמגיע מייל עם דוח, המערכת תזהה אותו לפי הכלל, תריץ את המחשבון המתאים ותשלח את התוצאה לנמענים.</p>
+          <table id="rulesTable">
+            <thead><tr><th>זיהוי (מילה בנושא המייל)</th><th>מחשבון</th><th>נמענים</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <div class="row">
+            <input id="rMatch" placeholder='למשל: "דוח ייצור"'>
+            <select id="rCalc">
+              <option value="packing">מחשבון אריזה</option>
+              <option value="order-split">חלוקת הזמנות (עלומים)</option>
+              <option value="drivers">סידור נהגים</option>
+            </select>
+            <button class="btn" onclick="addRule()">➕ הוספה</button>
+          </div>
+          <p class="hint" style="margin-top:10px">בחירת נמענים לכלל — לחיצה על תא ה"נמענים" בטבלה.</p>
+        </div>
+        <div class="card">
+          <h2>⚙️ סטטוס אוטומציית מייל</h2>
+          <span class="badge" id="autoStatus">⏳ טרם חובר — ההגדרות נשמרות וייכנסו לפעולה כשהאוטומציה תחובר לתיבת המייל של החברה</span>
+        </div>
+        <div class="card">
+          <h2>💾 גיבוי הגדרות</h2>
+          <p class="hint">ההגדרות נשמרות בדפדפן במחשב זה. מומלץ לייצא גיבוי.</p>
+          <div class="row">
+            <button class="btn ghost" onclick="exportSettings()">ייצוא הגדרות</button>
+            <button class="btn ghost" onclick="document.getElementById('importFile').click()">ייבוא הגדרות</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSettings(this)">
+            <button class="btn danger" onclick="changePin()">שינוי סיסמת אדמין</button>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="admin-wrap" id="adminContent" style="display:none">
-      <div class="card">
-        <h2>👥 אנשי קשר לקבלת דוחות</h2>
-        <p class="hint">אנשי הקשר שיקבלו במייל את תוצאות המחשבונים באופן אוטומטי.</p>
-        <table id="contactsTable">
-          <thead><tr><th>שם</th><th>אימייל</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="row">
-          <input id="cName" placeholder="שם">
-          <input id="cEmail" type="email" placeholder="אימייל">
-          <button class="btn" onclick="addContact()">➕ הוספה</button>
-        </div>
-      </div>
-      <div class="card">
-        <h2>🔁 חוקי ניתוב — דוח נכנס ← מחשבון ← נמענים</h2>
-        <p class="hint">כשמגיע מייל עם דוח, המערכת תזהה אותו לפי הכלל, תריץ את המחשבון המתאים ותשלח את התוצאה לנמענים.</p>
-        <table id="rulesTable">
-          <thead><tr><th>זיהוי (מילה בנושא המייל)</th><th>מחשבון</th><th>נמענים</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-        <div class="row">
-          <input id="rMatch" placeholder='למשל: "דוח ייצור"'>
-          <select id="rCalc">
-            <option value="packing">מחשבון אריזה</option>
-            <option value="order-split">חלוקת הזמנות (עלומים)</option>
-            <option value="drivers">סידור נהגים</option>
-          </select>
-          <button class="btn" onclick="addRule()">➕ הוספה</button>
-        </div>
-        <p class="hint" style="margin-top:10px">בחירת נמענים לכלל — לחיצה על תא ה"נמענים" בטבלה.</p>
-      </div>
-      <div class="card">
-        <h2>⚙️ סטטוס אוטומציית מייל</h2>
-        <span class="badge" id="autoStatus">⏳ טרם חובר — ההגדרות נשמרות וייכנסו לפעולה כשהאוטומציה תחובר לתיבת המייל של החברה</span>
-      </div>
-      <div class="card">
-        <h2>💾 גיבוי הגדרות</h2>
-        <p class="hint">ההגדרות נשמרות בדפדפן במחשב זה. מומלץ לייצא גיבוי.</p>
-        <div class="row">
-          <button class="btn ghost" onclick="exportSettings()">ייצוא הגדרות</button>
-          <button class="btn ghost" onclick="document.getElementById('importFile').click()">ייבוא הגדרות</button>
-          <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSettings(this)">
-          <button class="btn danger" onclick="changePin()">שינוי סיסמת אדמין</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</main>
+  </main>
+</div>
 <script>
-/* ---------------- tabs ---------------- */
+const APP_VERSION='1.1.0';
+document.getElementById('verEl').textContent=APP_VERSION;
+
+/* ---------------- tabs / sidebar ---------------- */
 const TABS = [
-  {id:'packing',  label:'📦 מחשבון אריזה',  src:'./index.html'},
-  {id:'order-split', label:'🔀 חלוקת הזמנות', src:'./order-split.html'},
-  {id:'drivers',  label:'🚚 סידור נהגים',   src:'./drivers.html'},
-  {id:'hashav',   label:'🧾 חשבשבת',        src:'./hashavshevet/index.html'},
-  {id:'admin',    label:'⚙️ ניהול',          src:null},
+  {id:'packing',   label:'📦 מחשבון אריזה',        src:'./index.html'},
+  {sep:true, group:'עלומים'},
+  {id:'order-split', label:'🔀 חלוקת הזמנות',      src:'./order-split.html', frame:'os', inner:'proc'},
+  {id:'ledger',    label:'🗃️ מאזן ארגזים',          src:'./order-split.html', frame:'os', inner:'ledger'},
+  {id:'fruit',     label:'🍊 מעקב משטחי פירות',     src:'./order-split.html', frame:'os', inner:'fruit'},
+  {sep:true},
+  {id:'drivers',   label:'🚚 סידור נהגים',          src:'./drivers.html'},
+  {id:'hashav',    label:'🧾 חשבשבת',               src:'./hashavshevet/index.html'},
+  {sep:true},
+  {id:'admin',     label:'⚙️ ניהול'},
 ];
-const tabsEl = document.getElementById('tabs');
-const panesEl = document.getElementById('panes');
+const menuEl=document.getElementById('sideMenu');
+const panesEl=document.getElementById('panes');
+const curTabEl=document.getElementById('curTab');
 TABS.forEach(t=>{
+  if(t.sep){
+    const d=document.createElement('div');
+    d.className = t.group ? 'group' : 'sep';
+    if(t.group) d.textContent=t.group;
+    menuEl.appendChild(d);
+    return;
+  }
   const b=document.createElement('button');
   b.textContent=t.label; b.dataset.tab=t.id;
-  b.onclick=()=>activate(t.id);
-  tabsEl.appendChild(b);
-  if(t.src){
+  b.onclick=()=>{ activate(t.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
+  menuEl.appendChild(b);
+  const paneId='pane-'+(t.frame||t.id);
+  if(t.src && !document.getElementById(paneId)){
     const d=document.createElement('div');
-    d.className='pane'; d.id='pane-'+t.id; d.dataset.src=t.src;
+    d.className='pane'; d.id=paneId; d.dataset.src=t.src;
     panesEl.appendChild(d);
   }
 });
 function activate(id){
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===id));
-  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active', p.id==='pane-'+id));
-  const pane=document.getElementById('pane-'+id);
-  if(pane && pane.dataset.src && !pane.querySelector('iframe')){
-    const f=document.createElement('iframe');
-    f.src=pane.dataset.src;
-    pane.appendChild(f);
+  const t=TABS.find(x=>x.id===id) || TABS[0];
+  document.querySelectorAll('.side-menu button').forEach(b=>b.classList.toggle('active', b.dataset.tab===t.id));
+  const paneId='pane-'+(t.frame||t.id);
+  document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active', p.id===paneId));
+  curTabEl.textContent='· '+t.label.replace(/^\S+\s/,'');
+  const pane=document.getElementById(paneId);
+  if(pane && pane.dataset.src){
+    let f=pane.querySelector('iframe');
+    if(!f){
+      f=document.createElement('iframe');
+      f.addEventListener('load', ()=>{ f.dataset.loaded='1'; if(f.dataset.pendingInner){ switchInner(f, f.dataset.pendingInner); delete f.dataset.pendingInner; } });
+      f.src=pane.dataset.src;
+      pane.appendChild(f);
+    }
+    if(t.inner){
+      if(f.dataset.loaded) switchInner(f, t.inner);
+      else f.dataset.pendingInner=t.inner;
+    }
   }
-  localStorage.setItem('trelee_last_tab', id);
+  localStorage.setItem('trelee_last_tab', t.id);
 }
+/* click the matching inner tab inside the order-split iframe (same origin) */
+function switchInner(f, inner){
+  try{
+    const w=f.contentWindow;
+    const btn=[...w.document.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').includes("tab('"+inner+"'"));
+    if(btn) btn.click();
+  }catch(e){}
+}
+
+/* sidebar open/close/pin */
+const PKEY='trelee_menu_pinned';
+function applyPin(){ document.body.classList.toggle('pinned', localStorage.getItem(PKEY)==='1'); }
+applyPin();
+document.getElementById('pinBtnEl').onclick=()=>{
+  localStorage.setItem(PKEY, localStorage.getItem(PKEY)==='1'?'0':'1');
+  applyPin();
+};
+function closeMenu(){ document.body.classList.remove('menu-open'); }
+document.getElementById('menuBtn').onclick=()=>{
+  if(document.body.classList.contains('pinned')){
+    localStorage.setItem(PKEY,'0'); applyPin();
+  } else {
+    document.body.classList.toggle('menu-open');
+  }
+};
+document.getElementById('backdrop').onclick=closeMenu;
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMenu(); });
+
 activate(localStorage.getItem('trelee_last_tab') || 'packing');
 
 /* ---------------- PWA install ---------------- */
@@ -187,8 +302,31 @@ installBtn.onclick=async ()=>{
   await deferredPrompt.userChoice;
   deferredPrompt=null; installBtn.style.display='none';
 };
+
+/* ---------------- auto-update ---------------- */
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  navigator.serviceWorker.register('./sw.js').then(reg=>{
+    // check for a new version: on load, when window regains focus, and every 15 minutes
+    reg.update();
+    setInterval(()=>reg.update(), 15*60*1000);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) reg.update(); });
+    // when a new SW is installed, activate it immediately
+    reg.addEventListener('updatefound', ()=>{
+      const nw=reg.installing;
+      if(nw) nw.addEventListener('statechange', ()=>{
+        if(nw.state==='installed' && navigator.serviceWorker.controller){
+          nw.postMessage('SKIP_WAITING');
+        }
+      });
+    });
+  }).catch(()=>{});
+  // reload once when the new SW takes control (skip on very first install)
+  let hadController=!!navigator.serviceWorker.controller, refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(!hadController){ hadController=true; return; }
+    if(refreshing) return; refreshing=true;
+    location.reload();
+  });
 }
 
 /* ---------------- admin settings ---------------- */
@@ -201,7 +339,7 @@ let S=loadS();
 const lockScreen=document.getElementById('lockScreen');
 const adminContent=document.getElementById('adminContent');
 const lockHint=document.getElementById('lockHint');
-if(!S.pin){ lockHint.textContent='כניסה ראשונה — בחר סיסמת אדמין חדשה'; }
+lockHint.textContent = S.pin ? 'הזן את סיסמת המנהל' : 'כניסה ראשונה — בחר סיסמה חדשה (היא תיקבע כסיסמת המנהל)';
 async function hash(t){
   const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
   return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
