@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מעקב נהגים — טרי לי</title>
+<style>
+  :root{--green:#1a7a4a;--green-dark:#14603a;--green-light:#e8f5ee;--bg:#f4f6f5;--text:#1c2b23;--border:#d8e2dc;--red:#c0392b;--red-light:#fdecea;--gray:#eef1ef;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);padding:16px;}
+  h1{font-size:20px;color:var(--green-dark);margin-bottom:2px;}
+  .sub{font-size:13px;color:#6b7f74;margin-bottom:14px;}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .tabs button{font-family:inherit;font-size:14px;padding:9px 16px;border:1px solid var(--border);background:#fff;border-radius:10px;cursor:pointer;}
+  .tabs button.active{background:var(--green);color:#fff;border-color:var(--green);font-weight:700;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;}
+  .hidden{display:none;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  input,select{font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;}
+  .btn{background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn:hover{background:var(--green-dark);}
+  .btn.sec{background:#fff;color:var(--green-dark);border:1px solid var(--green);}
+  .btn.nav{padding:8px 12px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:right;vertical-align:top;}
+  th{background:var(--green-light);position:sticky;top:0;}
+  .muted{color:#8aa094;font-size:13px;}
+  .banner{padding:12px 16px;border-radius:10px;font-weight:700;margin-bottom:14px;}
+  .banner.ok{background:var(--green-light);color:var(--green-dark);}
+  .banner.bad{background:var(--red-light);color:var(--red);}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal .hd{text-align:center;font-size:13px;color:#6b7f74;padding:4px;}
+  .cal .day{border:1px solid var(--border);border-radius:10px;min-height:72px;padding:6px;font-size:13px;background:var(--gray);color:#98a8a0;}
+  .cal .day .num{font-weight:700;font-size:14px;}
+  .cal .day.ok{background:var(--green-light);border-color:var(--green);color:var(--green-dark);}
+  .cal .day.miss{background:var(--red-light);border-color:var(--red);color:var(--red);}
+  .cal .day.today{outline:3px solid #f2c94c;}
+  .cal .day .st{font-size:12px;margin-top:4px;}
+  .chip{display:inline-block;border-radius:8px;padding:1px 8px;font-size:12px;}
+  .chip.near{background:var(--green-light);color:var(--green-dark);}
+  .chip.far{background:#fdf3e0;color:#8a6d1a;}
+  .chip.none{background:var(--gray);color:#98a8a0;}
+  .del{background:none;border:none;color:var(--red);cursor:pointer;font-size:15px;}
+  .cell-place{margin-bottom:3px;}
+  #loader{position:fixed;top:10px;left:10px;background:var(--green);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;display:none;z-index:99;}
+  @media print{.tabs,.row,.btn,.del{display:none!important;} body{padding:0;background:#fff;}}
+</style>
+</head>
+<body>
+<div id="loader">טוען…</div>
+<h1>🧭 מעקב נהגים</h1>
+<div class="sub">כל סידור שנרשם מ"סידור נהגים" (📤 רשום למעקב) נשמר בענן ומופיע כאן — מכל מחשב.</div>
+<div class="tabs">
+  <button data-v="cover" class="active" onclick="showView('cover',this)">📅 לוח כיסוי</button>
+  <button data-v="week" onclick="showView('week',this)">🗓 יומן שבועי</button>
+  <button data-v="trips" onclick="showView('trips',this)">📋 כל הנסיעות</button>
+  <button data-v="month" onclick="showView('month',this)">📊 סיכום חודשי</button>
+  <button data-v="places" onclick="showView('places',this)">📍 מקומות</button>
+</div>
+
+<div id="v-cover" class="view">
+  <div class="card">
+    <div class="row">
+      <button class="btn sec nav" onclick="moveMonth(-1)">‹ חודש קודם</button>
+      <input type="month" id="coverMonth" onchange="renderCover()">
+      <button class="btn sec nav" onclick="moveMonth(1)">חודש הבא ›</button>
+    </div>
+    <div id="coverBanner"></div>
+    <div class="cal" id="coverCal"></div>
+    <p class="muted" style="margin-top:10px">ירוק = נרשם סידור · אדום = יום עבודה (ראשון–חמישי) שחסר · אפור = שישי/שבת, יום עתידי או לפני תחילת המעקב</p>
+  </div>
+</div>
+
+<div id="v-week" class="view hidden">
+  <div class="card">
+    <div class="row">
+      <button class="btn sec nav" onclick="moveWeek(-7)">‹ שבוע קודם</button>
+      <input type="date" id="weekDate" onchange="renderWeek()">
+      <button class="btn sec nav" onclick="moveWeek(7)">שבוע הבא ›</button>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn sec" onclick="exportWeek()">⬇ ייצוא לאקסל</button>
+      <button class="btn sec" onclick="window.print()">🖨 הדפסה</button>
+    </div>
+    <div id="weekOut"></div>
+  </div>
+</div>
+
+<div id="v-trips" class="view hidden">
+  <div class="card">
+    <div class="row">
+      <label>מתאריך <input type="date" id="fFrom" onchange="renderTrips()"></label>
+      <label>עד <input type="date" id="fTo" onchange="renderTrips()"></label>
+      <select id="fDriver" onchange="renderTrips()"><option value="">כל הנהגים</option></select>
+      <select id="fShift" onchange="renderTrips()"><option value="">כל המשמרות</option><option>לילה</option><option>בוקר</option><option>צהריים</option></select>
+      <input id="fPlace" placeholder="חיפוש מקום…" oninput="renderTrips()" style="min-width:140px">
+      <button class="btn sec" onclick="exportTrips()">⬇ ייצוא לאקסל</button>
+    </div>
+    <details style="margin-bottom:12px"><summary style="cursor:pointer;color:var(--green-dark);font-weight:600">➕ הוספת נסיעה ידנית (תיקון)</summary>
+      <div class="row" style="margin-top:10px">
+        <input type="date" id="mDate">
+        <input id="mDriver" list="driversDL" placeholder="נהג">
+        <input id="mPlace" list="placesDL" placeholder="מקום">
+        <select id="mShift"><option>לילה</option><option>בוקר</option><option>צהריים</option></select>
+        <input id="mPallets" type="number" min="0" step="0.5" placeholder="משטחים" style="width:90px">
+        <input id="mNote" placeholder="הערה">
+        <button class="btn" onclick="addManual()">שמור</button>
+      </div>
+      <datalist id="driversDL"></datalist><datalist id="placesDL"></datalist>
+    </details>
+    <div id="tripsOut" style="max-height:60vh;overflow:auto"></div>
+  </div>
+</div>
+
+<div id="v-month" class="view hidden">
+  <div class="card">
+    <div class="row">
+      <input type="month" id="sumMonth" onchange="renderSummary()">
+      <button class="btn sec" onclick="exportSummary()">⬇ ייצוא לאקסל</button>
+      <button class="btn sec" onclick="window.print()">🖨 הדפסה</button>
+    </div>
+    <div id="sumOut"></div>
+    <p class="muted" style="margin-top:10px">קרוב/רחוק לפי הסיווג בלשונית "מקומות". מקומות לא מסווגים מופיעים בעמודה נפרדת — מומלץ לסווג את כולם.</p>
+  </div>
+</div>
+
+<div id="v-places" class="view hidden">
+  <div class="card">
+    <p class="muted" style="margin-bottom:12px">סיווג מרחק לכל מקום — משמש לחישוב התגמול בסיכום החודשי. הסיווג נשמר בענן ומשותף לכולם.</p>
+    <div id="placesOut"></div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://dddczmvjfokcbibeahyn.supabase.co/rest/v1';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+const loader=document.getElementById('loader');
+async function sb(path,opts){
+  loader.style.display='block';
+  try{
+    const r=await fetch(SB_URL+path, Object.assign({headers:Object.assign({},H,{'Range':'0-9999'})},opts||{}));
+    if(!r.ok) throw new Error(r.status+' '+await r.text());
+    return opts&&opts.method&&opts.method!=='GET' ? true : await r.json();
+  } finally { loader.style.display='none'; }
+}
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function heDate(s){ const [y,m,d]=s.split('-'); return d+'.'+m; }
+function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function dl(html,name){
+  const h='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+html+'</body></html>';
+  const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click();
+}
+let PLACES={}; let FIRST_DATE=null;
+async function loadMeta(){
+  const ps=await sb('/places?select=*');
+  PLACES={}; ps.forEach(p=>PLACES[p.place]=p.distance);
+  const f=await sb('/driver_log?select=log_date&order=log_date.asc&limit=1');
+  FIRST_DATE = f.length? f[0].log_date : null;
+}
+function distChip(place){
+  const d=PLACES[place];
+  if(d==='רחוק') return '<span class="chip far">רחוק</span>';
+  if(d==='קרוב') return '<span class="chip near">קרוב</span>';
+  return '<span class="chip none">לא מסווג</span>';
+}
+
+/* ---------- views ---------- */
+function showView(v,btn){
+  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
+  document.getElementById('v-'+v).classList.remove('hidden');
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b===btn));
+  if(v==='cover') renderCover();
+  if(v==='week') renderWeek();
+  if(v==='trips') renderTrips();
+  if(v==='month') renderSummary();
+  if(v==='places') renderPlaces();
+}
+
+/* ---------- coverage ---------- */
+function moveMonth(dir){
+  const el=document.getElementById('coverMonth');
+  const [y,m]=el.value.split('-').map(Number);
+  const d=new Date(y,m-1+dir,1); el.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderCover();
+}
+async function renderCover(){
+  const val=document.getElementById('coverMonth').value; if(!val) return;
+  const [y,m]=val.split('-').map(Number);
+  const first=new Date(y,m-1,1), last=new Date(y,m,0);
+  const rows=await sb('/driver_log?select=log_date&log_date=gte.'+iso(first)+'&log_date=lte.'+iso(last));
+  const counts={}; rows.forEach(r=>counts[r.log_date]=(counts[r.log_date]||0)+1);
+  const today=iso(new Date());
+  let html=''; DAYS.forEach(d=>html+='<div class="hd">'+d+'</div>');
+  for(let i=0;i<first.getDay();i++) html+='<div></div>';
+  let missing=0;
+  for(let day=1;day<=last.getDate();day++){
+    const d=new Date(y,m-1,day), ds=iso(d), dow=d.getDay();
+    const required = dow>=0 && dow<=4;
+    const beforeStart = FIRST_DATE && ds<FIRST_DATE;
+    const future = ds>today;
+    let cls='', st='';
+    if(counts[ds]){ cls='ok'; st='✔ '+counts[ds]+' נסיעות'; }
+    else if(required && !future && !beforeStart && FIRST_DATE){ cls='miss'; st='✖ לא נרשם'; missing++; }
+    else if(!required){ st='מנוחה'; }
+    html+='<div class="day '+cls+(ds===today?' today':'')+'"><div class="num">'+day+'</div><div class="st">'+st+'</div></div>';
+  }
+  document.getElementById('coverCal').innerHTML=html;
+  const b=document.getElementById('coverBanner');
+  if(!FIRST_DATE) b.innerHTML='<div class="banner ok">עדיין לא נרשם אף סידור — הרישום הראשון יתחיל את המעקב</div>';
+  else if(missing>0) b.innerHTML='<div class="banner bad">⚠ חסרים '+missing+' ימי עבודה בחודש זה — הנהגים עלולים להפסיד תגמול!</div>';
+  else b.innerHTML='<div class="banner ok">✔ כל ימי העבודה שחלפו בחודש זה נרשמו</div>';
+}
+
+/* ---------- weekly journal ---------- */
+function weekStart(ds){ const d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()-d.getDay()); return d; }
+function moveWeek(days){
+  const el=document.getElementById('weekDate');
+  const d=new Date(el.value+'T00:00:00'); d.setDate(d.getDate()+days); el.value=iso(d); renderWeek();
+}
+let WEEK_ROWS=[];
+async function renderWeek(){
+  const el=document.getElementById('weekDate'); if(!el.value) el.value=iso(new Date());
+  const s=weekStart(el.value), e=new Date(s); e.setDate(e.getDate()+6);
+  WEEK_ROWS=await sb('/driver_log?select=*&log_date=gte.'+iso(s)+'&log_date=lte.'+iso(e)+'&order=log_date.asc');
+  const drivers=[...new Set(WEEK_ROWS.map(r=>r.driver))].sort();
+  const dates=[]; for(let i=0;i<7;i++){ const d=new Date(s); d.setDate(d.getDate()+i); dates.push(iso(d)); }
+  let h='<table><tr><th>נהג</th>';
+  dates.forEach((ds,i)=>{ h+='<th>'+DAYS[i]+'<br><span class="muted">'+heDate(ds)+'</span></th>'; });
+  h+='<th>סה"כ מקומות</th></tr>';
+  if(!drivers.length) h+='<tr><td colspan="9" class="muted">אין רישומים בשבוע זה</td></tr>';
+  drivers.forEach(dr=>{
+    h+='<tr><td><b>'+esc(dr)+'</b></td>'; let tot=0;
+    dates.forEach(ds=>{
+      const cell=WEEK_ROWS.filter(r=>r.driver===dr&&r.log_date===ds);
+      tot+=cell.length;
+      h+='<td>'+cell.map(r=>'<div class="cell-place">'+esc(r.place)+' <span class="muted">('+esc(r.shift||'')+')</span></div>').join('')+'</td>';
+    });
+    h+='<td><b>'+tot+'</b></td></tr>';
+  });
+  h+='</table>';
+  document.getElementById('weekOut').innerHTML=h;
+}
+function exportWeek(){ dl(document.getElementById('weekOut').innerHTML,'יומן_נהגים_שבועי.xls'); }
+
+/* ---------- all trips ---------- */
+let TRIP_ROWS=[];
+async function renderTrips(){
+  const f=document.getElementById('fFrom'), t=document.getElementById('fTo');
+  if(!f.value){ const n=new Date(); f.value=iso(new Date(n.getFullYear(),n.getMonth(),1)); }
+  if(!t.value){ const n=new Date(); t.value=iso(new Date(n.getFullYear(),n.getMonth()+1,0)); }
+  let q='/driver_log?select=*&log_date=gte.'+f.value+'&log_date=lte.'+t.value+'&order=log_date.desc,driver.asc';
+  const dr=document.getElementById('fDriver').value; if(dr) q+='&driver=eq.'+encodeURIComponent(dr);
+  const sh=document.getElementById('fShift').value; if(sh) q+='&shift=eq.'+encodeURIComponent(sh);
+  const pl=document.getElementById('fPlace').value.trim(); if(pl) q+='&place=ilike.'+encodeURIComponent('*'+pl+'*');
+  TRIP_ROWS=await sb(q);
+  /* driver dropdown + datalists */
+  const allDr=[...new Set(TRIP_ROWS.map(r=>r.driver))].sort();
+  const sel=document.getElementById('fDriver');
+  if(sel.options.length<=1 && allDr.length){ allDr.forEach(d=>{ const o=document.createElement('option'); o.textContent=d; sel.appendChild(o); }); }
+  document.getElementById('driversDL').innerHTML=allDr.map(d=>'<option>'+esc(d)+'</option>').join('');
+  document.getElementById('placesDL').innerHTML=[...new Set(TRIP_ROWS.map(r=>r.place))].map(p=>'<option>'+esc(p)+'</option>').join('');
+  let h='<table><tr><th>תאריך</th><th>יום</th><th>משמרת</th><th>נהג</th><th>מקום</th><th>מרחק</th><th>משטחים</th><th>הערה</th><th></th></tr>';
+  if(!TRIP_ROWS.length) h+='<tr><td colspan="9" class="muted">אין נסיעות בטווח/סינון שנבחר</td></tr>';
+  TRIP_ROWS.forEach(r=>{
+    const dow=new Date(r.log_date+'T00:00:00').getDay();
+    h+='<tr><td>'+heDate(r.log_date)+'</td><td>'+DAYS[dow]+'</td><td>'+esc(r.shift||'')+'</td><td>'+esc(r.driver)+'</td><td>'+esc(r.place)+'</td><td>'+distChip(r.place)+'</td><td>'+(r.pallets||'')+'</td><td>'+esc(r.note||'')+'</td>'
+      +'<td><button class="del" onclick="delTrip('+r.id+')" title="מחיקה">🗑</button></td></tr>';
+  });
+  h+='</table><p class="muted" style="margin-top:8px">'+TRIP_ROWS.length+' נסיעות</p>';
+  document.getElementById('tripsOut').innerHTML=h;
+}
+async function delTrip(id){
+  if(!confirm('למחוק את הנסיעה?')) return;
+  await sb('/driver_log?id=eq.'+id,{method:'DELETE'});
+  renderTrips();
+}
+async function addManual(){
+  const d=document.getElementById('mDate').value, dr=document.getElementById('mDriver').value.trim(), pl=document.getElementById('mPlace').value.trim();
+  if(!d||!dr||!pl){ alert('נא למלא תאריך, נהג ומקום'); return; }
+  await sb('/driver_log',{method:'POST',body:JSON.stringify({log_date:d,driver:dr,place:pl,shift:document.getElementById('mShift').value,pallets:parseFloat(document.getElementById('mPallets').value)||0,note:document.getElementById('mNote').value.trim(),source:'manual'})});
+  document.getElementById('mDriver').value='';document.getElementById('mPlace').value='';document.getElementById('mPallets').value='';document.getElementById('mNote').value='';
+  renderTrips();
+}
+function exportTrips(){
+  let h='<table border="1"><tr><th>תאריך</th><th>יום</th><th>משמרת</th><th>נהג</th><th>מקום</th><th>מרחק</th><th>משטחים</th><th>הערה</th></tr>';
+  TRIP_ROWS.forEach(r=>{ const dow=new Date(r.log_date+'T00:00:00').getDay();
+    h+='<tr><td>'+r.log_date+'</td><td>'+DAYS[dow]+'</td><td>'+esc(r.shift||'')+'</td><td>'+esc(r.driver)+'</td><td>'+esc(r.place)+'</td><td>'+(PLACES[r.place]||'לא מסווג')+'</td><td>'+(r.pallets||'')+'</td><td>'+esc(r.note||'')+'</td></tr>'; });
+  dl(h+'</table>','נסיעות_נהגים.xls');
+}
+
+/* ---------- monthly summary ---------- */
+let SUM_DATA=[];
+async function renderSummary(){
+  const el=document.getElementById('sumMonth');
+  if(!el.value){ const n=new Date(); el.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
+  const [y,m]=el.value.split('-').map(Number);
+  const first=new Date(y,m-1,1), last=new Date(y,m,0);
+  const rows=await sb('/driver_log?select=*&log_date=gte.'+iso(first)+'&log_date=lte.'+iso(last));
+  const by={};
+  rows.forEach(r=>{
+    const o=by[r.driver]||(by[r.driver]={days:new Set(),stops:0,near:0,far:0,unk:0,pallets:0});
+    o.days.add(r.log_date); o.stops++;
+    const d=PLACES[r.place]; if(d==='רחוק')o.far++; else if(d==='קרוב')o.near++; else o.unk++;
+    o.pallets+=Number(r.pallets)||0;
+  });
+  SUM_DATA=Object.entries(by).map(([dr,o])=>({driver:dr,days:o.days.size,stops:o.stops,near:o.near,far:o.far,unk:o.unk,pallets:o.pallets})).sort((a,b)=>a.driver.localeCompare(b.driver));
+  let h='<table><tr><th>נהג</th><th>ימי עבודה</th><th>סה"כ מקומות</th><th>קרוב</th><th>רחוק</th><th>לא מסווג</th><th>משטחים</th></tr>';
+  if(!SUM_DATA.length) h+='<tr><td colspan="7" class="muted">אין רישומים בחודש זה</td></tr>';
+  let T={days:0,stops:0,near:0,far:0,unk:0,pallets:0};
+  SUM_DATA.forEach(s=>{ T.days+=s.days;T.stops+=s.stops;T.near+=s.near;T.far+=s.far;T.unk+=s.unk;T.pallets+=s.pallets;
+    h+='<tr><td><b>'+esc(s.driver)+'</b></td><td>'+s.days+'</td><td>'+s.stops+'</td><td>'+s.near+'</td><td>'+s.far+'</td><td>'+(s.unk||'')+'</td><td>'+s.pallets+'</td></tr>'; });
+  if(SUM_DATA.length) h+='<tr style="background:var(--green-light)"><td><b>סה"כ</b></td><td><b>'+T.days+'</b></td><td><b>'+T.stops+'</b></td><td><b>'+T.near+'</b></td><td><b>'+T.far+'</b></td><td><b>'+(T.unk||'')+'</b></td><td><b>'+T.pallets+'</b></td></tr>';
+  h+='</table>';
+  document.getElementById('sumOut').innerHTML=h;
+}
+function exportSummary(){
+  let h='<table border="1"><tr><th>נהג</th><th>ימי עבודה</th><th>סה"כ מקומות</th><th>קרוב</th><th>רחוק</th><th>לא מסווג</th><th>משטחים</th></tr>';
+  SUM_DATA.forEach(s=>h+='<tr><td>'+esc(s.driver)+'</td><td>'+s.days+'</td><td>'+s.stops+'</td><td>'+s.near+'</td><td>'+s.far+'</td><td>'+s.unk+'</td><td>'+s.pallets+'</td></tr>');
+  dl(h+'</table>','סיכום_חודשי_נהגים_'+document.getElementById('sumMonth').value+'.xls');
+}
+
+/* ---------- places ---------- */
+async function renderPlaces(){
+  await loadMeta();
+  const rows=await sb('/driver_log?select=place');
+  const counts={}; rows.forEach(r=>counts[r.place]=(counts[r.place]||0)+1);
+  const all=[...new Set([...Object.keys(counts),...Object.keys(PLACES)])].sort((a,b)=>a.localeCompare(b));
+  let h='<table><tr><th>מקום</th><th>נסיעות</th><th>סיווג מרחק</th></tr>';
+  if(!all.length) h+='<tr><td colspan="3" class="muted">עדיין אין מקומות — יופיעו אחרי הרישום הראשון</td></tr>';
+  all.forEach(p=>{
+    const cur=PLACES[p]||'';
+    h+='<tr><td>'+esc(p)+'</td><td>'+(counts[p]||0)+'</td><td><select onchange="setPlace(this,\''+esc(p).replace(/'/g,"\\'")+'\')">'
+      +'<option value="" '+(cur===''?'selected':'')+'>לא מסווג</option>'
+      +'<option value="קרוב" '+(cur==='קרוב'?'selected':'')+'>קרוב</option>'
+      +'<option value="רחוק" '+(cur==='רחוק'?'selected':'')+'>רחוק</option>'
+      +'</select></td></tr>';
+  });
+  document.getElementById('placesOut').innerHTML=h+'</table>';
+}
+async function setPlace(sel,place){
+  if(!sel.value){ await sb('/places?place=eq.'+encodeURIComponent(place),{method:'DELETE'}); delete PLACES[place]; return; }
+  await sb('/places?on_conflict=place',{method:'POST',headers:Object.assign({},H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({place:place,distance:sel.value})});
+  PLACES[place]=sel.value;
+}
+
+/* ---------- init ---------- */
+(async function(){
+  const n=new Date();
+  document.getElementById('coverMonth').value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+  document.getElementById('weekDate').value=iso(n);
+  document.getElementById('mDate').value=iso(n);
+  try{ await loadMeta(); }catch(e){ document.getElementById('coverBanner').innerHTML='<div class="banner bad">שגיאת חיבור למסד הנתונים: '+esc(e.message)+'</div>'; }
+  renderCover();
+})();
+</script>
+</body>
+</html>

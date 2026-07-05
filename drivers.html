@@ -61,7 +61,7 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
  <div id="stops" class="card noprint hidden"><h2>2. שיבוץ — איזה לקוח לאיזה נהג</h2><div id="stopsTbl"></div>
   <div class="row"><button class="btn" onclick="render()">בנה סידור ▼</button>
    <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
-   <button class="btn sec" onclick="window.print()">🖨 הדפסה</button></div></div>
+   <button class="btn sec" onclick="window.print()">🖨 הדפסה</button>    <button class="btn sec" onclick="submitTracking()">📤 רשום למעקב נהגים</button></div></div>
  <div id="out"></div>
 </div>
 
@@ -238,6 +238,36 @@ function exportXls(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head>
   }); });
   h+='</table></body></html>'; const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='סידור נהגים.xls'; a.click();
+}
+
+/* ---------- מעקב נהגים (ענן) ---------- */
+const TRK_URL='https://dddczmvjfokcbibeahyn.supabase.co/rest/v1/driver_log';
+const TRK_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+function trackingRows(){
+  const rows=[]; const drs=activeDrivers();
+  SHIFTS.forEach(sh=>{ drs.forEach(d=>{
+    const stops=STOPS.filter(s=>s.driver===d.name&&(s.shift||'לילה')===sh);
+    const t=truckOfRun(d.name,sh);
+    stops.forEach(s=>{ rows.push({driver:d.name, place:s.name, shift:sh, truck:(t?t.id:(d.contractor?'שלו':'')), pallets:s.pallets||0, note:(s.cust&&s.cust.note)||''}); });
+  }); });
+  return rows;
+}
+async function submitTracking(){
+  const rows=trackingRows();
+  if(!rows.length){ alert('אין סידור בנוי — קודם טען לקוחות, שבץ נהגים ובנה סידור.'); return; }
+  const def=new Date().toISOString().slice(0,10);
+  let date=prompt('תאריך הסידור (שנה-חודש-יום):', def);
+  if(!date) return; date=date.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ alert('תאריך לא תקין'); return; }
+  if(!confirm('לרשום '+rows.length+' נסיעות לתאריך '+date+'?\n(רישום חוזר לאותו תאריך מחליף את הרישום הקודם)')) return;
+  const H={'apikey':TRK_KEY,'Authorization':'Bearer '+TRK_KEY,'Content-Type':'application/json'};
+  try{
+    let r=await fetch(TRK_URL+'?log_date=eq.'+date, {method:'DELETE', headers:H});
+    if(!r.ok) throw new Error('DELETE '+r.status);
+    r=await fetch(TRK_URL, {method:'POST', headers:Object.assign({},H,{'Prefer':'return=minimal'}), body:JSON.stringify(rows.map(x=>Object.assign({},x,{log_date:date})))});
+    if(!r.ok) throw new Error('POST '+r.status);
+    alert('✔ נרשם למעקב נהגים: '+rows.length+' נסיעות בתאריך '+date);
+  }catch(e){ alert('שגיאה ברישום: '+e.message+'\nבדוק חיבור אינטרנט ונסה שוב.'); }
 }
 
 /* ---------- הגדרות: נהגים/משאיות/לקוחות ---------- */
