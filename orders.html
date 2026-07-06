@@ -179,7 +179,10 @@ async function openResult(calc, ds){
     const r=await fetch(SB+'/storage/v1/object/sign/order-results/'+calc+'/'+ds+'.html',{method:'POST',headers:H(),body:JSON.stringify({expiresIn:3600})});
     const d=await r.json();
     if(!r.ok){ alert('הדוח נרשם אך תוצאתו לא נשמרה (גרסה ישנה של המחשבון?)'); return; }
-    window.open(SB+'/storage/v1'+d.signedURL,'_blank');
+    const res=await fetch(SB+'/storage/v1'+d.signedURL);
+    const html=await res.text();
+    const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+    window.open(url,'_blank');
   } finally { loader.style.display='none'; }
 }
 
