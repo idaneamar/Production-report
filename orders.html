@@ -61,7 +61,7 @@
     </div>
     <div id="covBanner"></div>
     <div class="cal" id="covCal"></div>
-    <p class="muted" style="margin-top:10px">בכל יום: 📦 מחשבון אריזה (דוח ייצור) · 🔀 עלומים (ראן). ירוק = הועלה (לחיצה פותחת את תוצאת הדוח) · אדום = יום עבודה שחסר · אפור = לא נדרש.</p>
+    <p class="muted" style="margin-top:10px">בכל יום: 📦 מחשבון אריזה (דוח ייצור) · 🔀 עלומים (ראן). ירוק = הועלה (לחיצה פותחת את תוצאת הדוח) · אדום = חסר (לחיצה מסבירה איך להוסיף בדיעבד) · אפור = לא נדרש.</p>
   </div>
 </div>
 
@@ -157,7 +157,7 @@ async function renderCover(){
     CALCS.forEach(c=>{
       const u=have[ds+'|'+c.id];
       if(u) chips+='<span class="chip ok" onclick="openResult(\''+c.id+'\',\''+ds+'\')" title="פתח את תוצאת הדוח">'+c.label+' ✔</span>';
-      else if(required && !future && FIRST[c.id] && ds>=FIRST[c.id]){ chips+='<span class="chip miss">'+c.label+' ✖</span>'; missing[c.id]++; }
+      else if(required && !future && FIRST[c.id] && ds>=FIRST[c.id]){ chips+='<span class="chip miss" style="cursor:pointer" onclick="howToAdd(\''+c.id+'\',\''+ds+'\')" title="איך להוסיף בדיעבד">'+c.label+' ✖</span>'; missing[c.id]++; }
       else chips+='<span class="chip na">'+c.label+'</span>';
     });
     html+='<div class="day'+(required?'':' off')+(ds===today?' today':'')+'"><div class="num">'+day+'</div>'+chips+'</div>';
@@ -168,6 +168,10 @@ async function renderCover(){
   if(!FIRST.packing && !FIRST.alumim) b.innerHTML='<div class="banner ok">עדיין לא נרשם אף דוח — לחץ "📊 רשום למעקב הזמנות" בתוך המחשבונים אחרי כל חישוב יומי</div>';
   else if(totMiss>0) b.innerHTML='<div class="banner bad">⚠ חסרים החודש: '+(missing.packing?missing.packing+' דוחות ייצור':'')+(missing.packing&&missing.alumim?' · ':'')+(missing.alumim?missing.alumim+' דוחות עלומים':'')+'</div>';
   else b.innerHTML='<div class="banner ok">✔ כל הדוחות של ימי העבודה שחלפו הועלו</div>';
+}
+function howToAdd(calc, ds){
+  const name=calc==='packing'?'מחשבון אריזה':'חלוקת הזמנות עלומים';
+  alert('הוספה בדיעבד של '+ds+':\n\n1. פתח את '+name+' בתפריט\n2. טען את קובץ ההזמנות של אותו יום'+(calc==='alumim'?' ובחר את הגיליון הנכון':'')+'\n3. לחץ "📊 רשום למעקב הזמנות"\n4. בחלון התאריך הזן: '+ds+'\n\nהיום יהפוך לירוק כאן מיד אחרי השמירה.');
 }
 async function openResult(calc, ds){
   loader.style.display='block';
