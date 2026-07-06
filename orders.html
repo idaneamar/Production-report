@@ -61,7 +61,7 @@
     </div>
     <div id="covBanner"></div>
     <div class="cal" id="covCal"></div>
-    <p class="muted" style="margin-top:10px">בכל יום: 📦 מחשבון אריזה (דוח ייצור) · 🔀 עלומים (ראן). ירוק = הועלה (לחיצה פותחת את תוצאת הדוח) · אדום = חסר (לחיצה מסבירה איך להוסיף בדיעבד) · אפור = לא נדרש.</p>
+    <p class="muted" style="margin-top:10px">בכל יום: 📦 דוח ייצור (מחשבון אריזה) · 🔀 ראן (עלומים). ירוק = הועלה (לחיצה פותחת את תוצאת הדוח) · אדום = חסר (לחיצה מסבירה איך להוסיף בדיעבד) · אפור = לא נדרש.</p>
   </div>
 </div>
 
@@ -126,7 +126,7 @@ function showView(v,btn){
 }
 
 /* ---------- coverage ---------- */
-const CALCS=[{id:'packing',label:'📦 אריזה'},{id:'alumim',label:'🔀 עלומים'}];
+const CALCS=[{id:'packing',label:'📦 דוח ייצור'},{id:'alumim',label:'🔀 ראן'}];
 let FIRST={packing:null, alumim:null};
 async function loadFirst(){
   for(const c of CALCS){
@@ -166,7 +166,7 @@ async function renderCover(){
   const b=document.getElementById('covBanner');
   const totMiss=missing.packing+missing.alumim;
   if(!FIRST.packing && !FIRST.alumim) b.innerHTML='<div class="banner ok">עדיין לא נרשם אף דוח — לחץ "📊 רשום למעקב הזמנות" בתוך המחשבונים אחרי כל חישוב יומי</div>';
-  else if(totMiss>0) b.innerHTML='<div class="banner bad">⚠ חסרים החודש: '+(missing.packing?missing.packing+' דוחות ייצור':'')+(missing.packing&&missing.alumim?' · ':'')+(missing.alumim?missing.alumim+' דוחות עלומים':'')+'</div>';
+  else if(totMiss>0) b.innerHTML='<div class="banner bad">⚠ חסרים החודש: '+(missing.packing?missing.packing+' דוחות ייצור':'')+(missing.packing&&missing.alumim?' · ':'')+(missing.alumim?missing.alumim+' דוחות ראן':'')+'</div>';
   else b.innerHTML='<div class="banner ok">✔ כל הדוחות של ימי העבודה שחלפו הועלו</div>';
 }
 function howToAdd(calc, ds){
