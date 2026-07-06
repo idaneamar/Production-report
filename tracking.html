@@ -35,6 +35,8 @@
   .cal .day.ok{background:var(--green-light);border-color:var(--green);color:var(--green-dark);}
   .cal .day.miss{background:var(--red-light);border-color:var(--red);color:var(--red);}
   .cal .day.today{outline:3px solid #f2c94c;}
+  .cal .day.click{cursor:pointer;}
+  .cal .day.click:hover{box-shadow:0 2px 8px rgba(0,0,0,.18);}
   .cal .day .st{font-size:12px;margin-top:4px;}
   .chip{display:inline-block;border-radius:8px;padding:1px 8px;font-size:12px;}
   .chip.near{background:var(--green-light);color:var(--green-dark);}
@@ -88,7 +90,17 @@
     </div>
     <div id="coverBanner"></div>
     <div class="cal" id="coverCal"></div>
-    <p class="muted" style="margin-top:10px">ירוק = נרשם סידור · אדום = יום עבודה (ראשון–חמישי) שחסר · אפור = שישי/שבת, יום עתידי או לפני תחילת המעקב</p>
+    <p class="muted" style="margin-top:10px">ירוק = נרשם סידור · אדום = יום עבודה (ראשון–חמישי) שחסר · אפור = שישי/שבת, יום עתידי או לפני תחילת המעקב · לחיצה על יום — צפייה ועריכה</p>
+  </div>
+  <div class="card hidden" id="dayEdit">
+    <h2 style="font-size:16px;color:var(--green-dark);margin-bottom:8px">✏️ עריכת יום <span id="dayEditDate"></span></h2>
+    <div id="dayTbl" style="max-height:50vh;overflow:auto"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn sec" onclick="addDayRow()">➕ הוספת נסיעה</button>
+      <button class="btn" onclick="saveDay()">💾 שמור שינויים</button>
+      <button class="btn sec" onclick="document.getElementById('dayEdit').classList.add('hidden')">סגור</button>
+      <button class="btn sec" style="color:var(--red);border-color:var(--red)" onclick="deleteDay()">🗑 מחק את כל היום</button>
+    </div>
   </div>
 </div>
 
@@ -226,7 +238,8 @@ async function renderCover(){
     if(counts[ds]){ cls='ok'; st='✔ '+counts[ds]+' נסיעות'; }
     else if(required && !future && !beforeStart && FIRST_DATE){ cls='miss'; st='✖ לא נרשם'; missing++; }
     else if(!required){ st='מנוחה'; }
-    html+='<div class="day '+cls+(ds===today?' today':'')+'"><div class="num">'+day+'</div><div class="st">'+st+'</div></div>';
+    const clickable = ds<=today;
+    html+='<div class="day '+cls+(ds===today?' today':'')+(clickable?' click':'')+'"'+(clickable?' onclick="openDay(\''+ds+'\')" title="לחץ לצפייה ועריכה"':'')+'><div class="num">'+day+'</div><div class="st">'+st+'</div></div>';
   }
   document.getElementById('coverCal').innerHTML=html;
   const b=document.getElementById('coverBanner');
@@ -491,6 +504,64 @@ async function savePdf(){
   await sb('/driver_log',{method:'POST',body:JSON.stringify(rows)});
   document.getElementById('pdfReview').classList.add('hidden');
   alert('✔ נשמר: '+rows.length+' נסיעות בתאריך '+date);
+  renderCover();
+}
+
+
+/* ---------- day editor ---------- */
+let DAY_ROWS=[], DAY_DATE=null;
+async function openDay(ds){
+  DAY_DATE=ds;
+  DAY_ROWS=await sb('/driver_log?select=*&log_date=eq.'+ds+'&order=shift.asc,driver.asc');
+  DAY_ROWS=DAY_ROWS.map(r=>({driver:r.driver,place:r.place,shift:r.shift||'לילה',truck:r.truck||'',pallets:r.pallets||0,note:r.note||'',source:r.source||'edit'}));
+  document.getElementById('dayEditDate').textContent=heDate(ds)+' ('+DAYS[new Date(ds+'T00:00:00').getDay()]+')';
+  renderDayTbl();
+  const el=document.getElementById('dayEdit');
+  el.classList.remove('hidden');
+  el.scrollIntoView({behavior:'smooth'});
+}
+function renderDayTbl(){
+  let h='<table><tr><th>משמרת</th><th>נהג</th><th>מקום</th><th>משטחים</th><th>משאית</th><th>הערה</th><th></th></tr>';
+  if(!DAY_ROWS.length) h+='<tr><td colspan="7" class="muted">אין נסיעות ביום זה — אפשר להוסיף ידנית</td></tr>';
+  DAY_ROWS.forEach((r,i)=>{
+    h+='<tr>'
+      +'<td><select id="de_sh_'+i+'">'+['לילה','בוקר','צהריים'].map(x=>'<option '+(x===r.shift?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
+      +'<td><input id="de_dr_'+i+'" value="'+esc(r.driver)+'" style="width:110px" list="driversDL"></td>'
+      +'<td><input id="de_pl_'+i+'" value="'+esc(r.place)+'" style="width:160px" list="placesDL"></td>'
+      +'<td><input id="de_pa_'+i+'" type="number" step="0.5" value="'+r.pallets+'" style="width:70px"></td>'
+      +'<td><input id="de_tr_'+i+'" value="'+esc(r.truck)+'" style="width:60px"></td>'
+      +'<td><input id="de_no_'+i+'" value="'+esc(r.note)+'" style="width:180px"></td>'
+      +'<td><button class="del" onclick="rmDayRow('+i+')">🗑</button></td>'
+      +'</tr>';
+  });
+  document.getElementById('dayTbl').innerHTML=h+'</table>';
+}
+function collectDay(){
+  DAY_ROWS=DAY_ROWS.map((r,i)=>({
+    driver:document.getElementById('de_dr_'+i).value.trim(),
+    place:document.getElementById('de_pl_'+i).value.trim(),
+    shift:document.getElementById('de_sh_'+i).value,
+    truck:document.getElementById('de_tr_'+i).value.trim(),
+    pallets:parseFloat(document.getElementById('de_pa_'+i).value)||0,
+    note:document.getElementById('de_no_'+i).value.trim(),
+    source:r.source
+  }));
+}
+function addDayRow(){ collectDay(); DAY_ROWS.push({driver:'',place:'',shift:'לילה',truck:'',pallets:0,note:'',source:'edit'}); renderDayTbl(); }
+function rmDayRow(i){ collectDay(); DAY_ROWS.splice(i,1); renderDayTbl(); }
+async function saveDay(){
+  collectDay();
+  const rows=DAY_ROWS.filter(r=>r.driver&&r.place).map(r=>Object.assign({},r,{log_date:DAY_DATE}));
+  if(!confirm('לשמור '+rows.length+' נסיעות לתאריך '+DAY_DATE+'?\n(הרישום הקודם של היום יוחלף)')) return;
+  await sb('/driver_log?log_date=eq.'+DAY_DATE,{method:'DELETE'});
+  if(rows.length) await sb('/driver_log',{method:'POST',body:JSON.stringify(rows)});
+  document.getElementById('dayEdit').classList.add('hidden');
+  renderCover();
+}
+async function deleteDay(){
+  if(!confirm('למחוק את כל הנסיעות של '+DAY_DATE+'? היום יסומן כחסר.')) return;
+  await sb('/driver_log?log_date=eq.'+DAY_DATE,{method:'DELETE'});
+  document.getElementById('dayEdit').classList.add('hidden');
   renderCover();
 }
 
