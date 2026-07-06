@@ -82,8 +82,8 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
    <div id="fileinfo" class="muted"></div></div>
   <div id="sheetbar" class="hidden" style="margin-top:10px;font-weight:600;color:var(--brand2)">יום / גיליון: <select id="sheetSel" style="width:auto"></select></div>
   <div id="msg"></div>
-  <div class="row"><button class="btn sec" onclick="addToLedger()">➕ הוסף מאזן ארגזים ליומן</button>
-   <button class="btn sec" onclick="addFruitFromDay()">🍐 הוסף משטחי פירות ליומן</button>
+  <div class="row"><label style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer"><input type="checkbox" id="summerChk" onchange="toggleSummer(this.checked)"> 🌞 מצב קיץ — אין מעבר סחורה</label> <button class="btn sec" id="ledgerBtn" onclick="addToLedger()">➕ הוסף מאזן ארגזים ליומן</button>
+   <button class="btn sec" id="fruitBtn" onclick="addFruitFromDay()">🍐 הוסף משטחי פירות ליומן</button>
    <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
    <button class="btn sec" onclick="exportForDrivers()">🚚 ייצוא לסידור נהגים</button>
    <button class="btn sec" onclick="window.print()">🖨 הדפסה</button></div>
@@ -263,6 +263,11 @@ function process(ws, S) {
       if (p.isDirect) continue; // עלומים שולח ישיר ללקוח — לא באחריותנו
       const prod = p.fromAlumim ? "alumim" : producerOf(fillARGB(cell)); // עמודת "מעלומים" = תמיד עלומים
       if (prod === "unknown") { flags.push({ region, name, product: p.header, qty }); continue; }
+      if (S.summer_mode) {
+        // מצב קיץ: אין מעבר סחורה — כתום=אנחנו מכינים ומוציאים (כל האזורים), ירוק=עלומים בלבד
+        if (prod === "us") add("prepare", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
+        continue;
+      }
       if (ours && prod === "us") add("prepare", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
       else if (ours && prod === "alumim") {
         add("receive", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
@@ -279,7 +284,7 @@ function process(ws, S) {
   }
   return {
     headerRow: hr, productCount: products.length, regionsSeen: [...regionsSeen], reportDate: getReportDate(ws),
-    buckets, flags, boxesOut, boxesIn, cartonsIn, cartonsOut, dailyNet: boxesOut - boxesIn,
+    buckets, flags, summer: !!S.summer_mode, boxesOut, boxesIn, cartonsIn, cartonsOut, dailyNet: boxesOut - boxesIn,
     fruitCartons, fruitPallets, settings: S
   };
 }
@@ -403,6 +408,12 @@ async function loadFile(f){
 }
 function runSheet(name){ const ws=WB.getWorksheet(name); if(!ws)return; LAST=processWS(ws,S); LAST.sheet=name; render(LAST); }
 function processWS(ws,settings){ return process(ws,settings); } // process מוגדר ב-ENGINE
+function applySummerUI(v){
+  var lb=document.getElementById('ledgerBtn'), fb=document.getElementById('fruitBtn');
+  if(lb) lb.style.display=v?'none':''; if(fb) fb.style.display=v?'none':'';
+}
+function toggleSummer(v){ S.summer_mode=!!v; saveSetLS(); applySummerUI(v); if(LAST&&LAST.sheet) runSheet(LAST.sheet); }
+setTimeout(function(){ try{ var c=document.getElementById('summerChk'); c.checked=!!S.summer_mode; applySummerUI(!!S.summer_mode); }catch(e){} },0);
 
 /* ---------- תצוגה ---------- */
 function fmt(n){ return (Math.round((+n||0)*100)/100).toLocaleString('he-IL'); }
@@ -433,19 +444,25 @@ function render(R){
   const unknownReg=R.regionsSeen.filter(rg=>!S.our_regions.some(k=>rg.indexOf(k)>=0));
   msg.innerHTML='<div class="ok">גיליון <b>'+R.sheet+'</b> · '+R.productCount+' מוצרים · '+R.regionsSeen.length+' מחוזות.</div>'+w;
   // קלפי סיכום
-  let h='<div class="card"><h2>סיכום היום</h2><div class="tot">'
+  let h;
+  if(R.summer){
+    h='<div class="card"><h2>סיכום היום</h2>'
+     +'<div style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px 14px;font-weight:600">🌞 מצב קיץ פעיל — אין מעבר סחורה: <b>כתום = אנחנו מכינים ומוציאים</b> (כל האזורים), <b>ירוק = עלומים מכינים ומוציאים</b>. אין תנועות מאזן ארגזים ומשטחי פירות.</div></div>';
+  } else {
+  h='<div class="card"><h2>סיכום היום</h2><div class="tot">'
    +tile(R.boxesOut,'ארגזים לשלוח לעלומים','var(--brand)')
    +tile(R.boxesIn,'ארגזים לקבל מעלומים','var(--green)')
    +tile(R.cartonsIn,'קרטונים לקבל מעלומים','var(--green)')
    +tile((R.dailyNet>=0?'+':'')+R.dailyNet,'מאזן נטו היום',R.dailyNet>=0?'var(--green)':'var(--orange)')
    +tile(R.fruitPallets,'משטחי פירות (היום)','var(--orange)')+'</div>'
    +'<div class="muted">נטו חיובי = עלומים חייבים לנו ארגזים. את מספר משטחי הפירות של היום אפשר להוסיף ליומן "מעקב משטחי פירות".</div></div>';
+  }
   h+=kosherLegendHtml();               // טבלת כשרויות (אחרי סיכום היום)
   h+=productTable(R);                  // 1) סיכום לפי מוצר — לתכנון ייצור
   h+=ourCombinedHtml(R);               // 2) האזורים שלנו לפי לקוח
   h+=prodCustMatrixHtml(R);            // 2.5) מוצר × לקוח
   h+=lineProductHtml(R);               // 3) סיכום לפי מוצר וקו (לפני "לשלוח לעלומים")
-  h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 4)
+  if(!R.summer) h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 4)
   out.innerHTML=h;
 }
 function setView(v){ VIEW=v; if(LAST)render(LAST); }
