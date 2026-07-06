@@ -359,6 +359,12 @@
    "name": "רוקולה",
    "pack_kg": null,
    "category": ""
+  },
+  {
+   "code": "3003",
+   "name": "לקט מושבה",
+   "pack_kg": null,
+   "category": ""
   }
  ],
  "customers": [
@@ -500,7 +506,7 @@
   },
   {
    "name": "ביכורי שדה צפון 1994 ג.ד בע\"מ",
-   "alias": "שדה צפון",
+   "alias": "שדה צפון|ב צפון",
    "type": "CARTON",
    "bag_default": 1,
    "bpb_small": 15,
@@ -972,6 +978,57 @@
    "special_max_kg": 0,
    "special_units": 0,
    "note": "נוסף אוטומטית מהדוח — נא לאמת תצורת אריזה (כרגע ברירת מחדל: קרטונים)",
+   "pickup": false
+  },
+  {
+   "name": "פוד פקטורי - יבנה",
+   "alias": "פוד פקטורי",
+   "type": "CARTON",
+   "bag_default": 1,
+   "bpb_small": 15,
+   "bpb_large": 10,
+   "units_per_box": 0,
+   "max_kg": 0,
+   "max_boxes": 55,
+   "special_cat": "",
+   "special_type": "",
+   "special_max_kg": 0,
+   "special_units": 0,
+   "note": "נוסף אוטומטית 7.26 — לבדוק כללי אריזה",
+   "pickup": false
+  },
+  {
+   "name": "סופר שווה בד\"צ",
+   "alias": "סופר שווה",
+   "type": "CARTON",
+   "bag_default": 1,
+   "bpb_small": 15,
+   "bpb_large": 10,
+   "units_per_box": 0,
+   "max_kg": 0,
+   "max_boxes": 55,
+   "special_cat": "",
+   "special_type": "",
+   "special_max_kg": 0,
+   "special_units": 0,
+   "note": "נוסף אוטומטית 7.26 — לבדוק כללי אריזה",
+   "pickup": false
+  },
+  {
+   "name": "ירקות קלופים שיווק ישראל בד\"צ",
+   "alias": "שיווק ישראל|ירקות קלופים",
+   "type": "CARTON",
+   "bag_default": 1,
+   "bpb_small": 15,
+   "bpb_large": 10,
+   "units_per_box": 0,
+   "max_kg": 0,
+   "max_boxes": 55,
+   "special_cat": "",
+   "special_type": "",
+   "special_max_kg": 0,
+   "special_units": 0,
+   "note": "נוסף אוטומטית 7.26 — לבדוק כללי אריזה",
    "pickup": false
   }
  ]
