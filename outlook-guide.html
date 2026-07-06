@@ -51,6 +51,25 @@
   <li>בדיקה: בלשונית ניהול לחץ <b>"✉ שלח מייל בדיקה אליי"</b>.</li>
 </ol>
 
+<h2>זרימה 3 — גיבוי שבועי אוטומטי ל-OneDrive (מומלץ מאוד!)</h2>
+<ol>
+  <li>Create ← <b>Scheduled cloud flow</b> ← תדירות: פעם בשבוע (למשל יום שישי 08:00).</li>
+  <li>הוסף פעולה <b>HTTP</b>:
+    <div class="box">
+      Method: <code>GET</code><br>
+      URI: <code>https://dddczmvjfokcbibeahyn.supabase.co/functions/v1/export-backup</code><br>
+      Headers: <code>x-inbox-secret</code> = אותו סוד מהזרימה הנכנסת
+    </div>
+  </li>
+  <li>הוסף פעולה <b>"Create file"</b> (OneDrive for Business):
+    <div class="box">
+      Folder: בחר תיקייה, למשל <code>/TreeLee-Backups</code><br>
+      File Name: <code>trelee-backup-@{formatDateTime(utcNow(),'yyyy-MM-dd')}.json</code><br>
+      File Content: Body (מפעולת ה-HTTP)
+    </div>
+  </li>
+  <li>שמור. מעכשיו עותק מלא של כל נתוני המערכת נשמר כל שבוע ב-OneDrive של החברה — גם אם ספק הענן ייעלם מחר, המידע אצלכם. בונוס: הקריאה השבועית גם שומרת על הפרויקט פעיל ומונעת השהיה.</li>
+</ol>
 <div class="box warn"><b>חשוב:</b> את הסוד (x-inbox-secret) יוצרים בלשונית ניהול ← "🔑 צור סוד חיבור" ומעתיקים מיד ל-Flow. אם הסוד אבד — צור חדש ועדכן ב-Flow.</div>
 </body>
 </html>

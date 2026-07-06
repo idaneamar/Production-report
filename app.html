@@ -171,6 +171,14 @@
           </div>
         </div>
         <div class="card">
+          <h2>🗄 גיבוי ושימור מידע</h2>
+          <p class="hint">כל המידע (נסיעות, מקומות, הגדרות, דוחות) נשמר בענן. בנוסף מומלץ מאוד להפעיל את זרימת הגיבוי השבועי ל-OneDrive (זרימה 3 במדריך) — כך עותק מלא יושב אצלכם בחברה, בלי תלות באף ספק.</p>
+          <div class="row">
+            <button class="btn ghost" onclick="manualBackup()">⬇ הורד גיבוי מלא עכשיו (JSON)</button>
+            <span class="hint" id="backupInfo"></span>
+          </div>
+        </div>
+        <div class="card">
           <h2>📨 חיבור Outlook (Power Automate)</h2>
           <p class="hint">שני צעדים בצד מיקרוסופט — יש מדריך מפורט בלשונית <b>הוראות חיבור</b> שבתפריט (או בקובץ outlook-guide.html).</p>
           <p style="font-size:13px; margin-bottom:6px"><b>1. קליטת דוחות</b> — כתובת לזרימה הנכנסת:</p>
@@ -193,7 +201,7 @@
   </main>
 </div>
 <script>
-const APP_VERSION='2.1.0';
+const APP_VERSION='2.2.0';
 document.getElementById('verEl').textContent=APP_VERSION;
 const SB='https://dddczmvjfokcbibeahyn.supabase.co';
 const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
@@ -610,6 +618,30 @@ async function changeMyPassword(){
   if(!r.ok){ alert('שגיאה: '+(d.msg||d.error_description||r.status)); return; }
   document.getElementById('np1').value=''; document.getElementById('np2').value='';
   alert('✔ הסיסמה עודכנה');
+}
+async function manualBackup(){
+  document.getElementById('backupInfo').textContent='מוריד…';
+  try{
+    const dump={exported_at:new Date().toISOString(), source:'manual'};
+    for(const t of ['driver_log','places','app_settings','report_inbox']){
+      let rows=[], from=0;
+      while(true){
+        const r=await fetch(SB+'/rest/v1/'+t+'?select=*',{headers:Object.assign({},authHdrs(),{'Range':from+'-'+(from+999)})});
+        if(!r.ok){ dump[t+'_error']=r.status; break; }
+        const d=await r.json(); rows=rows.concat(d);
+        if(d.length<1000) break; from+=1000;
+      }
+      dump[t]=rows;
+    }
+    const ur=await fetch(SB+'/rest/v1/user_perms?select=username,email,display_name,is_admin,perms',{headers:authHdrs()});
+    dump.user_perms=ur.ok? await ur.json():[];
+    const blob=new Blob([JSON.stringify(dump,null,1)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='trelee-backup-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click();
+    document.getElementById('backupInfo').textContent='✔ הגיבוי ירד — שמור אותו במקום בטוח (OneDrive/דיסק)';
+  }catch(e){ document.getElementById('backupInfo').textContent='שגיאה: '+e.message; }
 }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 </script>
