@@ -38,7 +38,7 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .matrix{font-size:11px;border-collapse:collapse;min-width:0;width:auto}
 .matrix th,.matrix td{border:1px solid var(--line);padding:2px 5px;text-align:center;min-width:24px}
 .matrix td:first-child,.matrix th:first-child{text-align:right;white-space:nowrap;position:sticky;right:0;background:#fff;font-weight:600;z-index:1}
-.matrix th.rot{writing-mode:vertical-rl;white-space:nowrap;height:118px;vertical-align:bottom;font-weight:600}
+.matrix th.rot{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:-2px;white-space:nowrap;height:150px;vertical-align:bottom;font-weight:600;font-size:11px;line-height:1.1}
 .matrix tr.sec-prepare>td,.matrix tr.sec-prepare>th{background:#fdf1e6}
 .matrix tr.sec-receive>td,.matrix tr.sec-receive>th{background:var(--greenbg)}
 .matrix .z{color:#cfd8e3}
@@ -83,7 +83,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
   <div id="sheetbar" class="hidden" style="margin-top:10px;font-weight:600;color:var(--brand2)">יום / גיליון: <select id="sheetSel" style="width:auto"></select></div>
   <div id="msg"></div>
   <div class="row"><label style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer"><input type="checkbox" id="summerChk" onchange="toggleSummer(this.checked)"> 🌞 מצב קיץ — אין מעבר סחורה</label> <button class="btn sec" id="ledgerBtn" onclick="addToLedger()">➕ הוסף מאזן ארגזים ליומן</button>
-   <button class="btn sec" id="fruitBtn" onclick="addFruitFromDay()">🍐 הוסף משטחי פירות ליומן</button>
+   <button class="btn sec" id="fruitBtn" onclick="addFruitFromDay()">🍐 הוסף משטחי פירות ליומן</button> <button class="btn sec" onclick="submitOrdersAl()">📊 רשום למעקב הזמנות</button>
    <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
    <button class="btn sec" onclick="exportForDrivers()">🚚 ייצוא לסידור נהגים</button>
    <button class="btn sec" onclick="window.print()">🖨 הדפסה</button></div>
@@ -464,6 +464,54 @@ function render(R){
   h+=lineProductHtml(R);               // 3) סיכום לפי מוצר וקו (לפני "לשלוח לעלומים")
   if(!R.summer) h+=sectionHtml('🟦 לשלוח לעלומים — אזורים אחרים','sec-send',R.buckets.send,false);  // 4)
   out.innerHTML=h;
+}
+
+/* ---------- מעקב הזמנות (ענן) ---------- */
+const ORD_SB='https://dddczmvjfokcbibeahyn.supabase.co';
+const ORD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+function ordSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+async function ordSubmit(calc, defDate, lines, summary){
+  const s=ordSession();
+  if(!s){ alert('צריך להיות מחובר למערכת כדי לרשום למעקב הזמנות'); return; }
+  let date=prompt('תאריך הדוח (שנה-חודש-יום):', defDate||new Date().toISOString().slice(0,10));
+  if(!date) return; date=date.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ alert('תאריך לא תקין'); return; }
+  if(!confirm('לרשום '+lines.length+' שורות הזמנה לתאריך '+date+'?\n(רישום קודם של אותו יום יוחלף)')) return;
+  const H={'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token,'Content-Type':'application/json'};
+  try{
+    let r=await fetch(ORD_SB+'/rest/v1/order_lines?report_date=eq.'+date+'&calc=eq.'+calc,{method:'DELETE',headers:H});
+    if(!r.ok) throw new Error('מחיקה '+r.status+(r.status===401||r.status===403?' — אין הרשאה':''));
+    const rows=lines.map(x=>Object.assign({},x,{report_date:date,calc:calc}));
+    for(let i=0;i<rows.length;i+=500){
+      r=await fetch(ORD_SB+'/rest/v1/order_lines',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(rows.slice(i,i+500))});
+      if(!r.ok) throw new Error('שמירה '+r.status);
+    }
+    r=await fetch(ORD_SB+'/rest/v1/order_uploads?on_conflict=report_date,calc',{method:'POST',headers:Object.assign({},H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({report_date:date,calc:calc,summary:summary,uploaded_by:s.username||s.email||'',uploaded_at:new Date().toISOString()})});
+    if(!r.ok) throw new Error('עדכון סטטוס '+r.status);
+    /* שמירת תמונת התוצאה */
+    try{
+      const css=[...document.querySelectorAll('style')].map(x=>x.innerHTML).join('\n');
+      const snap='<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>'+calc+' '+date+'</title><style>'+css+'</style></head><body style="padding:16px">'+document.getElementById('out').innerHTML+'</body></html>';
+      await fetch(ORD_SB+'/storage/v1/object/order-results/'+calc+'/'+date+'.html',{method:'POST',headers:Object.assign({},H,{'Content-Type':'text/html','x-upsert':'true'}),body:new Blob([snap],{type:'text/html'})});
+    }catch(e){}
+    alert('✔ נרשם למעקב הזמנות: '+lines.length+' שורות בתאריך '+date);
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+
+function submitOrdersAl(){
+  if(!LAST){ alert('קודם טען קובץ ובחר יום'); return; }
+  const lines=[];
+  ['prepare','receive','send'].forEach(bk=>{
+    const b=LAST.buckets[bk]||{};
+    Object.keys(b).forEach(reg=>{ Object.keys(b[reg]).forEach(ck=>{ const c=b[reg][ck];
+      c.items.forEach(x=>{ lines.push({customer:c.name, product:x.product, qty:x.qty,
+        unit:x.isFruit?'קרטון פרי':(x.isCarton?'קרטון':'ארגז'), region:reg, bucket:bk}); });
+    });});
+  });
+  if(!lines.length){ alert('אין שורות ביום שנבחר'); return; }
+  let def=null;
+  try{ const d=LAST.reportDate; if(d) def=(d instanceof Date? d : new Date(d)).toISOString().slice(0,10); }catch(e){}
+  ordSubmit('alumim', def, lines, {customers:[...new Set(lines.map(l=>l.customer))].length, lines:lines.length, boxesOut:LAST.boxesOut, boxesIn:LAST.boxesIn, summer:!!LAST.summer, sheet:LAST.sheet||''});
 }
 function setView(v){ VIEW=v; if(LAST)render(LAST); }
 function combinedOurs(R){ var m={};

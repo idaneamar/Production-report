@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-<head><script src="./cloud-sync.js"></script>
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>מחשבון אריזה — טרי לי</title>
@@ -92,7 +92,7 @@ ol li,ul li{margin:5px 0}
       <button class="btn sec" onclick="document.getElementById('inp').value=''">נקה</button>
       <span style="flex:1"></span>
       <button class="btn sec" onclick="exportDriversPack()">🚚 ייצוא לסידור נהגים</button>
-      <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
+      <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>\n      <button class="btn sec" onclick="submitOrdersPk()">📊 רשום למעקב הזמנות</button>
       <button class="btn sec" onclick="window.print()">🖨 הדפסה</button>
     </div>
     <div id="msg"></div>
@@ -268,6 +268,54 @@ function parseMatrix(text){
 
 /* ---------- חישוב והצגה ---------- */
 let LAST=null;
+
+/* ---------- מעקב הזמנות (ענן) ---------- */
+const ORD_SB='https://dddczmvjfokcbibeahyn.supabase.co';
+const ORD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+function ordSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+async function ordSubmit(calc, defDate, lines, summary){
+  const s=ordSession();
+  if(!s){ alert('צריך להיות מחובר למערכת כדי לרשום למעקב הזמנות'); return; }
+  let date=prompt('תאריך הדוח (שנה-חודש-יום):', defDate||new Date().toISOString().slice(0,10));
+  if(!date) return; date=date.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ alert('תאריך לא תקין'); return; }
+  if(!confirm('לרשום '+lines.length+' שורות הזמנה לתאריך '+date+'?\n(רישום קודם של אותו יום יוחלף)')) return;
+  const H={'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token,'Content-Type':'application/json'};
+  try{
+    let r=await fetch(ORD_SB+'/rest/v1/order_lines?report_date=eq.'+date+'&calc=eq.'+calc,{method:'DELETE',headers:H});
+    if(!r.ok) throw new Error('מחיקה '+r.status+(r.status===401||r.status===403?' — אין הרשאה':''));
+    const rows=lines.map(x=>Object.assign({},x,{report_date:date,calc:calc}));
+    for(let i=0;i<rows.length;i+=500){
+      r=await fetch(ORD_SB+'/rest/v1/order_lines',{method:'POST',headers:Object.assign({},H,{'Prefer':'return=minimal'}),body:JSON.stringify(rows.slice(i,i+500))});
+      if(!r.ok) throw new Error('שמירה '+r.status);
+    }
+    r=await fetch(ORD_SB+'/rest/v1/order_uploads?on_conflict=report_date,calc',{method:'POST',headers:Object.assign({},H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({report_date:date,calc:calc,summary:summary,uploaded_by:s.username||s.email||'',uploaded_at:new Date().toISOString()})});
+    if(!r.ok) throw new Error('עדכון סטטוס '+r.status);
+    /* שמירת תמונת התוצאה */
+    try{
+      const css=[...document.querySelectorAll('style')].map(x=>x.innerHTML).join('\n');
+      const snap='<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>'+calc+' '+date+'</title><style>'+css+'</style></head><body style="padding:16px">'+document.getElementById('out').innerHTML+'</body></html>';
+      await fetch(ORD_SB+'/storage/v1/object/order-results/'+calc+'/'+date+'.html',{method:'POST',headers:Object.assign({},H,{'Content-Type':'text/html','x-upsert':'true'}),body:new Blob([snap],{type:'text/html'})});
+    }catch(e){}
+    alert('✔ נרשם למעקב הזמנות: '+lines.length+' שורות בתאריך '+date);
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+
+function submitOrdersPk(){
+  if(!LAST || !LAST.length){ alert('קודם הרץ חישוב'); return; }
+  const lines=[];
+  LAST.forEach(r=>{ r.shipments.forEach(sh=>{ sh.lines.forEach(ln=>{
+    lines.push({customer:r.cust.name, product:ln.product,
+      qty: ln.type==='UNITS' ? (ln.units||0) : (ln.kg||0),
+      unit: ln.type==='UNITS' ? "יח'" : 'ק"ג',
+      meta:{boxes:ln.boxes||0}});
+  });});});
+  if(!lines.length){ alert('אין שורות'); return; }
+  let kg=0,boxes=0,pallets=0;
+  LAST.forEach(r=>{ kg+=r.agg.kg; boxes+=r.agg.boxes; pallets+=r.agg.pallets; });
+  ordSubmit('packing', null, lines, {customers:LAST.length, lines:lines.length, kg:Math.round(kg), boxes:boxes, pallets:pallets});
+}
+
 function run(){
   const msg=document.getElementById('msg'); const out=document.getElementById('out');
   out.innerHTML=''; msg.innerHTML='';

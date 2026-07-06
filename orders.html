@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מעקב הזמנות — טרי לי</title>
+<style>
+  :root{--green:#1a7a4a;--green-dark:#14603a;--green-light:#e8f5ee;--bg:#f4f6f5;--text:#1c2b23;--border:#d8e2dc;--red:#c0392b;--red-light:#fdecea;--gray:#eef1ef;--orange:#c77b1e;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);padding:16px;}
+  h1{font-size:20px;color:var(--green-dark);margin-bottom:2px;}
+  .sub{font-size:13px;color:#6b7f74;margin-bottom:14px;}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .tabs button{font-family:inherit;font-size:14px;padding:9px 16px;border:1px solid var(--border);background:#fff;border-radius:10px;cursor:pointer;}
+  .tabs button.active{background:var(--green);color:#fff;border-color:var(--green);font-weight:700;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;}
+  .hidden{display:none;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  input,select{font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;}
+  .btn{background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn:hover{background:var(--green-dark);}
+  .btn.sec{background:#fff;color:var(--green-dark);border:1px solid var(--green);}
+  .btn.nav{padding:8px 12px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:right;vertical-align:top;}
+  th{background:var(--green-light);position:sticky;top:0;}
+  .muted{color:#8aa094;font-size:13px;}
+  .banner{padding:12px 16px;border-radius:10px;font-weight:700;margin-bottom:14px;}
+  .banner.ok{background:var(--green-light);color:var(--green-dark);}
+  .banner.bad{background:var(--red-light);color:var(--red);}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal .hd{text-align:center;font-size:13px;color:#6b7f74;padding:4px;}
+  .cal .day{border:1px solid var(--border);border-radius:10px;min-height:86px;padding:6px;font-size:12px;background:var(--gray);color:#98a8a0;}
+  .cal .day .num{font-weight:700;font-size:14px;color:var(--text);}
+  .cal .day.off .num{color:#98a8a0;}
+  .cal .day.today{outline:3px solid #f2c94c;}
+  .chip{display:block;border-radius:7px;padding:2px 7px;font-size:11.5px;margin-top:4px;font-weight:600;}
+  .chip.ok{background:var(--green-light);color:var(--green-dark);cursor:pointer;}
+  .chip.ok:hover{box-shadow:0 1px 5px rgba(0,0,0,.2);}
+  .chip.miss{background:var(--red-light);color:var(--red);}
+  .chip.na{background:#f2f2f2;color:#aaa;}
+  .quick{padding:6px 12px;border-radius:20px;font-size:13px;}
+  #loader{position:fixed;top:10px;left:10px;background:var(--green);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;display:none;z-index:99;}
+  @media print{.tabs,.row,.btn{display:none!important;} body{padding:0;background:#fff;}}
+</style>
+</head>
+<body>
+<div id="loader">טוען…</div>
+<h1>📊 מעקב הזמנות</h1>
+<div class="sub">כל דוח שנרשם מהמחשבונים ("📊 רשום למעקב הזמנות") נשמר בענן — כולל תוצאת החישוב המלאה.</div>
+<div class="tabs">
+  <button data-v="cover" class="active" onclick="showView('cover',this)">📅 לוח כיסוי</button>
+  <button data-v="ana" onclick="showView('ana',this)">📈 ניתוח הזמנות</button>
+</div>
+
+<div id="v-cover" class="view">
+  <div class="card">
+    <div class="row">
+      <button class="btn sec nav" onclick="moveMonth(-1)">‹ חודש קודם</button>
+      <input type="month" id="covMonth" onchange="renderCover()">
+      <button class="btn sec nav" onclick="moveMonth(1)">חודש הבא ›</button>
+    </div>
+    <div id="covBanner"></div>
+    <div class="cal" id="covCal"></div>
+    <p class="muted" style="margin-top:10px">בכל יום: 📦 מחשבון אריזה (דוח ייצור) · 🔀 עלומים (ראן). ירוק = הועלה (לחיצה פותחת את תוצאת הדוח) · אדום = יום עבודה שחסר · אפור = לא נדרש.</p>
+  </div>
+</div>
+
+<div id="v-ana" class="view hidden">
+  <div class="card">
+    <div class="row">
+      <button class="btn sec quick" onclick="quickRange(7)">שבוע אחרון</button>
+      <button class="btn sec quick" onclick="quickRange(30)">חודש אחרון</button>
+      <button class="btn sec quick" onclick="quickRange(365)">שנה אחרונה</button>
+      <label>מ- <input type="date" id="aFrom"></label>
+      <label>עד <input type="date" id="aTo"></label>
+    </div>
+    <div class="row">
+      <select id="aCalc">
+        <option value="">שני המחשבונים</option>
+        <option value="packing">מחשבון אריזה</option>
+        <option value="alumim">עלומים</option>
+      </select>
+      <select id="aGroup">
+        <option value="customer">לפי לקוח</option>
+        <option value="product">לפי מוצר</option>
+        <option value="customer_product">לקוח × מוצר</option>
+        <option value="day">לפי יום</option>
+      </select>
+      <input id="aCust" placeholder="סינון לקוח…">
+      <input id="aProd" placeholder="סינון מוצר…">
+      <button class="btn" onclick="runAgg()">הצג</button>
+      <button class="btn sec" onclick="exportAgg()">⬇ ייצוא לאקסל</button>
+    </div>
+    <div id="anaOut" class="muted">בחר טווח ולחץ "הצג"</div>
+  </div>
+</div>
+
+<script>
+const SB='https://dddczmvjfokcbibeahyn.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+function session(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+function H(){ const s=session(); return {'apikey':ANON,'Authorization':'Bearer '+(s?s.access_token:ANON),'Content-Type':'application/json'}; }
+const loader=document.getElementById('loader');
+async function sb(path,opts){
+  loader.style.display='block';
+  try{
+    const r=await fetch(SB+path, Object.assign({headers:Object.assign({},H(),{'Range':'0-9999'})},opts||{}));
+    if(r.status===401||r.status===403) throw new Error('אין הרשאה — ודא שקיבלת גישה למעקב הזמנות');
+    if(!r.ok) throw new Error(r.status);
+    return await r.json();
+  } finally { loader.style.display='none'; }
+}
+const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function dl(html,name){
+  const h='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+html+'</body></html>';
+  const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click();
+}
+function showView(v,btn){
+  document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
+  document.getElementById('v-'+v).classList.remove('hidden');
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b===btn));
+  if(v==='cover') renderCover();
+}
+
+/* ---------- coverage ---------- */
+const CALCS=[{id:'packing',label:'📦 אריזה'},{id:'alumim',label:'🔀 עלומים'}];
+let FIRST={packing:null, alumim:null};
+async function loadFirst(){
+  for(const c of CALCS){
+    const f=await sb('/rest/v1/order_uploads?select=report_date&calc=eq.'+c.id+'&order=report_date.asc&limit=1');
+    FIRST[c.id]=f.length?f[0].report_date:null;
+  }
+}
+function moveMonth(dir){
+  const el=document.getElementById('covMonth');
+  const [y,m]=el.value.split('-').map(Number);
+  const d=new Date(y,m-1+dir,1); el.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  renderCover();
+}
+async function renderCover(){
+  const val=document.getElementById('covMonth').value; if(!val) return;
+  const [y,m]=val.split('-').map(Number);
+  const first=new Date(y,m-1,1), last=new Date(y,m,0);
+  const ups=await sb('/rest/v1/order_uploads?select=report_date,calc,summary&report_date=gte.'+iso(first)+'&report_date=lte.'+iso(last));
+  const have={}; ups.forEach(u=>{ have[u.report_date+'|'+u.calc]=u; });
+  const today=iso(new Date());
+  let html=''; DAYS.forEach(d=>html+='<div class="hd">'+d+'</div>');
+  for(let i=0;i<first.getDay();i++) html+='<div></div>';
+  const missing={packing:0, alumim:0};
+  for(let day=1;day<=last.getDate();day++){
+    const d=new Date(y,m-1,day), ds=iso(d), dow=d.getDay();
+    const required=dow<=4, future=ds>today;
+    let chips='';
+    CALCS.forEach(c=>{
+      const u=have[ds+'|'+c.id];
+      if(u) chips+='<span class="chip ok" onclick="openResult(\''+c.id+'\',\''+ds+'\')" title="פתח את תוצאת הדוח">'+c.label+' ✔</span>';
+      else if(required && !future && FIRST[c.id] && ds>=FIRST[c.id]){ chips+='<span class="chip miss">'+c.label+' ✖</span>'; missing[c.id]++; }
+      else chips+='<span class="chip na">'+c.label+'</span>';
+    });
+    html+='<div class="day'+(required?'':' off')+(ds===today?' today':'')+'"><div class="num">'+day+'</div>'+chips+'</div>';
+  }
+  document.getElementById('covCal').innerHTML=html;
+  const b=document.getElementById('covBanner');
+  const totMiss=missing.packing+missing.alumim;
+  if(!FIRST.packing && !FIRST.alumim) b.innerHTML='<div class="banner ok">עדיין לא נרשם אף דוח — לחץ "📊 רשום למעקב הזמנות" בתוך המחשבונים אחרי כל חישוב יומי</div>';
+  else if(totMiss>0) b.innerHTML='<div class="banner bad">⚠ חסרים החודש: '+(missing.packing?missing.packing+' דוחות ייצור':'')+(missing.packing&&missing.alumim?' · ':'')+(missing.alumim?missing.alumim+' דוחות עלומים':'')+'</div>';
+  else b.innerHTML='<div class="banner ok">✔ כל הדוחות של ימי העבודה שחלפו הועלו</div>';
+}
+async function openResult(calc, ds){
+  loader.style.display='block';
+  try{
+    const r=await fetch(SB+'/storage/v1/object/sign/order-results/'+calc+'/'+ds+'.html',{method:'POST',headers:H(),body:JSON.stringify({expiresIn:3600})});
+    const d=await r.json();
+    if(!r.ok){ alert('הדוח נרשם אך תוצאתו לא נשמרה (גרסה ישנה של המחשבון?)'); return; }
+    window.open(SB+'/storage/v1'+d.signedURL,'_blank');
+  } finally { loader.style.display='none'; }
+}
+
+/* ---------- analysis ---------- */
+function quickRange(days){
+  const to=new Date(), from=new Date(); from.setDate(from.getDate()-days+1);
+  document.getElementById('aFrom').value=iso(from);
+  document.getElementById('aTo').value=iso(to);
+  runAgg();
+}
+let AGG=[];
+async function runAgg(){
+  const from=document.getElementById('aFrom').value, to=document.getElementById('aTo').value;
+  if(!from||!to){ alert('בחר טווח תאריכים'); return; }
+  const body={p_from:from, p_to:to,
+    p_calc:document.getElementById('aCalc').value||null,
+    p_customer:document.getElementById('aCust').value.trim()||null,
+    p_product:document.getElementById('aProd').value.trim()||null,
+    p_group:document.getElementById('aGroup').value};
+  let rows;
+  try{ rows=await sb('/rest/v1/rpc/orders_agg',{method:'POST',body:JSON.stringify(body)}); }
+  catch(e){ document.getElementById('anaOut').textContent='שגיאה: '+e.message; return; }
+  /* pivot: key -> {unit: total, lines, days} */
+  const units=[...new Set(rows.map(r=>r.unit))].sort();
+  const by={};
+  rows.forEach(r=>{ const o=by[r.k1]||(by[r.k1]={units:{},lines:0,days:0});
+    o.units[r.unit]=(o.units[r.unit]||0)+Number(r.total||0); o.lines+=Number(r.lines); o.days=Math.max(o.days,Number(r.days)); });
+  AGG={units,by,group:body.p_group};
+  const keys=Object.keys(by).sort((a,b)=>{
+    const ta=units.reduce((s,u)=>s+(by[a].units[u]||0),0), tb=units.reduce((s,u)=>s+(by[b].units[u]||0),0);
+    return tb-ta;
+  });
+  const GRP={customer:'לקוח',product:'מוצר',customer_product:'לקוח × מוצר',day:'יום'};
+  let h='<table><tr><th>'+GRP[body.p_group]+'</th>';
+  units.forEach(u=>h+='<th>'+esc(u||'—')+'</th>');
+  h+='<th>שורות</th><th>ימים</th></tr>';
+  if(!keys.length) h+='<tr><td colspan="'+(units.length+3)+'" class="muted">אין נתונים בטווח/סינון</td></tr>';
+  const tot={};
+  keys.forEach(k=>{
+    h+='<tr><td><b>'+esc(k)+'</b></td>';
+    units.forEach(u=>{ const v=by[k].units[u]||0; tot[u]=(tot[u]||0)+v; h+='<td>'+(v?Math.round(v*10)/10:'·')+'</td>'; });
+    h+='<td>'+by[k].lines+'</td><td>'+by[k].days+'</td></tr>';
+  });
+  if(keys.length){
+    h+='<tr style="background:var(--green-light);font-weight:700"><td>סה"כ</td>';
+    units.forEach(u=>h+='<td>'+(Math.round((tot[u]||0)*10)/10)+'</td>');
+    h+='<td></td><td></td></tr>';
+  }
+  h+='</table><p class="muted" style="margin-top:8px">'+keys.length+' שורות · '+from+' עד '+to+'</p>';
+  document.getElementById('anaOut').innerHTML='<div style="max-height:62vh;overflow:auto">'+h+'</div>';
+}
+function exportAgg(){
+  const el=document.getElementById('anaOut');
+  if(!el.querySelector('table')){ alert('קודם הצג נתונים'); return; }
+  dl(el.innerHTML,'ניתוח_הזמנות_'+document.getElementById('aFrom').value+'_'+document.getElementById('aTo').value+'.xls');
+}
+
+/* ---------- init ---------- */
+(async function(){
+  const n=new Date();
+  document.getElementById('covMonth').value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+  try{ await loadFirst(); renderCover(); }
+  catch(e){ document.getElementById('covBanner').innerHTML='<div class="banner bad">'+esc(e.message)+'</div>'; }
+})();
+</script>
+</body>
+</html>
