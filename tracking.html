@@ -98,6 +98,7 @@
     <div class="row" style="margin-top:10px">
       <button class="btn sec" onclick="addDayRow()">➕ הוספת נסיעה</button>
       <button class="btn" onclick="saveDay()">💾 שמור שינויים</button>
+      <button class="btn sec" onclick="openOrigPdf()">📄 סידור מקורי</button>
       <button class="btn sec" onclick="document.getElementById('dayEdit').classList.add('hidden')">סגור</button>
       <button class="btn sec" style="color:var(--red);border-color:var(--red)" onclick="deleteDay()">🗑 מחק את כל היום</button>
     </div>
@@ -167,13 +168,25 @@
 <script>
 const SB_URL='https://dddczmvjfokcbibeahyn.supabase.co/rest/v1';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
-const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'};
+function session(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+function H(){ const s=session(); return {'apikey':SB_KEY,'Authorization':'Bearer '+(s?s.access_token:SB_KEY),'Content-Type':'application/json'}; }
+let CAN_EDIT=false;
+async function loadMyPerms(){
+  const s=session(); if(!s) return;
+  try{
+    const r=await fetch(SB_URL+'/user_perms?select=is_admin,perms&user_id=eq.'+s.uid,{headers:H()});
+    const d=await r.json();
+    if(d.length) CAN_EDIT = d[0].is_admin || (d[0].perms||{}).tracking==='edit';
+  }catch(e){}
+  if(!CAN_EDIT){ const pc=document.getElementById('pdfDrop'); if(pc) pc.parentElement.style.display='none'; }
+}
 const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const loader=document.getElementById('loader');
 async function sb(path,opts){
   loader.style.display='block';
   try{
-    const r=await fetch(SB_URL+path, Object.assign({headers:Object.assign({},H,{'Range':'0-9999'})},opts||{}));
+    const r=await fetch(SB_URL+path, Object.assign({headers:Object.assign({},H(),{'Range':'0-9999'})},opts||{}));
+    if(r.status===401||r.status===403) throw new Error('אין הרשאה — התחבר מחדש דרך המסך הראשי');
     if(!r.ok) throw new Error(r.status+' '+await r.text());
     return opts&&opts.method&&opts.method!=='GET' ? true : await r.json();
   } finally { loader.style.display='none'; }
@@ -306,12 +319,12 @@ async function renderTrips(){
   h+='</table><p class="muted" style="margin-top:8px">'+TRIP_ROWS.length+' נסיעות</p>';
   document.getElementById('tripsOut').innerHTML=h;
 }
-async function delTrip(id){
+async function delTrip(id){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   if(!confirm('למחוק את הנסיעה?')) return;
   await sb('/driver_log?id=eq.'+id,{method:'DELETE'});
   renderTrips();
 }
-async function addManual(){
+async function addManual(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   const d=document.getElementById('mDate').value, dr=document.getElementById('mDriver').value.trim(), pl=document.getElementById('mPlace').value.trim();
   if(!d||!dr||!pl){ alert('נא למלא תאריך, נהג ומקום'); return; }
   await sb('/driver_log',{method:'POST',body:JSON.stringify({log_date:d,driver:dr,place:pl,shift:document.getElementById('mShift').value,pallets:parseFloat(document.getElementById('mPallets').value)||0,note:document.getElementById('mNote').value.trim(),source:'manual'})});
@@ -374,9 +387,9 @@ async function renderPlaces(){
   });
   document.getElementById('placesOut').innerHTML=h+'</table>';
 }
-async function setPlace(sel,place){
+async function setPlace(sel,place){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   if(!sel.value){ await sb('/places?place=eq.'+encodeURIComponent(place),{method:'DELETE'}); delete PLACES[place]; return; }
-  await sb('/places?on_conflict=place',{method:'POST',headers:Object.assign({},H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({place:place,distance:sel.value})});
+  await sb('/places?on_conflict=place',{method:'POST',headers:Object.assign({},H(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({place:place,distance:sel.value})});
   PLACES[place]=sel.value;
 }
 
@@ -386,6 +399,7 @@ async function setPlace(sel,place){
   document.getElementById('coverMonth').value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
   document.getElementById('weekDate').value=iso(n);
   document.getElementById('mDate').value=iso(n);
+  await loadMyPerms();
   try{ await loadMeta(); }catch(e){ document.getElementById('coverBanner').innerHTML='<div class="banner bad">שגיאת חיבור למסד הנתונים: '+esc(e.message)+'</div>'; }
   renderCover();
 })();
@@ -448,7 +462,7 @@ function parseSidurItems(items){
   return out.filter(r=>r.driver&&r.place);
 }
 
-let PDF_ROWS=[];
+let PDF_ROWS=[], LAST_PDF_FILE=null;
 async function handlePdf(file){
   if(!window.pdfjsLib){ alert('רכיב קריאת ה-PDF לא נטען — רענן את הדף'); return; }
   pdfjsLib.GlobalWorkerOptions.workerSrc='./vendor/pdf.worker.min.js';
@@ -461,6 +475,7 @@ async function handlePdf(file){
       const tc=await page.getTextContent();
       tc.items.forEach(it=>{ if(it.str.trim()) items.push({str:it.str, cx:it.transform[4]+(it.width||0)/2, y:it.transform[5], page:p}); });
     }
+    LAST_PDF_FILE=file;
     PDF_ROWS=parseSidurItems(items);
     if(!PDF_ROWS.length){ alert('לא זוהו נסיעות בקובץ — ודא שזה קובץ סידור נהגים'); return; }
     const m=file.name.match(/(\d{4}-\d{2}-\d{2})/);
@@ -486,7 +501,7 @@ function renderPdfReview(){
   document.getElementById('pdfTbl').innerHTML=h;
   document.getElementById('pdfReview').classList.remove('hidden');
 }
-async function savePdf(){
+async function savePdf(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   const date=document.getElementById('pdfDate').value;
   if(!date){ alert('בחר תאריך לסידור'); return; }
   const rows=[];
@@ -502,6 +517,12 @@ async function savePdf(){
   if(!confirm('לשמור '+rows.length+' נסיעות לתאריך '+date+'?\n(רישום קודם של תאריך זה יוחלף)')) return;
   await sb('/driver_log?log_date=eq.'+date,{method:'DELETE'});
   await sb('/driver_log',{method:'POST',body:JSON.stringify(rows)});
+  if(LAST_PDF_FILE){
+    try{
+      await fetch(SB_URL.replace('/rest/v1','')+'/storage/v1/object/sidur-pdfs/'+date+'.pdf',{
+        method:'POST', headers:Object.assign({},H(),{'Content-Type':'application/pdf','x-upsert':'true'}), body:LAST_PDF_FILE});
+    }catch(e){}
+  }
   document.getElementById('pdfReview').classList.add('hidden');
   alert('✔ נשמר: '+rows.length+' נסיעות בתאריך '+date);
   renderCover();
@@ -547,9 +568,9 @@ function collectDay(){
     source:r.source
   }));
 }
-function addDayRow(){ collectDay(); DAY_ROWS.push({driver:'',place:'',shift:'לילה',truck:'',pallets:0,note:'',source:'edit'}); renderDayTbl(); }
+function addDayRow(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; } collectDay(); DAY_ROWS.push({driver:'',place:'',shift:'לילה',truck:'',pallets:0,note:'',source:'edit'}); renderDayTbl(); }
 function rmDayRow(i){ collectDay(); DAY_ROWS.splice(i,1); renderDayTbl(); }
-async function saveDay(){
+async function saveDay(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   collectDay();
   const rows=DAY_ROWS.filter(r=>r.driver&&r.place).map(r=>Object.assign({},r,{log_date:DAY_DATE}));
   if(!confirm('לשמור '+rows.length+' נסיעות לתאריך '+DAY_DATE+'?\n(הרישום הקודם של היום יוחלף)')) return;
@@ -558,7 +579,13 @@ async function saveDay(){
   document.getElementById('dayEdit').classList.add('hidden');
   renderCover();
 }
-async function deleteDay(){
+async function openOrigPdf(){
+  const r=await fetch(SB_URL.replace('/rest/v1','')+'/storage/v1/object/sign/sidur-pdfs/'+DAY_DATE+'.pdf',{method:'POST',headers:H(),body:JSON.stringify({expiresIn:3600})});
+  const d=await r.json();
+  if(!r.ok){ alert('אין קובץ PDF שמור ליום זה'); return; }
+  window.open(SB_URL.replace('/rest/v1','')+'/storage/v1'+d.signedURL,'_blank');
+}
+async function deleteDay(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   if(!confirm('למחוק את כל הנסיעות של '+DAY_DATE+'? היום יסומן כחסר.')) return;
   await sb('/driver_log?log_date=eq.'+DAY_DATE,{method:'DELETE'});
   document.getElementById('dayEdit').classList.add('hidden');

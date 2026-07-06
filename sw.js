@@ -1,5 +1,5 @@
 /* טרי לי — service worker */
-const CACHE = 'trelee-v6';
+const CACHE = 'trelee-v8';
 const SHELL = [
   './app.html',
   './manifest.webmanifest',
@@ -30,9 +30,4 @@ self.addEventListener('fetch', e => {
     fetch(e.request)
       .then(res => {
         const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy));
-        return res;
-      })
-      .catch(() => caches.match(e.request))
-  );
-});
+        caches.open(CACHE).then(c => c.put(e.r

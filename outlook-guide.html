@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מדריך חיבור Outlook — טרי לי</title>
+<style>
+  :root{--green:#1a7a4a;--green-dark:#14603a;--green-light:#e8f5ee;--border:#d8e2dc;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:#f4f6f5;color:#1c2b23;padding:26px;max-width:800px;margin:0 auto;line-height:1.7;}
+  h1{color:var(--green-dark);font-size:22px;}
+  h2{color:var(--green-dark);font-size:17px;margin-top:26px;border-top:1px solid var(--border);padding-top:18px;}
+  ol li{margin-bottom:8px;}
+  code{background:#fff;border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:13px;direction:ltr;display:inline-block;word-break:break-all;}
+  .box{background:var(--green-light);border-radius:10px;padding:12px 16px;font-size:14px;margin:12px 0;}
+  .warn{background:#fdf3e0;}
+</style>
+</head>
+<body>
+<h1>📨 חיבור המייל של החברה (Outlook) למערכת</h1>
+<p>מגדirים פעם אחת שתי "זרימות" ב-Power Automate של מיקרוסופט. נכנסים עם חשבון ה-Outlook של החברה אל <code>https://make.powerautomate.com</code></p>
+
+<h2>זרימה 1 — קליטת דוחות נכנסים</h2>
+<ol>
+  <li>Create ← <b>Automated cloud flow</b> ← בחר טריגר <b>"When a new email arrives (V3)"</b> (Office 365 Outlook).</li>
+  <li>בטריגר: פתח Advanced options ← <b>Include Attachments: Yes</b>. אפשר לסנן לפי תיבה/תיקייה.</li>
+  <li>הוסף פעולה <b>Condition</b>: Subject ← contains ← מילת הזיהוי של הדוח (למשל "דוח ייצור"). אפשר להוסיף OR לכל מילות הזיהוי מהחוקים בלשונית ניהול.</li>
+  <li>בענף If yes: הוסף <b>Apply to each</b> על Attachments, ובתוכו פעולה <b>HTTP</b>:
+    <div class="box">
+      Method: <code>POST</code><br>
+      URI: <code>https://dddczmvjfokcbibeahyn.supabase.co/functions/v1/report-inbox</code><br>
+      Headers: <code>x-inbox-secret</code> = הסוד שיצרת בלשונית ניהול · <code>Content-Type</code> = <code>application/json</code><br>
+      Body:<br>
+      <code>{ "subject": @{triggerOutputs()?['body/subject']}, "sender": @{triggerOutputs()?['body/from']}, "filename": @{items('Apply_to_each')?['name']}, "contentBase64": @{items('Apply_to_each')?['contentBytes']} }</code>
+    </div>
+  </li>
+  <li>שמור. מעכשיו כל דוח שמגיע במייל יופיע בלשונית <b>דוחות נכנסים</b> באפליקציה.</li>
+</ol>
+
+<h2>זרימה 2 — שליחת תוצאות מהמערכת</h2>
+<ol>
+  <li>Create ← <b>Instant cloud flow</b> ← טריגר <b>"When an HTTP request is received"</b>.</li>
+  <li>ב-Request Body JSON Schema הדבק:
+    <div class="box"><code>{"type":"object","properties":{"to":{"type":"string"},"subject":{"type":"string"},"html":{"type":"string"},"attachments":{"type":"array","items":{"type":"object","properties":{"Name":{"type":"string"},"ContentBytes":{"type":"string"}}}}}}</code></div>
+  </li>
+  <li>הוסף פעולה <b>"Send an email (V2)"</b> (Office 365 Outlook):
+    <div class="box">
+      To: <code>to</code> (מהטריגר) · Subject: <code>subject</code> · Body: <code>html</code> (החלף ל-HTML במתג הקטן)<br>
+      Advanced ← Attachments: הוסף פריט עם Name = <code>item()?['Name']</code>, Content = <code>item()?['ContentBytes']</code> (בתוך Apply to each על attachments)
+    </div>
+  </li>
+  <li>שמור — תופיע כתובת URL בטריגר. <b>העתק אותה</b> והדבק בלשונית ניהול ← "שליחת תוצאות" ← שמור.</li>
+  <li>בדיקה: בלשונית ניהול לחץ <b>"✉ שלח מייל בדיקה אליי"</b>.</li>
+</ol>
+
+<div class="box warn"><b>חשוב:</b> את הסוד (x-inbox-secret) יוצרים בלשונית ניהול ← "🔑 צור סוד חיבור" ומעתיקים מיד ל-Flow. אם הסוד אבד — צור חדש ועדכן ב-Flow.</div>
+</body>
+</html>

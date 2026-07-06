@@ -10,7 +10,7 @@
 <style>
   :root{
     --green:#1a7a4a; --green-dark:#14603a; --green-light:#e8f5ee;
-    --bg:#f4f6f5; --text:#1c2b23; --border:#d8e2dc; --sidebar-w:230px;
+    --bg:#f4f6f5; --text:#1c2b23; --border:#d8e2dc; --red:#c0392b; --sidebar-w:230px;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
@@ -25,74 +25,34 @@
     padding:0 12px; height:50px; flex-shrink:0;
     box-shadow:0 2px 6px rgba(0,0,0,.15); z-index:30;
   }
-  #menuBtn{
-    background:transparent; border:none; color:#fff; font-size:22px;
-    cursor:pointer; padding:6px 10px; border-radius:8px;
-  }
+  #menuBtn{background:transparent; border:none; color:#fff; font-size:22px; cursor:pointer; padding:6px 10px; border-radius:8px;}
   #menuBtn:hover{background:rgba(255,255,255,.15);}
   .brand{font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; white-space:nowrap;}
   #curTab{font-size:14px; color:#d5ecdf; margin-inline-start:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .spacer{flex:1;}
-  #installBtn{
-    display:none; background:#fff; color:var(--green-dark); border:none;
-    font-family:inherit; font-weight:700; font-size:13px;
-    padding:7px 14px; border-radius:20px; cursor:pointer; white-space:nowrap;
-  }
-  /* ---- layout ---- */
+  #userChip{font-size:13px; color:#d5ecdf; white-space:nowrap;}
+  #logoutBtn{background:transparent; border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:8px; padding:5px 12px; font-family:inherit; font-size:13px; cursor:pointer;}
+  #installBtn{display:none; background:#fff; color:var(--green-dark); border:none; font-family:inherit; font-weight:700; font-size:13px; padding:7px 14px; border-radius:20px; cursor:pointer; white-space:nowrap;}
   #wrap{flex:1; display:flex; overflow:hidden; position:relative;}
-  aside{
-    width:var(--sidebar-w); flex-shrink:0;
-    background:#fff; border-inline-end:1px solid var(--border);
-    display:flex; flex-direction:column;
-    z-index:25;
-  }
-  body:not(.pinned) aside{
-    position:absolute; inset-inline-start:0; top:0; bottom:0;
-    transform:translateX(100%); transition:transform .2s ease;
-    box-shadow:-4px 0 18px rgba(0,0,0,.18);
-  }
+  aside{width:var(--sidebar-w); flex-shrink:0; background:#fff; border-inline-end:1px solid var(--border); display:flex; flex-direction:column; z-index:25;}
+  body:not(.pinned) aside{position:absolute; inset-inline-start:0; top:0; bottom:0; transform:translateX(100%); transition:transform .2s ease; box-shadow:-4px 0 18px rgba(0,0,0,.18);}
   body:not(.pinned).menu-open aside{transform:translateX(0);}
-  #backdrop{
-    display:none; position:absolute; inset:0; background:rgba(0,0,0,.35); z-index:20;
-  }
+  #backdrop{display:none; position:absolute; inset:0; background:rgba(0,0,0,.35); z-index:20;}
   body:not(.pinned).menu-open #backdrop{display:block;}
-  .side-head{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:10px 14px; border-bottom:1px solid var(--border);
-    font-size:13px; color:#6b7f74;
-  }
-  #pinBtnEl{
-    background:none; border:1px solid var(--border); border-radius:8px;
-    font-family:inherit; font-size:12px; padding:4px 10px; cursor:pointer; color:var(--text);
-  }
+  .side-head{display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--border); font-size:13px; color:#6b7f74;}
+  #pinBtnEl{background:none; border:1px solid var(--border); border-radius:8px; font-family:inherit; font-size:12px; padding:4px 10px; cursor:pointer; color:var(--text);}
   body.pinned #pinBtnEl{background:var(--green-light); border-color:var(--green); color:var(--green-dark); font-weight:700;}
   .side-menu{flex:1; overflow-y:auto; padding:8px;}
   .side-menu .item{display:flex; align-items:stretch; margin-bottom:2px;}
-  .side-menu .item > button.main{
-    display:flex; align-items:center; gap:10px; flex:1;
-    background:transparent; border:none; text-align:right;
-    font-family:inherit; font-size:15px; color:var(--text);
-    padding:11px 12px; border-radius:10px; cursor:pointer;
-  }
+  .side-menu .item > button.main{display:flex; align-items:center; gap:10px; flex:1; background:transparent; border:none; text-align:right; font-family:inherit; font-size:15px; color:var(--text); padding:11px 12px; border-radius:10px; cursor:pointer;}
   .side-menu .item > button.main:hover{background:var(--green-light);}
   .side-menu .item > button.main.active{background:var(--green); color:#fff; font-weight:700;}
-  .side-menu .item > button.chev{
-    background:transparent; border:none; cursor:pointer;
-    font-size:12px; color:#6b7f74; padding:0 10px; border-radius:10px;
-    transition:transform .15s;
-  }
+  .side-menu .item > button.chev{background:transparent; border:none; cursor:pointer; font-size:12px; color:#6b7f74; padding:0 10px; border-radius:10px; transition:transform .15s;}
   .side-menu .item > button.chev:hover{background:var(--green-light);}
   .side-menu .item.expanded > button.chev{transform:rotate(180deg);}
   .side-menu .sub{display:none; padding-inline-start:14px;}
   .side-menu .sub.open{display:block;}
-  .side-menu .sub button{
-    display:flex; align-items:center; gap:8px; width:100%;
-    background:transparent; border:none; text-align:right;
-    font-family:inherit; font-size:14px; color:var(--text);
-    padding:9px 12px; border-radius:10px; cursor:pointer; margin-bottom:2px;
-    border-inline-start:2px solid var(--border);
-    border-radius:0 10px 10px 0;
-  }
+  .side-menu .sub button{display:flex; align-items:center; gap:8px; width:100%; background:transparent; border:none; text-align:right; font-family:inherit; font-size:14px; color:var(--text); padding:9px 12px; cursor:pointer; margin-bottom:2px; border-inline-start:2px solid var(--border); border-radius:0 10px 10px 0;}
   .side-menu .sub button:hover{background:var(--green-light);}
   .side-menu .sub button.active{background:var(--green); color:#fff; font-weight:700; border-inline-start-color:var(--green-dark);}
   .side-menu .sep{border-top:1px solid var(--border); margin:8px 4px;}
@@ -101,37 +61,56 @@
   .pane{position:absolute; inset:0; display:none;}
   .pane.active{display:block;}
   .pane iframe{width:100%; height:100%; border:none; background:#fff;}
-  /* ---- admin ---- */
   #pane-admin{overflow:auto; padding:24px;}
-  .admin-wrap{max-width:860px; margin:0 auto;}
+  .admin-wrap{max-width:1050px; margin:0 auto;}
   .card{background:#fff; border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:18px;}
   .card h2{font-size:17px; color:var(--green-dark); margin-bottom:4px;}
   .card p.hint{font-size:13px; color:#6b7f74; margin-bottom:12px;}
-  table{width:100%; border-collapse:collapse; font-size:14px;}
-  th,td{border:1px solid var(--border); padding:7px 10px; text-align:right;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{border:1px solid var(--border); padding:6px 8px; text-align:right; vertical-align:middle;}
   th{background:var(--green-light);}
-  input,select{
-    font-family:inherit; font-size:14px; padding:7px 10px;
-    border:1px solid var(--border); border-radius:8px; background:#fff;
-  }
+  input,select{font-family:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--border); border-radius:8px; background:#fff;}
   input:focus,select:focus{outline:2px solid var(--green); border-color:var(--green);}
   .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px;}
-  .btn{
-    background:var(--green); color:#fff; border:none; border-radius:8px;
-    padding:8px 16px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;
-  }
+  .btn{background:var(--green); color:#fff; border:none; border-radius:8px; padding:8px 16px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer;}
   .btn:hover{background:var(--green-dark);}
   .btn.ghost{background:#fff; color:var(--green-dark); border:1px solid var(--green);}
-  .del{background:none; border:none; color:#c0392b; cursor:pointer; font-size:15px;}
+  .btn.danger{background:var(--red);}
+  .del{background:none; border:none; color:var(--red); cursor:pointer; font-size:15px;}
   .badge{display:inline-block; background:#fdf3e0; color:#8a6d1a; border:1px solid #ecd9a7; border-radius:8px; padding:6px 12px; font-size:13px;}
+  .badge.ok{background:var(--green-light); color:var(--green-dark); border-color:var(--green);}
+  code{background:#f0f3f1; border:1px solid var(--border); border-radius:6px; padding:2px 8px; font-size:12px; direction:ltr; display:inline-block; word-break:break-all;}
+  /* login */
+  #loginOverlay{position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; align-items:center; justify-content:center;}
+  #loginBox{background:#fff; border:1px solid var(--border); border-radius:16px; padding:36px; width:360px; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,.08);}
+  #loginBox .logo{font-size:40px;}
+  #loginBox h1{font-size:20px; color:var(--green-dark); margin:6px 0 18px;}
+  #loginBox input{width:100%; margin-bottom:10px; padding:10px; font-size:14px;}
+  #loginBox .btn{width:100%; padding:10px;}
+  #loginErr{color:var(--red); font-size:13px; min-height:18px; margin-top:8px;}
+  #bootstrapLink{font-size:12px; color:#8aa094; margin-top:14px; cursor:pointer; text-decoration:underline;}
+  .notifDot{background:var(--red); color:#fff; border-radius:10px; font-size:11px; padding:1px 7px; margin-inline-start:auto;}
 </style>
 </head>
 <body>
+<div id="loginOverlay">
+  <div id="loginBox">
+    <div class="logo">🥬</div>
+    <h1>טרי לי — מערכת ניהול</h1>
+    <input id="liUser" placeholder="שם משתמש" dir="ltr" autocomplete="username">
+    <input type="password" id="liPass" placeholder="סיסמה">
+    <button class="btn" id="liBtn">כניסה</button>
+    <div id="loginErr"></div>
+    <div id="bootstrapLink" onclick="bootstrapAdmin()">התקנה ראשונית של המערכת (חד-פעמי)</div>
+  </div>
+</div>
 <header>
   <button id="menuBtn" title="תפריט">☰</button>
   <div class="brand"><span>🥬</span> טרי לי</div>
   <span id="curTab"></span>
   <div class="spacer"></div>
+  <span id="userChip"></span>
+  <button id="logoutBtn" onclick="logout()">יציאה</button>
   <button id="installBtn">📥 התקנה על המחשב</button>
 </header>
 <div id="wrap">
@@ -145,28 +124,42 @@
     <div class="side-foot">גרסה <span id="verEl"></span> · מתעדכן אוטומטית</div>
   </aside>
   <main id="panes">
+    <div class="pane" id="pane-account" style="overflow:auto; padding:24px">
+      <div class="admin-wrap" style="max-width:460px">
+        <div class="card">
+          <h2>👤 החשבון שלי</h2>
+          <p class="hint" id="accInfo"></p>
+          <p style="font-size:14px; font-weight:700; margin-bottom:8px">שינוי סיסמה</p>
+          <div class="row"><input type="password" id="np1" placeholder="סיסמה חדשה" style="flex:1"></div>
+          <div class="row"><input type="password" id="np2" placeholder="סיסמה חדשה — שוב" style="flex:1"></div>
+          <div class="row"><button class="btn" onclick="changeMyPassword()">💾 עדכן סיסמה</button></div>
+        </div>
+      </div>
+    </div>
     <div class="pane" id="pane-admin">
       <div class="admin-wrap" id="adminContent">
         <div class="card">
-          <h2>👥 אנשי קשר לקבלת דוחות</h2>
-          <p class="hint">אנשי הקשר שיקבלו במייל את תוצאות המחשבונים באופן אוטומטי.</p>
-          <table id="contactsTable">
-            <thead><tr><th>שם</th><th>אימייל</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
-          <div class="row">
-            <input id="cName" placeholder="שם">
-            <input id="cEmail" type="email" placeholder="אימייל">
-            <button class="btn" onclick="addContact()">➕ הוספה</button>
+          <h2>👥 משתמשים והרשאות</h2>
+          <p class="hint">לכל משתמש קובעים לכל כלי: ללא / צפייה / עריכה. אדמין רואה ויכול הכל.</p>
+          <div id="usersTbl" style="overflow-x:auto"></div>
+          <div class="row" style="border-top:1px solid var(--border); padding-top:12px">
+            <b>הוספת משתמש:</b>
+            <input id="nuName" placeholder="שם">
+            <input id="nuUser" placeholder="שם משתמש (אנגלית)" dir="ltr">
+            <input id="nuPass" placeholder="סיסמה ראשונית">
+            <button class="btn" onclick="createUser()">➕ צור משתמש</button>
           </div>
         </div>
         <div class="card">
-          <h2>🔁 חוקי ניתוב — דוח נכנס ← מחשבון ← נמענים</h2>
-          <p class="hint">כשמגיע מייל עם דוח, המערכת תזהה אותו לפי הכלל, תריץ את המחשבון המתאים ותשלח את התוצאה לנמענים.</p>
-          <table id="rulesTable">
-            <thead><tr><th>זיהוי (מילה בנושא המייל)</th><th>מחשבון</th><th>נמענים</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table>
+          <h2>👥 אנשי קשר וחוקי ניתוב לדוחות</h2>
+          <p class="hint">כשמגיע מייל ב-Outlook עם מילת הזיהוי בנושא — הדוח ייכנס ל"דוחות נכנסים" וישויך למחשבון. התוצאה נשלחת לנמענים של הכלל.</p>
+          <table id="contactsTable"><thead><tr><th>שם</th><th>אימייל</th><th></th></tr></thead><tbody></tbody></table>
+          <div class="row">
+            <input id="cName" placeholder="שם">
+            <input id="cEmail" type="email" placeholder="אימייל" dir="ltr">
+            <button class="btn" onclick="addContact()">➕</button>
+          </div>
+          <table id="rulesTable" style="margin-top:14px"><thead><tr><th>זיהוי (בנושא המייל)</th><th>מחשבון</th><th>נמענים</th><th></th></tr></thead><tbody></tbody></table>
           <div class="row">
             <input id="rMatch" placeholder='למשל: "דוח ייצור"'>
             <select id="rCalc">
@@ -174,21 +167,25 @@
               <option value="order-split">חלוקת הזמנות (עלומים)</option>
               <option value="drivers">סידור נהגים</option>
             </select>
-            <button class="btn" onclick="addRule()">➕ הוספה</button>
+            <button class="btn" onclick="addRule()">➕</button>
           </div>
-          <p class="hint" style="margin-top:10px">בחירת נמענים לכלל — לחיצה על תא ה"נמענים" בטבלה.</p>
         </div>
         <div class="card">
-          <h2>⚙️ סטטוס אוטומציית מייל</h2>
-          <span class="badge" id="autoStatus">⏳ טרם חובר — ההגדרות נשמרות וייכנסו לפעולה כשהאוטומציה תחובר לתיבת המייל של החברה</span>
-        </div>
-        <div class="card">
-          <h2>💾 גיבוי הגדרות</h2>
-          <p class="hint">ההגדרות נשמרות בדפדפן במחשב זה. מומלץ לייצא גיבוי.</p>
+          <h2>📨 חיבור Outlook (Power Automate)</h2>
+          <p class="hint">שני צעדים בצד מיקרוסופט — יש מדריך מפורט בלשונית <b>הוראות חיבור</b> שבתפריט (או בקובץ outlook-guide.html).</p>
+          <p style="font-size:13px; margin-bottom:6px"><b>1. קליטת דוחות</b> — כתובת לזרימה הנכנסת:</p>
+          <code id="inboxUrl"></code>
           <div class="row">
-            <button class="btn ghost" onclick="exportSettings()">ייצוא הגדרות</button>
-            <button class="btn ghost" onclick="document.getElementById('importFile').click()">ייבוא הגדרות</button>
-            <input type="file" id="importFile" accept=".json" style="display:none" onchange="importSettings(this)">
+            <button class="btn ghost" onclick="genSecret()">🔑 צור סוד חיבור (להעתקה ל-Flow)</button>
+            <span id="secretOut" style="font-size:13px"></span>
+          </div>
+          <p style="font-size:13px; margin:14px 0 6px"><b>2. שליחת תוצאות</b> — הדבק כאן את כתובת ה-Flow היוצא:</p>
+          <div class="row">
+            <input id="flowUrl" placeholder="https://prod-xx.westeurope.logic.azure.com/..." dir="ltr" style="flex:1; min-width:280px">
+            <button class="btn" onclick="saveFlowUrl()">שמור</button>
+          </div>
+          <div class="row"><span id="mailStatus" class="badge"></span>
+            <button class="btn ghost" onclick="testEmail()">✉ שלח מייל בדיקה אליי</button>
           </div>
         </div>
       </div>
@@ -196,31 +193,103 @@
   </main>
 </div>
 <script>
-const APP_VERSION='1.4.1';
+const APP_VERSION='2.1.0';
 document.getElementById('verEl').textContent=APP_VERSION;
+const SB='https://dddczmvjfokcbibeahyn.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
 
-/* ---------------- tabs / sidebar ---------------- */
+/* ================= session ================= */
+function getSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+function setSession(s){ if(s) localStorage.setItem('trelee_session', JSON.stringify(s)); else localStorage.removeItem('trelee_session'); }
+function authHdrs(){ const s=getSession(); return {'apikey':ANON,'Authorization':'Bearer '+(s?s.access_token:ANON),'Content-Type':'application/json'}; }
+let PERMS=null; // {is_admin, perms:{}, email, display_name}
+
+const USER_DOMAIN='@trelee.local';
+async function login(username, pass){
+  const email=username.toLowerCase().trim()+USER_DOMAIN;
+  const r=await fetch(SB+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':ANON,'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+  const d=await r.json();
+  if(!r.ok) throw new Error(d.error_description||d.msg||'שגיאת התחברות');
+  setSession({access_token:d.access_token, refresh_token:d.refresh_token, exp:Date.now()+d.expires_in*1000, email:d.user.email, username:d.user.email.split('@')[0], uid:d.user.id});
+}
+async function refreshSession(){
+  const s=getSession(); if(!s) return false;
+  if(Date.now() < s.exp - 5*60*1000) return true;
+  const r=await fetch(SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':ANON,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+  if(!r.ok){ setSession(null); return false; }
+  const d=await r.json();
+  setSession({access_token:d.access_token, refresh_token:d.refresh_token, exp:Date.now()+d.expires_in*1000, email:d.user.email, username:d.user.email.split('@')[0], uid:d.user.id});
+  return true;
+}
+setInterval(()=>{ refreshSession().then(ok=>{ if(!ok && !getSession()) showLogin(); }); }, 60*1000);
+
+async function loadPerms(){
+  const s=getSession(); if(!s) return null;
+  const r=await fetch(SB+'/rest/v1/user_perms?select=*&user_id=eq.'+s.uid,{headers:authHdrs()});
+  if(r.status===401){ setSession(null); return null; }
+  const d=await r.json();
+  return d.length? d[0] : {is_admin:false, perms:{}, email:s.email, none:true};
+}
+function can(feature, level){
+  if(!PERMS) return false;
+  if(PERMS.is_admin) return true;
+  const v=(PERMS.perms||{})[feature]||'none';
+  return level==='view'? (v==='view'||v==='edit') : v==='edit';
+}
+
+/* ================= login UI ================= */
+const loginOverlay=document.getElementById('loginOverlay');
+function showLogin(){ loginOverlay.style.display='flex'; }
+document.getElementById('liBtn').onclick=doLogin;
+document.getElementById('liPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+async function doLogin(){
+  const err=document.getElementById('loginErr'); err.textContent='';
+  try{
+    await login(document.getElementById('liUser').value.trim(), document.getElementById('liPass').value);
+    await boot();
+  }catch(e){ err.textContent=e.message==='Invalid login credentials'?'שם משתמש או סיסמה שגויים':e.message; }
+}
+async function bootstrapAdmin(){
+  const username=prompt('הקמה ראשונית — בחר שם משתמש לאדמין (אנגלית/מספרים):'); if(!username) return;
+  const pass=prompt('בחר סיסמת אדמין:'); if(!pass) return;
+  const r=await fetch(SB+'/functions/v1/admin-api',{method:'POST',headers:{'Content-Type':'application/json','apikey':ANON},body:JSON.stringify({action:'bootstrap',username:username.trim(),password:pass})});
+  const d=await r.json();
+  if(!r.ok){ alert('שגיאה: '+(d.error||r.status)); return; }
+  alert('✔ האדמין נוצר — התחבר עכשיו');
+  document.getElementById('liUser').value=username.trim();
+}
+function logout(){ setSession(null); location.reload(); }
+
+/* ================= tabs / sidebar ================= */
 const TABS = [
-  {id:'packing',   label:'📦 מחשבון אריזה', src:'./index.html'},
-  {id:'order-split', label:'🔀 חלוקת הזמנות עלומים', src:'./order-split.html', frame:'os', inner:'proc',
+  {id:'dashboard', label:'🏠 דשבורד',        src:'./dashboard.html', perm:'dashboard'},
+  {id:'packing',   label:'📦 מחשבון אריזה',  src:'./index.html',     perm:'packing'},
+  {id:'order-split', label:'🔀 חלוקת הזמנות עלומים', src:'./order-split.html', frame:'os', inner:'proc', perm:'order-split',
    children:[
-     {id:'ledger', label:'🗃️ מאזן ארגזים',       src:'./order-split.html', frame:'os', inner:'ledger'},
-     {id:'fruit',  label:'🍊 מעקב משטחי פירות',  src:'./order-split.html', frame:'os', inner:'fruit'},
+     {id:'ledger', label:'🗃️ מאזן ארגזים',      src:'./order-split.html', frame:'os', inner:'ledger', perm:'order-split'},
+     {id:'fruit',  label:'🍊 מעקב משטחי פירות', src:'./order-split.html', frame:'os', inner:'fruit',  perm:'order-split'},
    ]},
-  {id:'drivers',   label:'🚚 סידור נהגים', src:'./drivers.html'},
-  {id:'tracking',  label:'🧭 מעקב נהגים',  src:'./tracking.html'},
-  {id:'hashav',    label:'🧾 חשבשבת',      src:'./hashavshevet/index.html'},
-  {sep:true},
-  {id:'admin',     label:'⚙️ ניהול'},
+  {id:'drivers',   label:'🚚 סידור נהגים',   src:'./drivers.html',   perm:'drivers'},
+  {id:'tracking',  label:'🧭 מעקב נהגים',    src:'./tracking.html',  perm:'tracking'},
+  {id:'hashav',    label:'🧾 חשבשבת',        src:'./hashavshevet/index.html', perm:'hashav'},
+  {id:'inbox',     label:'📥 דוחות נכנסים',  src:'./inbox.html',     perm:'inbox', notif:true},
+  {sep:true, adminOnly:false},
+  {id:'account',   label:'👤 החשבון שלי'},
+  {id:'guide',     label:'📖 הוראות חיבור',  src:'./outlook-guide.html', adminOnly:true},
+  {id:'admin',     label:'⚙️ ניהול',          adminOnly:true},
 ];
 const ALL_TABS=[];
 TABS.forEach(t=>{ if(t.id){ ALL_TABS.push(t); (t.children||[]).forEach(c=>{ c.parent=t.id; ALL_TABS.push(c); }); } });
-
 const menuEl=document.getElementById('sideMenu');
 const panesEl=document.getElementById('panes');
 const curTabEl=document.getElementById('curTab');
 const EXPKEY='trelee_menu_expanded';
 
+function visible(t){
+  if(t.adminOnly) return PERMS && PERMS.is_admin;
+  if(t.perm) return can(t.perm,'view');
+  return true;
+}
 function ensurePane(t){
   const paneId='pane-'+(t.frame||t.id);
   if(t.src && !document.getElementById(paneId)){
@@ -229,33 +298,39 @@ function ensurePane(t){
     panesEl.appendChild(d);
   }
 }
-TABS.forEach(t=>{
-  if(t.sep){ const d=document.createElement('div'); d.className='sep'; menuEl.appendChild(d); return; }
-  ensurePane(t);
-  const item=document.createElement('div'); item.className='item';
-  const b=document.createElement('button');
-  b.className='main'; b.textContent=t.label; b.dataset.tab=t.id;
-  b.onclick=()=>{ activate(t.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
-  item.appendChild(b);
-  menuEl.appendChild(item);
-  if(t.children && t.children.length){
-    const chev=document.createElement('button');
-    chev.className='chev'; chev.textContent='▼'; chev.title='הצג עוד';
-    const sub=document.createElement('div'); sub.className='sub';
-    t.children.forEach(c=>{
-      ensurePane(c);
-      const cb=document.createElement('button');
-      cb.textContent=c.label; cb.dataset.tab=c.id;
-      cb.onclick=()=>{ activate(c.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
-      sub.appendChild(cb);
-    });
-    chev.onclick=(e)=>{ e.stopPropagation(); toggleSub(item, sub); };
-    item.appendChild(chev);
-    menuEl.appendChild(sub);
-    if(localStorage.getItem(EXPKEY)==='1'){ item.classList.add('expanded'); sub.classList.add('open'); }
-    item.dataset.hasSub='1'; sub.dataset.parent=t.id;
-  }
-});
+function buildMenu(){
+  menuEl.innerHTML='';
+  TABS.forEach(t=>{
+    if(t.sep){ const d=document.createElement('div'); d.className='sep'; menuEl.appendChild(d); return; }
+    if(!visible(t)) return;
+    ensurePane(t);
+    const item=document.createElement('div'); item.className='item';
+    const b=document.createElement('button');
+    b.className='main'; b.textContent=t.label; b.dataset.tab=t.id;
+    if(t.notif){ const nd=document.createElement('span'); nd.className='notifDot'; nd.id='notif-'+t.id; nd.style.display='none'; b.appendChild(nd); }
+    b.onclick=()=>{ activate(t.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
+    item.appendChild(b);
+    menuEl.appendChild(item);
+    const kids=(t.children||[]).filter(visible);
+    if(kids.length){
+      const chev=document.createElement('button');
+      chev.className='chev'; chev.textContent='▼';
+      const sub=document.createElement('div'); sub.className='sub';
+      kids.forEach(c=>{
+        ensurePane(c);
+        const cb=document.createElement('button');
+        cb.textContent=c.label; cb.dataset.tab=c.id;
+        cb.onclick=()=>{ activate(c.id); if(!document.body.classList.contains('pinned')) closeMenu(); };
+        sub.appendChild(cb);
+      });
+      chev.onclick=(e)=>{ e.stopPropagation(); toggleSub(item, sub); };
+      item.appendChild(chev);
+      menuEl.appendChild(sub);
+      if(localStorage.getItem(EXPKEY)==='1'){ item.classList.add('expanded'); sub.classList.add('open'); }
+      sub.dataset.parent=t.id;
+    }
+  });
+}
 function toggleSub(item, sub, force){
   const open = force!==undefined ? force : !sub.classList.contains('open');
   sub.classList.toggle('open', open);
@@ -263,9 +338,10 @@ function toggleSub(item, sub, force){
   localStorage.setItem(EXPKEY, open?'1':'0');
 }
 function activate(id){
-  const t=ALL_TABS.find(x=>x.id===id) || ALL_TABS[0];
+  let t=ALL_TABS.find(x=>x.id===id);
+  if(!t || !visible(t.parent? ALL_TABS.find(p=>p.id===t.parent):t)) t=ALL_TABS.find(visible);
+  if(!t){ curTabEl.textContent=''; return; }
   document.querySelectorAll('.side-menu button[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===t.id));
-  /* expand parent submenu when a child is chosen */
   if(t.parent){
     const sub=document.querySelector('.sub[data-parent="'+t.parent+'"]');
     if(sub && !sub.classList.contains('open')) toggleSub(sub.previousElementSibling, sub, true);
@@ -288,8 +364,9 @@ function activate(id){
     }
   }
   localStorage.setItem('trelee_last_tab', t.id);
+  if(t.id==='admin') loadAdmin();
+  if(t.id==='account') document.getElementById('accInfo').textContent='שם משתמש: '+((getSession()||{}).username||'')+' · '+(PERMS&&PERMS.display_name?PERMS.display_name:'');
 }
-/* click the matching inner tab inside the order-split iframe (same origin) */
 function switchInner(f, inner){
   try{
     const w=f.contentWindow;
@@ -297,42 +374,54 @@ function switchInner(f, inner){
     if(btn) btn.click();
   }catch(e){}
 }
-
-/* sidebar open/close/pin */
 const PKEY='trelee_menu_pinned';
 function applyPin(){ document.body.classList.toggle('pinned', localStorage.getItem(PKEY)==='1'); }
 applyPin();
-document.getElementById('pinBtnEl').onclick=()=>{
-  localStorage.setItem(PKEY, localStorage.getItem(PKEY)==='1'?'0':'1');
-  applyPin();
-};
+document.getElementById('pinBtnEl').onclick=()=>{ localStorage.setItem(PKEY, localStorage.getItem(PKEY)==='1'?'0':'1'); applyPin(); };
 function closeMenu(){ document.body.classList.remove('menu-open'); }
 document.getElementById('menuBtn').onclick=()=>{
-  if(document.body.classList.contains('pinned')){
-    localStorage.setItem(PKEY,'0'); applyPin();
-  } else {
-    document.body.classList.toggle('menu-open');
-  }
+  if(document.body.classList.contains('pinned')){ localStorage.setItem(PKEY,'0'); applyPin(); }
+  else document.body.classList.toggle('menu-open');
 };
 document.getElementById('backdrop').onclick=closeMenu;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMenu(); });
 
-activate(localStorage.getItem('trelee_last_tab') || 'packing');
+/* ================= boot ================= */
+async function boot(){
+  const ok=await refreshSession();
+  if(!ok && !getSession()){ showLogin(); return; }
+  PERMS=await loadPerms();
+  if(!PERMS){ showLogin(); return; }
+  if(PERMS.none){
+    loginOverlay.style.display='flex';
+    document.getElementById('loginErr').textContent='אין לך עדיין הרשאות — פנה לאדמין המערכת';
+    setSession(null); return;
+  }
+  loginOverlay.style.display='none';
+  document.getElementById('userChip').textContent='👤 '+(PERMS.display_name||PERMS.username||(getSession()||{}).username||'');
+  buildMenu();
+  activate(localStorage.getItem('trelee_last_tab')||'dashboard');
+  pollInbox();
+}
+boot();
 
-/* ---------------- PWA install ---------------- */
+/* inbox badge */
+async function pollInbox(){
+  if(!can('inbox','view')) return;
+  try{
+    const r=await fetch(SB+'/rest/v1/report_inbox?select=id&status=eq.pending',{headers:authHdrs()});
+    const d=await r.json();
+    const el=document.getElementById('notif-inbox');
+    if(el){ el.style.display=d.length?'inline-block':'none'; el.textContent=d.length; }
+  }catch(e){}
+  setTimeout(pollInbox, 5*60*1000);
+}
+
+/* ================= PWA install + auto-update ================= */
 let deferredPrompt=null;
 const installBtn=document.getElementById('installBtn');
-window.addEventListener('beforeinstallprompt', e=>{
-  e.preventDefault(); deferredPrompt=e; installBtn.style.display='block';
-});
-installBtn.onclick=async ()=>{
-  if(!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt=null; installBtn.style.display='none';
-};
-
-/* ---------------- auto-update ---------------- */
+window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); deferredPrompt=e; installBtn.style.display='block'; });
+installBtn.onclick=async ()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; installBtn.style.display='none'; };
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').then(reg=>{
     reg.update();
@@ -340,93 +429,189 @@ if('serviceWorker' in navigator){
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) reg.update(); });
     reg.addEventListener('updatefound', ()=>{
       const nw=reg.installing;
-      if(nw) nw.addEventListener('statechange', ()=>{
-        if(nw.state==='installed' && navigator.serviceWorker.controller){
-          nw.postMessage('SKIP_WAITING');
-        }
-      });
+      if(nw) nw.addEventListener('statechange', ()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) nw.postMessage('SKIP_WAITING'); });
     });
   }).catch(()=>{});
   let hadController=!!navigator.serviceWorker.controller, refreshing=false;
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
     if(!hadController){ hadController=true; return; }
-    if(refreshing) return; refreshing=true;
-    location.reload();
+    if(refreshing) return; refreshing=true; location.reload();
   });
 }
 
-/* ---------------- admin settings ---------------- */
-const SKEY='trelee_admin_settings';
-function loadS(){ try{return JSON.parse(localStorage.getItem(SKEY))||{contacts:[],rules:[]};}catch(e){return {contacts:[],rules:[]};} }
-function saveS(s){ localStorage.setItem(SKEY, JSON.stringify(s)); }
-let S=loadS();
-if(!Array.isArray(S.contacts)) S.contacts=[];
-if(!Array.isArray(S.rules)) S.rules=[];
+/* ================= admin: users ================= */
+const FEATURES=[
+  {id:'dashboard', label:'דשבורד'},
+  {id:'packing', label:'מחשבון אריזה'},
+  {id:'order-split', label:'עלומים'},
+  {id:'drivers', label:'סידור נהגים'},
+  {id:'tracking', label:'מעקב נהגים'},
+  {id:'hashav', label:'חשבשבת'},
+  {id:'inbox', label:'דוחות נכנסים'},
+];
+async function adminApi(payload){
+  const r=await fetch(SB+'/functions/v1/admin-api',{method:'POST',headers:authHdrs(),body:JSON.stringify(payload)});
+  const d=await r.json();
+  if(!r.ok) throw new Error(d.error||('שגיאה '+r.status));
+  return d;
+}
+let USERS=[];
+async function loadAdmin(){
+  try{
+    const d=await adminApi({action:'list'});
+    USERS=d.users; renderUsers();
+  }catch(e){ document.getElementById('usersTbl').innerHTML='<p class="hint">'+esc(e.message)+'</p>'; }
+  loadEmailRules(); loadMailStatus();
+}
+function renderUsers(){
+  let h='<table><tr><th>שם</th><th>שם משתמש</th><th>סיסמה ראשונית</th><th>אדמין</th>';
+  FEATURES.forEach(f=>h+='<th>'+f.label+'</th>');
+  h+='<th></th></tr>';
+  USERS.forEach((u,i)=>{
+    h+='<tr><td><input id="un_'+i+'" value="'+esc(u.display_name||'')+'" style="width:90px"></td>'
+      +'<td dir="ltr"><b>'+esc(u.username||(u.email||'').split('@')[0])+'</b></td>'
+      +'<td dir="ltr"><code>'+esc(u.init_password||'—')+'</code></td>'
+      +'<td style="text-align:center"><input type="checkbox" id="ua_'+i+'" '+(u.is_admin?'checked':'')+'></td>';
+    FEATURES.forEach(f=>{
+      const v=(u.perms||{})[f.id]||'none';
+      h+='<td><select id="up_'+i+'_'+f.id+'">'
+        +'<option value="none" '+(v==='none'?'selected':'')+'>—</option>'
+        +'<option value="view" '+(v==='view'?'selected':'')+'>צפייה</option>'
+        +'<option value="edit" '+(v==='edit'?'selected':'')+'>עריכה</option>'
+        +'</select></td>';
+    });
+    h+='<td style="white-space:nowrap"><button class="btn ghost" style="padding:4px 8px;font-size:12px" title="שמור שינויים" onclick="saveUser('+i+')">💾</button> '
+      +'<button class="btn ghost" style="padding:4px 8px;font-size:12px" title="איפוס לסיסמה הראשונית" onclick="resetInit('+i+')">↩🔑</button> '
+      +'<button class="btn ghost" style="padding:4px 8px;font-size:12px" title="קביעת סיסמה חדשה" onclick="resetPass('+i+')">🔑</button> '
+      +'<button class="del" onclick="delUser('+i+')">🗑</button></td></tr>';
+  });
+  document.getElementById('usersTbl').innerHTML=h+'</table>';
+}
+async function saveUser(i){
+  const u=USERS[i];
+  const perms={};
+  FEATURES.forEach(f=>{ const v=document.getElementById('up_'+i+'_'+f.id).value; if(v!=='none') perms[f.id]=v; });
+  try{
+    await adminApi({action:'update_perms', user_id:u.user_id, perms, is_admin:document.getElementById('ua_'+i).checked, name:document.getElementById('un_'+i).value.trim()});
+    alert('✔ נשמר'); loadAdmin();
+  }catch(e){ alert(e.message); }
+}
+async function createUser(){
+  const username=document.getElementById('nuUser').value.trim(), pass=document.getElementById('nuPass').value, name=document.getElementById('nuName').value.trim();
+  if(!username||!pass){ alert('נא למלא שם משתמש וסיסמה'); return; }
+  try{
+    await adminApi({action:'create', username, password:pass, name, perms:{}});
+    document.getElementById('nuUser').value=''; document.getElementById('nuPass').value=''; document.getElementById('nuName').value='';
+    loadAdmin();
+  }catch(e){ alert(e.message); }
+}
+async function resetPass(i){
+  const p=prompt('סיסמה חדשה עבור '+(USERS[i].username||USERS[i].email)+':\n(תיקבע גם כסיסמה הראשונית החדשה)'); if(!p) return;
+  try{ await adminApi({action:'set_password', user_id:USERS[i].user_id, password:p}); alert('✔ עודכן'); loadAdmin(); }catch(e){ alert(e.message); }
+}
+async function resetInit(i){
+  const u=USERS[i];
+  if(!confirm('לאפס את הסיסמה של '+(u.username||u.email)+' לסיסמה הראשונית ('+(u.init_password||'?')+')?')) return;
+  try{ const d=await adminApi({action:'reset_to_init', user_id:u.user_id}); alert('✔ אופס לסיסמה: '+d.init_password); }catch(e){ alert(e.message); }
+}
+async function delUser(i){
+  if(!confirm('למחוק את '+(USERS[i].username||USERS[i].email)+'?')) return;
+  try{ await adminApi({action:'delete', user_id:USERS[i].user_id}); loadAdmin(); }catch(e){ alert(e.message); }
+}
 
-/* contacts */
+/* ================= admin: email rules (cloud) ================= */
+let ER={contacts:[],rules:[]};
+async function loadEmailRules(){
+  try{
+    const r=await fetch(SB+'/rest/v1/app_settings?select=value&key=eq.email_rules',{headers:authHdrs()});
+    const d=await r.json();
+    ER=(d[0]&&d[0].value)||{contacts:[],rules:[]};
+  }catch(e){}
+  renderER();
+}
+async function saveER(){
+  await fetch(SB+'/rest/v1/app_settings?on_conflict=key',{method:'POST',headers:Object.assign({},authHdrs(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({key:'email_rules',value:ER,updated_by:(getSession()||{}).email||''})});
+  renderER();
+}
+const CALC_NAMES={packing:'מחשבון אריזה','order-split':'חלוקת הזמנות (עלומים)',drivers:'סידור נהגים'};
 function addContact(){
-  const n=document.getElementById('cName').value.trim();
-  const e=document.getElementById('cEmail').value.trim();
+  const n=document.getElementById('cName').value.trim(), e=document.getElementById('cEmail').value.trim();
   if(!n || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){ alert('נא למלא שם ואימייל תקין'); return; }
-  S.contacts.push({name:n,email:e}); saveS(S); render();
+  ER.contacts.push({name:n,email:e}); saveER();
   document.getElementById('cName').value=''; document.getElementById('cEmail').value='';
 }
-function delContact(i){ S.contacts.splice(i,1); S.rules.forEach(r=>r.recipients=r.recipients.filter(x=>S.contacts.some(c=>c.email===x))); saveS(S); render(); }
-
-/* rules */
-const CALC_NAMES={packing:'מחשבון אריזה','order-split':'חלוקת הזמנות (עלומים)',drivers:'סידור נהגים'};
+function delContact(i){ ER.contacts.splice(i,1); ER.rules.forEach(r=>r.recipients=(r.recipients||[]).filter(x=>ER.contacts.some(c=>c.email===x))); saveER(); }
 function addRule(){
   const m=document.getElementById('rMatch').value.trim();
   if(!m){ alert('נא להזין מילת זיהוי'); return; }
-  S.rules.push({match:m, calc:document.getElementById('rCalc').value, recipients:[]});
-  saveS(S); render(); document.getElementById('rMatch').value='';
+  ER.rules.push({match:m, calc:document.getElementById('rCalc').value, recipients:[]}); saveER();
+  document.getElementById('rMatch').value='';
 }
-function delRule(i){ S.rules.splice(i,1); saveS(S); render(); }
+function delRule(i){ ER.rules.splice(i,1); saveER(); }
 function editRecipients(i){
-  if(!S.contacts.length){ alert('קודם הוסף אנשי קשר'); return; }
-  const cur=new Set(S.rules[i].recipients);
-  const list=S.contacts.map((c,j)=>`${j+1}. ${c.name} <${c.email}> ${cur.has(c.email)?'✓':''}`).join('\n');
-  const ans=prompt('נמענים לכלל זה — הזן מספרים מופרדים בפסיק:\n'+list, S.contacts.map((c,j)=>cur.has(c.email)?j+1:null).filter(Boolean).join(','));
+  if(!ER.contacts.length){ alert('קודם הוסף אנשי קשר'); return; }
+  const cur=new Set(ER.rules[i].recipients||[]);
+  const list=ER.contacts.map((c,j)=>(j+1)+'. '+c.name+' <'+c.email+'> '+(cur.has(c.email)?'✓':'')).join('\n');
+  const ans=prompt('נמענים לכלל — מספרים מופרדים בפסיק:\n'+list, ER.contacts.map((c,j)=>cur.has(c.email)?j+1:null).filter(Boolean).join(','));
   if(ans===null) return;
-  const idx=ans.split(',').map(x=>parseInt(x.trim())-1).filter(x=>x>=0 && x<S.contacts.length);
-  S.rules[i].recipients=[...new Set(idx.map(x=>S.contacts[x].email))];
-  saveS(S); render();
+  const idx=ans.split(',').map(x=>parseInt(x.trim())-1).filter(x=>x>=0&&x<ER.contacts.length);
+  ER.rules[i].recipients=[...new Set(idx.map(x=>ER.contacts[x].email))]; saveER();
 }
-
-function render(){
+function renderER(){
   const ct=document.querySelector('#contactsTable tbody'); ct.innerHTML='';
-  S.contacts.forEach((c,i)=>{
-    ct.insertAdjacentHTML('beforeend',`<tr><td>${esc(c.name)}</td><td dir="ltr">${esc(c.email)}</td><td><button class="del" onclick="delContact(${i})">🗑</button></td></tr>`);
-  });
-  if(!S.contacts.length) ct.innerHTML='<tr><td colspan="3" style="color:#999">אין אנשי קשר עדיין</td></tr>';
+  ER.contacts.forEach((c,i)=>ct.insertAdjacentHTML('beforeend','<tr><td>'+esc(c.name)+'</td><td dir="ltr">'+esc(c.email)+'</td><td><button class="del" onclick="delContact('+i+')">🗑</button></td></tr>'));
+  if(!ER.contacts.length) ct.innerHTML='<tr><td colspan="3" style="color:#999">אין אנשי קשר</td></tr>';
   const rt=document.querySelector('#rulesTable tbody'); rt.innerHTML='';
-  S.rules.forEach((r,i)=>{
-    const rec=r.recipients.length? r.recipients.map(esc).join('<br>') : '<span style="color:#c0392b">לא נבחרו — לחץ</span>';
-    rt.insertAdjacentHTML('beforeend',`<tr><td>${esc(r.match)}</td><td>${CALC_NAMES[r.calc]||r.calc}</td><td style="cursor:pointer" dir="ltr" onclick="editRecipients(${i})">${rec}</td><td><button class="del" onclick="delRule(${i})">🗑</button></td></tr>`);
+  ER.rules.forEach((r,i)=>{
+    const rec=(r.recipients||[]).length? r.recipients.map(esc).join('<br>') : '<span style="color:#c0392b">לא נבחרו — לחץ</span>';
+    rt.insertAdjacentHTML('beforeend','<tr><td>'+esc(r.match)+'</td><td>'+(CALC_NAMES[r.calc]||r.calc)+'</td><td style="cursor:pointer" dir="ltr" onclick="editRecipients('+i+')">'+rec+'</td><td><button class="del" onclick="delRule('+i+')">🗑</button></td></tr>');
   });
-  if(!S.rules.length) rt.innerHTML='<tr><td colspan="4" style="color:#999">אין חוקים עדיין</td></tr>';
+  if(!ER.rules.length) rt.innerHTML='<tr><td colspan="4" style="color:#999">אין חוקים</td></tr>';
 }
-function esc(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-render();
 
-/* backup */
-function exportSettings(){
-  const blob=new Blob([JSON.stringify({contacts:S.contacts,rules:S.rules},null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='trelee-admin-settings.json'; a.click();
+/* ================= admin: outlook config ================= */
+document.getElementById('inboxUrl').textContent=SB+'/functions/v1/report-inbox';
+async function genSecret(){
+  const secret=[...crypto.getRandomValues(new Uint8Array(24))].map(b=>b.toString(16).padStart(2,'0')).join('');
+  try{
+    await adminApi({action:'set_config', key:'inbox_secret', value:secret});
+    document.getElementById('secretOut').innerHTML='הסוד (העתק עכשיו — לא יוצג שוב): <code>'+secret+'</code>';
+    loadMailStatus();
+  }catch(e){ alert(e.message); }
 }
-function importSettings(inp){
-  const f=inp.files[0]; if(!f) return;
-  f.text().then(t=>{
-    try{
-      const d=JSON.parse(t);
-      if(Array.isArray(d.contacts)) S.contacts=d.contacts;
-      if(Array.isArray(d.rules)) S.rules=d.rules;
-      saveS(S); render(); alert('ההגדרות נטענו');
-    }catch(e){ alert('קובץ לא תקין'); }
-  });
-  inp.value='';
+async function saveFlowUrl(){
+  const v=document.getElementById('flowUrl').value.trim();
+  if(!v.startsWith('https://')){ alert('כתובת לא תקינה'); return; }
+  try{ await adminApi({action:'set_config', key:'send_flow_url', value:v}); document.getElementById('flowUrl').value=''; alert('✔ נשמר'); loadMailStatus(); }catch(e){ alert(e.message); }
 }
+async function loadMailStatus(){
+  try{
+    const d=await adminApi({action:'get_config_status'});
+    const hasSecret=d.keys.includes('inbox_secret'), hasFlow=d.keys.includes('send_flow_url');
+    const el=document.getElementById('mailStatus');
+    el.className='badge'+(hasSecret&&hasFlow?' ok':'');
+    el.textContent=(hasSecret?'✔ קליטה מוגדרת':'✖ חסר סוד קליטה')+' · '+(hasFlow?'✔ שליחה מוגדרת':'✖ חסרה כתובת Flow');
+  }catch(e){}
+}
+async function testEmail(){
+  const addr=prompt('לאיזו כתובת אמיתית לשלוח את הבדיקה?'); if(!addr) return;
+  try{
+    const r=await fetch(SB+'/functions/v1/send-email',{method:'POST',headers:authHdrs(),body:JSON.stringify({to:[addr.trim()],subject:'בדיקת מערכת טרי לי',html:'<p>המייל היוצא עובד ✔</p>'})});
+    const d=await r.json();
+    alert(r.ok?'✔ נשלח — בדוק את התיבה':'שגיאה: '+(d.error||r.status));
+  }catch(e){ alert(e.message); }
+}
+async function changeMyPassword(){
+  const p1=document.getElementById('np1').value, p2=document.getElementById('np2').value;
+  if(!p1 || p1.length<4){ alert('סיסמה קצרה מדי (לפחות 4 תווים)'); return; }
+  if(p1!==p2){ alert('הסיסמאות לא זהות'); return; }
+  const r=await fetch(SB+'/auth/v1/user',{method:'PUT',headers:authHdrs(),body:JSON.stringify({password:p1})});
+  const d=await r.json();
+  if(!r.ok){ alert('שגיאה: '+(d.msg||d.error_description||r.status)); return; }
+  document.getElementById('np1').value=''; document.getElementById('np2').value='';
+  alert('✔ הסיסמה עודכנה');
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 </script>
 </body>
 </html>

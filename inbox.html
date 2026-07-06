@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>דוחות נכנסים — טרי לי</title>
+<style>
+  :root{--green:#1a7a4a;--green-dark:#14603a;--green-light:#e8f5ee;--bg:#f4f6f5;--text:#1c2b23;--border:#d8e2dc;--red:#c0392b;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);padding:22px;}
+  h1{font-size:20px;color:var(--green-dark);margin-bottom:2px;}
+  .sub{font-size:13px;color:#6b7f74;margin-bottom:16px;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;}
+  .card h2{font-size:15px;color:var(--green-dark);margin-bottom:10px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{border:1px solid var(--border);padding:7px 9px;text-align:right;vertical-align:middle;}
+  th{background:var(--green-light);}
+  .btn{background:var(--green);color:#fff;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn.ghost{background:#fff;color:var(--green-dark);border:1px solid var(--green);}
+  .chip{display:inline-block;border-radius:8px;padding:2px 9px;font-size:12px;background:var(--green-light);color:var(--green-dark);}
+  .chip.pend{background:#fdf3e0;color:#8a6d1a;}
+  input,select,textarea{font-family:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:#fff;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;}
+  .muted{color:#8aa094;font-size:13px;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<h1>📥 דוחות נכנסים</h1>
+<div class="sub">דוחות שהגיעו במייל ל-Outlook ונקלטו אוטומטית. הורד ← הרץ במחשבון ← שלח את התוצאה לנמענים.</div>
+<div class="card"><div id="list" class="muted">טוען…</div></div>
+<div class="card hidden" id="sendCard">
+  <h2>✉ שליחת תוצאה במייל <span id="sendFor" class="muted"></span></h2>
+  <div class="row"><b>אל:</b> <span id="sendTo" dir="ltr"></span></div>
+  <div class="row"><input id="sendSubject" style="flex:1;min-width:260px" placeholder="נושא"></div>
+  <div class="row"><textarea id="sendBody" style="flex:1;min-width:260px;height:70px" placeholder="הודעה (לא חובה)"></textarea></div>
+  <div class="row">
+    <label class="btn ghost">📎 צרף קובץ תוצאה (מהמחשבון)<input type="file" id="sendFile" style="display:none"></label>
+    <span id="sendFileName" class="muted"></span>
+    <button class="btn" onclick="doSend()">שלח</button>
+    <button class="btn ghost" onclick="document.getElementById('sendCard').classList.add('hidden')">ביטול</button>
+  </div>
+</div>
+<script>
+const SB='https://dddczmvjfokcbibeahyn.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+function session(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+function hdrs(){ const s=session(); return {'apikey':ANON,'Authorization':'Bearer '+(s?s.access_token:ANON),'Content-Type':'application/json'}; }
+function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+const CALC_NAMES={packing:'מחשבון אריזה','order-split':'חלוקת הזמנות (עלומים)',drivers:'סידור נהגים','':'לא זוהה'};
+let ROWS=[], ER={contacts:[],rules:[]}, sendRow=null;
+async function load(){
+  try{
+    const r=await fetch(SB+'/rest/v1/report_inbox?select=*&order=created_at.desc&limit=100',{headers:hdrs()});
+    if(!r.ok){ document.getElementById('list').textContent=r.status===401||r.status===403?'אין הרשאה — פנה לאדמין':'שגיאה '+r.status; return; }
+    ROWS=await r.json();
+    const er=await fetch(SB+'/rest/v1/app_settings?select=value&key=eq.email_rules',{headers:hdrs()});
+    const erd=await er.json(); ER=(erd[0]&&erd[0].value)||{contacts:[],rules:[]};
+    render();
+  }catch(e){ document.getElementById('list').textContent='שגיאה: '+e.message; }
+}
+function render(){
+  if(!ROWS.length){ document.getElementById('list').innerHTML='<span class="muted">אין דוחות עדיין — ברגע שזרימת ה-Outlook תוגדר, דוחות יופיעו כאן אוטומטית.</span>'; return; }
+  let h='<table><tr><th>התקבל</th><th>נושא</th><th>מאת</th><th>קובץ</th><th>מחשבון</th><th>סטטוס</th><th></th></tr>';
+  ROWS.forEach((r,i)=>{
+    const d=new Date(r.created_at);
+    h+='<tr><td>'+d.getDate()+'.'+(d.getMonth()+1)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+'</td>'
+      +'<td>'+esc(r.subject)+'</td><td dir="ltr">'+esc(r.sender)+'</td>'
+      +'<td>'+(r.storage_path?'<button class="btn ghost" onclick="dl('+i+')">⬇ '+esc(r.filename)+'</button>':'—')+'</td>'
+      +'<td>'+(CALC_NAMES[r.matched_calc||'']||r.matched_calc)+'</td>'
+      +'<td>'+(r.status==='pending'?'<span class="chip pend">ממתין</span>':'<span class="chip">טופל</span>')+'</td>'
+      +'<td style="white-space:nowrap">'
+      +(r.status==='pending'?'<button class="btn ghost" onclick="openSend('+i+')">✉ שלח תוצאה</button> <button class="btn ghost" onclick="markDone('+i+')">✔ טופל</button>':'')
+      +'</td></tr>';
+  });
+  document.getElementById('list').innerHTML=h+'</table>';
+}
+async function dl(i){
+  const r=ROWS[i];
+  const res=await fetch(SB+'/storage/v1/object/sign/inbox/'+encodeURIComponent(r.storage_path).replace(/%2F/g,'/'),{method:'POST',headers:hdrs(),body:JSON.stringify({expiresIn:3600})});
+  const d=await res.json();
+  if(!res.ok){ alert('שגיאה: '+(d.error||d.message||res.status)); return; }
+  window.open(SB+'/storage/v1'+d.signedURL,'_blank');
+}
+async function markDone(i){
+  const r=ROWS[i];
+  await fetch(SB+'/rest/v1/report_inbox?id=eq.'+r.id,{method:'PATCH',headers:hdrs(),body:JSON.stringify({status:'done',processed_at:new Date().toISOString(),processed_by:(session()||{}).email||''})});
+  load();
+}
+function openSend(i){
+  sendRow=ROWS[i];
+  const rule=(ER.rules||[]).find(x=>sendRow.matched_calc && x.calc===sendRow.matched_calc && (x.recipients||[]).length) || (ER.rules||[]).find(x=>sendRow.subject&&x.match&&sendRow.subject.includes(x.match));
+  const to=(rule&&rule.recipients)||[];
+  document.getElementById('sendTo').textContent=to.length?to.join(', '):'(לא הוגדרו נמענים לכלל — הוסף בניהול)';
+  document.getElementById('sendTo').dataset.to=JSON.stringify(to);
+  document.getElementById('sendSubject').value='תוצאות: '+(sendRow.subject||'דוח');
+  document.getElementById('sendFor').textContent='— '+(sendRow.subject||'');
+  document.getElementById('sendFileName').textContent='';
+  document.getElementById('sendFile').value='';
+  document.getElementById('sendCard').classList.remove('hidden');
+  document.getElementById('sendCard').scrollIntoView({behavior:'smooth'});
+}
+document.getElementById('sendFile').onchange=function(){ document.getElementById('sendFileName').textContent=this.files[0]?this.files[0].name:''; };
+async function doSend(){
+  const to=JSON.parse(document.getElementById('sendTo').dataset.to||'[]');
+  if(!to.length){ alert('אין נמענים — הגדר נמענים לכלל בלשונית ניהול'); return; }
+  const atts=[];
+  const f=document.getElementById('sendFile').files[0];
+  if(f){
+    const b=await f.arrayBuffer();
+    let bin=''; const u=new Uint8Array(b); for(let i=0;i<u.length;i++) bin+=String.fromCharCode(u[i]);
+    atts.push({name:f.name, contentBase64:btoa(bin)});
+  }
+  const body=document.getElementById('sendBody').value;
+  const r=await fetch(SB+'/functions/v1/send-email',{method:'POST',headers:hdrs(),body:JSON.stringify({
+    to, subject:document.getElementById('sendSubject').value, html:'<p>'+esc(body).replace(/\n/g,'<br>')+'</p><p>— נשלח ממערכת טרי לי</p>', attachments:atts
+  })});
+  const d=await r.json();
+  if(!r.ok){ alert('שגיאה: '+(d.error||r.status)); return; }
+  alert('✔ נשלח');
+  if(sendRow) await fetch(SB+'/rest/v1/report_inbox?id=eq.'+sendRow.id,{method:'PATCH',headers:hdrs(),body:JSON.stringify({status:'done',processed_at:new Date().toISOString(),processed_by:(session()||{}).email||''})});
+  document.getElementById('sendCard').classList.add('hidden');
+  load();
+}
+load();
+</script>
+</body>
+</html>

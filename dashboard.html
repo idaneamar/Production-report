@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>דשבורד — טרי לי</title>
+<style>
+  :root{--green:#1a7a4a;--green-dark:#14603a;--green-light:#e8f5ee;--bg:#f4f6f5;--text:#1c2b23;--border:#d8e2dc;--red:#c0392b;--red-light:#fdecea;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);padding:22px;}
+  h1{font-size:20px;color:var(--green-dark);margin-bottom:2px;}
+  .sub{font-size:13px;color:#6b7f74;margin-bottom:18px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;}
+  .kpi{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;}
+  .kpi .t{font-size:13px;color:#6b7f74;margin-bottom:8px;}
+  .kpi .v{font-size:32px;font-weight:800;color:var(--green-dark);}
+  .kpi.warn .v{color:var(--red);}
+  .kpi .s{font-size:12px;color:#8aa094;margin-top:4px;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:16px;}
+  .card h2{font-size:15px;color:var(--green-dark);margin-bottom:10px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{border:1px solid var(--border);padding:6px 9px;text-align:right;}
+  th{background:var(--green-light);}
+  .muted{color:#8aa094;font-size:13px;}
+</style>
+</head>
+<body>
+<h1>🏠 דשבורד — <span id="todayHe"></span></h1>
+<div class="sub">תמונת מצב מהענן · מתעדכן בכל כניסה</div>
+<div class="grid" id="kpis"></div>
+<div class="card">
+  <h2>🚚 הנסיעות של היום</h2>
+  <div id="todayTrips" class="muted">טוען…</div>
+</div>
+<script>
+const SB='https://dddczmvjfokcbibeahyn.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+function session(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+function hdrs(){ const s=session(); return {'apikey':ANON,'Authorization':'Bearer '+(s?s.access_token:ANON)}; }
+async function q(path){ const r=await fetch(SB+path,{headers:hdrs()}); if(!r.ok) throw new Error(r.status); return r.json(); }
+const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function kpi(t,v,s,warn){ return '<div class="kpi'+(warn?' warn':'')+'"><div class="t">'+t+'</div><div class="v">'+v+'</div><div class="s">'+(s||'')+'</div></div>'; }
+(async function(){
+  const n=new Date(), today=iso(n);
+  document.getElementById('todayHe').textContent='יום '+DAYS[n.getDay()]+' '+n.getDate()+'.'+(n.getMonth()+1);
+  const K=document.getElementById('kpis');
+  let html='';
+  try{
+    const trips=await q('/rest/v1/driver_log?select=*&log_date=eq.'+today);
+    const drivers=[...new Set(trips.map(r=>r.driver))];
+    const pallets=trips.reduce((a,r)=>a+(Number(r.pallets)||0),0);
+    html+=kpi('נסיעות היום', trips.length, drivers.length? drivers.length+' נהגים: '+drivers.join(', '):'עוד לא נרשם סידור להיום', !trips.length);
+    html+=kpi('משטחים היום', pallets, '');
+    /* month coverage */
+    const first=iso(new Date(n.getFullYear(),n.getMonth(),1));
+    const monthRows=await q('/rest/v1/driver_log?select=log_date&log_date=gte.'+first+'&log_date=lte.'+today);
+    const have=new Set(monthRows.map(r=>r.log_date));
+    const fr=await q('/rest/v1/driver_log?select=log_date&order=log_date.asc&limit=1');
+    const firstEver=fr.length?fr[0].log_date:null;
+    let missing=0;
+    if(firstEver){
+      for(let d=new Date(n.getFullYear(),n.getMonth(),1); iso(d)<=today; d.setDate(d.getDate()+1)){
+        const ds=iso(d);
+        if(d.getDay()<=4 && ds>=firstEver && !have.has(ds)) missing++;
+      }
+    }
+    html+=kpi('ימים חסרים החודש', missing, missing?'פתח מעקב נהגים ← לוח כיסוי':'הכל מלא ✔', missing>0);
+    /* places */
+    const allPlaces=[...new Set((await q('/rest/v1/driver_log?select=place')).map(r=>r.place))];
+    const classified=new Set((await q('/rest/v1/places?select=place')).map(r=>r.place));
+    const unk=allPlaces.filter(p=>!classified.has(p)).length;
+    html+=kpi('מקומות לא מסווגים', unk, unk?'מעקב נהגים ← מקומות':'✔', unk>0);
+  }catch(e){ html+=kpi('מעקב נהגים','—','אין הרשאת צפייה'); }
+  try{
+    const inbox=await q('/rest/v1/report_inbox?select=id&status=eq.pending');
+    html+=kpi('דוחות ממתינים', inbox.length, inbox.length?'לשונית דוחות נכנסים':'✔', inbox.length>0);
+  }catch(e){}
+  K.innerHTML=html;
+  /* today's trips table */
+  try{
+    const trips=await q('/rest/v1/driver_log?select=*&log_date=eq.'+today+'&order=shift.asc,driver.asc');
+    if(!trips.length){ document.getElementById('todayTrips').textContent='אין נסיעות רשומות להיום עדיין.'; return; }
+    let h='<table><tr><th>משמרת</th><th>נהג</th><th>מקום</th><th>משטחים</th><th>הערה</th></tr>';
+    trips.forEach(r=>h+='<tr><td>'+esc(r.shift||'')+'</td><td>'+esc(r.driver)+'</td><td>'+esc(r.place)+'</td><td>'+(r.pallets||'')+'</td><td>'+esc(r.note||'')+'</td></tr>');
+    document.getElementById('todayTrips').innerHTML=h+'</table>';
+  }catch(e){ document.getElementById('todayTrips').textContent='אין הרשאת צפייה במעקב נהגים.'; }
+})();
+</script>
+</body>
+</html>
