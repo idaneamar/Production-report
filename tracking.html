@@ -63,7 +63,7 @@
 <div id="v-cover" class="view">
   <div class="card">
     <h2 style="font-size:16px;color:var(--green-dark);margin-bottom:6px">📄 העלאת סידור נהגים (PDF)</h2>
-    <p class="muted" style="margin-bottom:10px">גרור לכאן את קובץ ה-PDF היומי או בחר קובץ — המערכת תזהה את הנסיעות ותציג אותן לאישור לפני שמירה.</p>
+    <p class="muted" style="margin-bottom:10px">גרור לכאן את קובץ ה-PDF היומי או בחר קובץ — המערכת תזהה את הנסיעות ותציג אותן לאישור. משמרת "בוקר" בסידור נרשמת כ"בוקר למחרת" (בוקר של היום הבא), תחת תאריך הסידור.</p>
     <div id="pdfDrop" style="border:2px dashed var(--border);border-radius:10px;padding:18px;text-align:center;cursor:pointer;color:#6b7f74">
       📁 גרור PDF לכאן — או לחץ לבחירת קובץ
       <input type="file" id="pdfFile" accept=".pdf" style="display:none">
@@ -125,7 +125,7 @@
       <label>מתאריך <input type="date" id="fFrom" onchange="renderTrips()"></label>
       <label>עד <input type="date" id="fTo" onchange="renderTrips()"></label>
       <select id="fDriver" onchange="renderTrips()"><option value="">כל הנהגים</option></select>
-      <select id="fShift" onchange="renderTrips()"><option value="">כל המשמרות</option><option>לילה</option><option>בוקר</option><option>צהריים</option></select>
+      <select id="fShift" onchange="renderTrips()"><option value="">כל המשמרות</option><option>לילה</option><option>בוקר למחרת</option><option>צהריים</option></select>
       <input id="fPlace" placeholder="חיפוש מקום…" oninput="renderTrips()" style="min-width:140px">
       <button class="btn sec" onclick="exportTrips()">⬇ ייצוא לאקסל</button>
     </div>
@@ -134,7 +134,7 @@
         <input type="date" id="mDate">
         <input id="mDriver" list="driversDL" placeholder="נהג">
         <input id="mPlace" list="placesDL" placeholder="מקום">
-        <select id="mShift"><option>לילה</option><option>בוקר</option><option>צהריים</option></select>
+        <select id="mShift"><option>לילה</option><option>בוקר למחרת</option><option>צהריים</option></select>
         <input id="mPallets" type="number" min="0" step="0.5" placeholder="משטחים" style="width:90px">
         <input id="mNote" placeholder="הערה">
         <button class="btn" onclick="addManual()">שמור</button>
@@ -440,6 +440,7 @@ function parseSidurItems(items){
     block.forEach(b=>{
       let sh=shift;
       if(meta.time){ const hh=parseInt(meta.time); if(hh>=11&&hh<20) sh='צהריים'; }
+      if(sh==='בוקר') sh='בוקר למחרת'; /* בוקר בסידור = בוקר של יום המחרת */
       out.push({driver:b.ownDriver||meta.driver, place:b.place, pallets:b.pallets, note:b.note, truck:meta.truck, time:meta.time, shift:sh});
     });
     block=[]; meta={driver:'',truck:'',time:''};
@@ -489,7 +490,7 @@ function renderPdfReview(){
   PDF_ROWS.forEach((r,i)=>{
     h+='<tr>'
       +'<td><input type="checkbox" id="pr_on_'+i+'" checked></td>'
-      +'<td><select id="pr_sh_'+i+'">'+['לילה','בוקר','צהריים'].map(x=>'<option '+(x===r.shift?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
+      +'<td><select id="pr_sh_'+i+'">'+['לילה','בוקר למחרת','צהריים'].map(x=>'<option '+(x===r.shift?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
       +'<td><input id="pr_dr_'+i+'" value="'+esc(r.driver)+'" style="width:110px"></td>'
       +'<td><input id="pr_pl_'+i+'" value="'+esc(r.place)+'" style="width:160px"></td>'
       +'<td><input id="pr_pa_'+i+'" type="number" step="0.5" value="'+r.pallets+'" style="width:70px"></td>'
@@ -546,7 +547,7 @@ function renderDayTbl(){
   if(!DAY_ROWS.length) h+='<tr><td colspan="7" class="muted">אין נסיעות ביום זה — אפשר להוסיף ידנית</td></tr>';
   DAY_ROWS.forEach((r,i)=>{
     h+='<tr>'
-      +'<td><select id="de_sh_'+i+'">'+['לילה','בוקר','צהריים'].map(x=>'<option '+(x===r.shift?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
+      +'<td><select id="de_sh_'+i+'">'+['לילה','בוקר למחרת','צהריים'].map(x=>'<option '+(x===r.shift?'selected':'')+'>'+x+'</option>').join('')+'</select></td>'
       +'<td><input id="de_dr_'+i+'" value="'+esc(r.driver)+'" style="width:110px" list="driversDL"></td>'
       +'<td><input id="de_pl_'+i+'" value="'+esc(r.place)+'" style="width:160px" list="placesDL"></td>'
       +'<td><input id="de_pa_'+i+'" type="number" step="0.5" value="'+r.pallets+'" style="width:70px"></td>'

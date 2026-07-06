@@ -248,7 +248,7 @@ function trackingRows(){
   SHIFTS.forEach(sh=>{ drs.forEach(d=>{
     const stops=STOPS.filter(s=>s.driver===d.name&&(s.shift||'לילה')===sh);
     const t=truckOfRun(d.name,sh);
-    stops.forEach(s=>{ rows.push({driver:d.name, place:s.name, shift:sh, truck:(t?t.id:(d.contractor?'שלו':'')), pallets:s.pallets||0, note:(s.cust&&s.cust.note)||''}); });
+    stops.forEach(s=>{ rows.push({driver:d.name, place:s.name, shift:(sh==='בוקר'?'בוקר למחרת':sh), truck:(t?t.id:(d.contractor?'שלו':'')), pallets:s.pallets||0, note:(s.cust&&s.cust.note)||''}); });
   }); });
   return rows;
 }
