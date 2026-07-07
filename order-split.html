@@ -77,7 +77,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
  <div class="card">
   <h2>טעינת הדוח היומי</h2>
   <p class="muted">גרור את קובץ ההזמנות (Excel). הכלי יבחר אוטומטית את גיליון <b>מחר</b>, וקורא את הצבעים: <span style="color:var(--green);font-weight:600">ירוק=עלומים מכינים</span>, <span style="color:var(--orange);font-weight:600">כתום=אנחנו מכינים</span>.</p>
-  <div id="drop" class="dropzone"><div style="font-size:28px">📄⬇</div><div>גרור לכאן קובץ Excel</div>
+  <div id="drop" class="dropzone"><div style="font-size:28px">📄⬇</div><div>גרור לכאן (או העתק צרופה במייל והדבק כאן Ctrl+V) קובץ Excel</div>
    <div class="muted">או <label class="lnk">בחר קובץ<input type="file" id="file" accept=".xlsx,.xlsm" style="display:none"></label></div>
    <div id="fileinfo" class="muted"></div></div>
   <div id="sheetbar" class="hidden" style="margin-top:10px;font-weight:600;color:var(--brand2)">יום / גיליון: <select id="sheetSel" style="width:auto"></select></div>
@@ -390,6 +390,19 @@ dz.addEventListener('dragleave',ev=>{ev.preventDefault();dz.classList.remove('ov
 dz.addEventListener('drop',ev=>{ev.preventDefault();dz.classList.remove('over');const f=ev.dataTransfer.files[0];if(f)loadFile(f);});
 document.getElementById('file').addEventListener('change',ev=>{const f=ev.target.files[0];if(f)loadFile(f);});
 window.addEventListener('dragover',e=>e.preventDefault()); window.addEventListener('drop',e=>e.preventDefault());
+/* הדבקת קובץ מהמייל (Ctrl+V אחרי העתקת הצרופה ב-Outlook) */
+document.addEventListener('paste', function(ev){
+  try{
+    var files=ev.clipboardData && ev.clipboardData.files;
+    if(files && files.length){
+      var f=null;
+      for(var i=0;i<files.length;i++){ var x=files[i];
+        if(/\.xls[xm]?$/i.test(x.name) || (x.type||'').indexOf('sheet')>=0 || (x.type||'').indexOf('excel')>=0){ f=x; break; } }
+      if(f){ ev.preventDefault(); loadFile(f); }
+    }
+  }catch(e){}
+});
+
 
 const HEB=['א','ב','ג','ד','ה','ו','ש'];
 function tomorrowLetter(){ let t=(new Date().getDay()+1)%7; if(t===5||t===6)t=0; return HEB[t]; } // אין יום שישי: חמישי/שישי/שבת -> ראשון

@@ -524,6 +524,19 @@ const dz=document.getElementById('drop');
 ['dragleave'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('over');}));
 dz.addEventListener('drop',ev=>{ev.preventDefault();dz.classList.remove('over');const f=ev.dataTransfer.files[0];if(f)handleFile(f);});
 document.getElementById('file').addEventListener('change',ev=>{const f=ev.target.files[0];if(f)handleFile(f);});
+/* הדבקת קובץ מהמייל (Ctrl+V אחרי העתקת הצרופה ב-Outlook) */
+document.addEventListener('paste', function(ev){
+  try{
+    var files=ev.clipboardData && ev.clipboardData.files;
+    if(files && files.length){
+      var f=null;
+      for(var i=0;i<files.length;i++){ var x=files[i];
+        if(/\.xls[xm]?$/i.test(x.name) || (x.type||'').indexOf('sheet')>=0 || (x.type||'').indexOf('excel')>=0){ f=x; break; } }
+      if(f){ ev.preventDefault(); handleFile(f); }
+    }
+  }catch(e){}
+});
+
 window.addEventListener('dragover',e=>e.preventDefault());
 window.addEventListener('drop',e=>e.preventDefault());
 
