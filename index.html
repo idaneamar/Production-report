@@ -294,7 +294,8 @@ async function ordSubmit(calc, defDate, lines, summary){
     /* שמירת תמונת התוצאה */
     try{
       const css=[...document.querySelectorAll('style')].map(x=>x.innerHTML).join('\n');
-      const snap='<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>'+calc+' '+date+'</title><style>'+css+'</style></head><body style="padding:16px">'+document.getElementById('out').innerHTML+'</body></html>';
+      const snap='<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>'+calc+' '+date+'</title><style>'+css+'</style></head><body style="padding:16px">'+document.getElementById('out').innerHTML+'<script src="./table-resize.js"></script>
+</body></html>';
       await fetch(ORD_SB+'/storage/v1/object/order-results/'+calc+'/'+date+'.html',{method:'POST',headers:Object.assign({},H,{'Content-Type':'text/html','x-upsert':'true'}),body:new Blob([snap],{type:'text/html'})});
     }catch(e){}
     alert('✔ נרשם למעקב הזמנות: '+lines.length+' שורות בתאריך '+date);

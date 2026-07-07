@@ -114,7 +114,8 @@ const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שיש
 function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function dl(html,name){
-  const h='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+html+'</body></html>';
+  const h='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+html+'<script src="./table-resize.js"></script>
+</body></html>';
   const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click();
 }
