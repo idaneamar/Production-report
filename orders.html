@@ -41,6 +41,42 @@
   .quick{padding:6px 12px;border-radius:20px;font-size:13px;}
   #loader{position:fixed;top:10px;left:10px;background:var(--green);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;display:none;z-index:99;}
   @media print{.tabs,.row,.btn{display:none!important;} body{padding:0;background:#fff;}}
+
+  /* ---- ניתוח חכם ---- */
+  #v-ana table{font-size:14.5px;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+  #v-ana th{background:var(--green-dark);color:#fff;font-size:13.5px;position:sticky;top:0;}
+  #v-ana tbody tr:nth-child(even){background:#f7faf8;}
+  #v-ana tbody tr:hover{background:var(--green-light);}
+  #v-ana td{padding:8px 10px;}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:900px){.two-col{grid-template-columns:1fr;}}
+  .plist{max-height:46vh;overflow:auto;}
+  .prow{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;}
+  .prow:hover{background:var(--green-light);}
+  .prow.sel{background:var(--green);color:#fff;font-weight:700;}
+  .prow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;}
+  .prow .qty{font-weight:800;min-width:64px;text-align:left;}
+  .prow .shareWrap{width:72px;height:8px;background:var(--gray);border-radius:6px;overflow:hidden;flex-shrink:0;}
+  .prow .share{height:100%;background:var(--green);}
+  .prow.sel .share{background:#fff;}
+  .trend{min-width:64px;text-align:left;font-size:12.5px;font-weight:700;}
+  .trend.up{color:var(--green-dark);}
+  .trend.down{color:var(--red);}
+  .trend.na{color:#98a8a0;font-weight:400;}
+  .prow.sel .trend{color:#eaf7ef;}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .kpi2{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 16px;min-width:120px;}
+  .kpi2 .v{font-size:22px;font-weight:800;color:var(--green-dark);}
+  .kpi2 .t{font-size:12px;color:#6b7f74;}
+  .weekbars{display:flex;align-items:flex-end;gap:5px;height:74px;padding:6px 2px 0;}
+  .wb{flex:1;background:var(--green);border-radius:4px 4px 0 0;min-width:10px;position:relative;}
+  .wb span{position:absolute;top:-17px;left:0;right:0;text-align:center;font-size:10.5px;color:#557a66;}
+  .wb i{position:absolute;bottom:-17px;left:0;right:0;text-align:center;font-size:10px;color:#8aa094;font-style:normal;white-space:nowrap;}
+  .selchip{display:inline-flex;align-items:center;gap:6px;background:var(--green);color:#fff;border-radius:16px;padding:4px 12px;font-size:13px;font-weight:700;cursor:pointer;}
+  .exp{cursor:pointer;user-select:none;color:var(--green-dark);font-weight:800;width:22px;display:inline-block;}
+  tr.child td{background:#fbfdfc;color:#3c554a;font-size:13.5px;}
+  tr.child td:first-child{padding-inline-start:34px;}
+
 </style>
 </head>
 <body>
@@ -70,28 +106,44 @@
     <div class="row">
       <button class="btn sec quick" onclick="quickRange(7)">שבוע אחרון</button>
       <button class="btn sec quick" onclick="quickRange(30)">חודש אחרון</button>
-      <button class="btn sec quick" onclick="quickRange(365)">שנה אחרונה</button>
+      <button class="btn sec quick" onclick="quickRange(90)">רבעון</button>
+      <button class="btn sec quick" onclick="quickRange(365)">שנה</button>
       <label>מ- <input type="date" id="aFrom"></label>
       <label>עד <input type="date" id="aTo"></label>
-    </div>
-    <div class="row">
       <select id="aCalc">
         <option value="">שני המחשבונים</option>
-        <option value="packing">מחשבון אריזה</option>
-        <option value="alumim">עלומים</option>
+        <option value="packing">דוח ייצור (אריזה)</option>
+        <option value="alumim">ראן (עלומים)</option>
       </select>
-      <select id="aGroup">
-        <option value="customer">לפי לקוח</option>
-        <option value="product">לפי מוצר</option>
-        <option value="customer_product">לקוח × מוצר</option>
-        <option value="day">לפי יום</option>
-      </select>
-      <input id="aCust" placeholder="סינון לקוח…">
-      <input id="aProd" placeholder="סינון מוצר…">
-      <button class="btn" onclick="runAgg()">הצג</button>
-      <button class="btn sec" onclick="exportAgg()">⬇ ייצוא לאקסל</button>
+      <button class="btn" onclick="loadAna()">הצג</button>
     </div>
-    <div id="anaOut" class="muted">בחר טווח ולחץ "הצג"</div>
+    <p class="muted" style="margin:0">המגמות מחושבות מול התקופה המקבילה שקדמה. לחיצה על לקוח או מוצר מסננת את כל המסך.</p>
+  </div>
+  <div class="kpis" id="anaKpis"></div>
+  <div class="card" id="tlCard" style="display:none">
+    <h2 style="font-size:15px;color:var(--green-dark)">📈 מגמה שבועית <span id="tlFor" class="muted"></span></h2>
+    <div class="weekbars" id="weekBars"></div>
+    <div style="height:16px"></div>
+  </div>
+  <div class="row" id="selRow" style="display:none;margin:0 0 10px 0"></div>
+  <div class="two-col">
+    <div class="card">
+      <h2 style="font-size:15px;color:var(--green-dark)">👥 לקוחות <span class="muted" id="custCount"></span></h2>
+      <input id="custSearch" placeholder="חיפוש לקוח…" style="width:100%;margin:8px 0" oninput="renderPanels()">
+      <div class="plist" id="custPanel"></div>
+    </div>
+    <div class="card">
+      <h2 style="font-size:15px;color:var(--green-dark)">📦 מוצרים <span class="muted" id="prodCount"></span></h2>
+      <input id="prodSearch" placeholder="חיפוש מוצר…" style="width:100%;margin:8px 0" oninput="renderPanels()">
+      <div class="plist" id="prodPanel"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row" style="margin:0 0 10px 0">
+      <h2 style="font-size:15px;color:var(--green-dark);flex:1" id="pivotTitle">🧩 פירוט</h2>
+      <button class="btn sec" onclick="exportPivot()">⬇ ייצוא לאקסל</button>
+    </div>
+    <div style="max-height:64vh;overflow:auto" id="pivotOut"><span class="muted">בחר טווח ולחץ "הצג"</span></div>
   </div>
 </div>
 
@@ -186,58 +238,187 @@ async function openResult(calc, ds){
   } finally { loader.style.display='none'; }
 }
 
-/* ---------- analysis ---------- */
+/* ---------- analysis (smart pivot) ---------- */
 function quickRange(days){
   const to=new Date(), from=new Date(); from.setDate(from.getDate()-days+1);
   document.getElementById('aFrom').value=iso(from);
   document.getElementById('aTo').value=iso(to);
-  runAgg();
+  loadAna();
 }
-let AGG=[];
-async function runAgg(){
+let RAW=[], PREVMAP={cust:{},prod:{}}, SEL={cust:null,prod:null};
+function fmtQ(n){ n=Math.round(n*10)/10; return n>=10000? (Math.round(n/100)/10)+'K' : (''+n); }
+async function rpcAgg(from,to,group,cust,prod){
+  return sb('/rest/v1/rpc/orders_agg',{method:'POST',body:JSON.stringify({
+    p_from:from,p_to:to,p_group:group,
+    p_calc:document.getElementById('aCalc').value||null,
+    p_customer:cust||null,p_product:prod||null})});
+}
+function splitK(k){ const ix=k.indexOf(' × '); return ix<0?[k,'']:[k.slice(0,ix),k.slice(ix+3)]; }
+async function loadAna(){
   const from=document.getElementById('aFrom').value, to=document.getElementById('aTo').value;
   if(!from||!to){ alert('בחר טווח תאריכים'); return; }
-  const body={p_from:from, p_to:to,
-    p_calc:document.getElementById('aCalc').value||null,
-    p_customer:document.getElementById('aCust').value.trim()||null,
-    p_product:document.getElementById('aProd').value.trim()||null,
-    p_group:document.getElementById('aGroup').value};
-  let rows;
-  try{ rows=await sb('/rest/v1/rpc/orders_agg',{method:'POST',body:JSON.stringify(body)}); }
-  catch(e){ document.getElementById('anaOut').textContent='שגיאה: '+e.message; return; }
-  /* pivot: key -> {unit: total, lines, days} */
-  const units=[...new Set(rows.map(r=>r.unit))].sort();
-  const by={};
-  rows.forEach(r=>{ const o=by[r.k1]||(by[r.k1]={units:{},lines:0,days:0});
-    o.units[r.unit]=(o.units[r.unit]||0)+Number(r.total||0); o.lines+=Number(r.lines); o.days=Math.max(o.days,Number(r.days)); });
-  AGG={units,by,group:body.p_group};
-  const keys=Object.keys(by).sort((a,b)=>{
-    const ta=units.reduce((s,u)=>s+(by[a].units[u]||0),0), tb=units.reduce((s,u)=>s+(by[b].units[u]||0),0);
-    return tb-ta;
-  });
-  const GRP={customer:'לקוח',product:'מוצר',customer_product:'לקוח × מוצר',day:'יום'};
-  let h='<table><tr><th>'+GRP[body.p_group]+'</th>';
-  units.forEach(u=>h+='<th>'+esc(u||'—')+'</th>');
-  h+='<th>שורות</th><th>ימים</th></tr>';
-  if(!keys.length) h+='<tr><td colspan="'+(units.length+3)+'" class="muted">אין נתונים בטווח/סינון</td></tr>';
-  const tot={};
-  keys.forEach(k=>{
-    h+='<tr><td><b>'+esc(k)+'</b></td>';
-    units.forEach(u=>{ const v=by[k].units[u]||0; tot[u]=(tot[u]||0)+v; h+='<td>'+(v?Math.round(v*10)/10:'·')+'</td>'; });
-    h+='<td>'+by[k].lines+'</td><td>'+by[k].days+'</td></tr>';
-  });
-  if(keys.length){
-    h+='<tr style="background:var(--green-light);font-weight:700"><td>סה"כ</td>';
-    units.forEach(u=>h+='<td>'+(Math.round((tot[u]||0)*10)/10)+'</td>');
-    h+='<td></td><td></td></tr>';
-  }
-  h+='</table><p class="muted" style="margin-top:8px">'+keys.length+' שורות · '+from+' עד '+to+'</p>';
-  document.getElementById('anaOut').innerHTML='<div style="max-height:62vh;overflow:auto">'+h+'</div>';
+  SEL={cust:null,prod:null};
+  const d1=new Date(from+'T00:00:00'), d2=new Date(to+'T00:00:00');
+  const span=Math.round((d2-d1)/86400000)+1;
+  const pTo=new Date(d1); pTo.setDate(pTo.getDate()-1);
+  const pFrom=new Date(pTo); pFrom.setDate(pFrom.getDate()-span+1);
+  try{
+    const cur=await rpcAgg(from,to,'customer_product');
+    const prev=await rpcAgg(iso(pFrom),iso(pTo),'customer_product');
+    RAW=cur.map(r=>{ const cp=splitK(r.k1); return {cust:cp[0],prod:cp[1],unit:r.unit||'',total:Number(r.total)||0,lines:Number(r.lines)||0,days:Number(r.days)||0}; });
+    PREVMAP={cust:{},prod:{}};
+    prev.forEach(r=>{ const cp=splitK(r.k1); const t=Number(r.total)||0;
+      PREVMAP.cust[cp[0]]=(PREVMAP.cust[cp[0]]||0)+t; PREVMAP.prod[cp[1]]=(PREVMAP.prod[cp[1]]||0)+t; });
+    renderAll(); loadTimeline();
+  }catch(e){ document.getElementById('pivotOut').innerHTML='<span class="muted">'+esc(e.message)+'</span>'; }
 }
-function exportAgg(){
-  const el=document.getElementById('anaOut');
-  if(!el.querySelector('table')){ alert('קודם הצג נתונים'); return; }
-  dl(el.innerHTML,'ניתוח_הזמנות_'+document.getElementById('aFrom').value+'_'+document.getElementById('aTo').value+'.xls');
+function rowsFiltered(){
+  return RAW.filter(r=>(!SEL.cust||r.cust===SEL.cust)&&(!SEL.prod||r.prod===SEL.prod));
+}
+function aggBy(rows,key){
+  const m={};
+  rows.forEach(r=>{ const k=r[key];
+    const o=m[k]||(m[k]={total:0,units:{},lines:0,days:0});
+    o.total+=r.total; o.units[r.unit]=(o.units[r.unit]||0)+r.total; o.lines+=r.lines; o.days=Math.max(o.days,r.days); });
+  return m;
+}
+function trendHtml(cur,prevTot){
+  if(!prevTot) return '<span class="trend na">חדש</span>';
+  const pct=Math.round((cur-prevTot)/prevTot*100);
+  if(pct===0) return '<span class="trend na">0%</span>';
+  return pct>0? '<span class="trend up">▲ '+pct+'%</span>' : '<span class="trend down">▼ '+Math.abs(pct)+'%</span>';
+}
+function renderAll(){ renderKpis(); renderSelChips(); renderPanels(); renderPivot(); }
+function renderKpis(){
+  const rows=rowsFiltered();
+  const custs=new Set(rows.map(r=>r.cust)), prods=new Set(rows.map(r=>r.prod));
+  const tot=rows.reduce((a,r)=>a+r.total,0);
+  let prevTot=0;
+  if(SEL.cust) prevTot=PREVMAP.cust[SEL.cust]||0;
+  else if(SEL.prod) prevTot=PREVMAP.prod[SEL.prod]||0;
+  else{ for(const k in PREVMAP.cust) prevTot+=PREVMAP.cust[k]; }
+  document.getElementById('anaKpis').innerHTML=
+    '<div class="kpi2"><div class="v">'+fmtQ(tot)+'</div><div class="t">סה"כ כמות</div></div>'
+   +'<div class="kpi2"><div class="v">'+custs.size+'</div><div class="t">לקוחות</div></div>'
+   +'<div class="kpi2"><div class="v">'+prods.size+'</div><div class="t">מוצרים</div></div>'
+   +'<div class="kpi2"><div class="v">'+(prevTot?trendHtml(tot,prevTot):'—')+'</div><div class="t">מול תקופה קודמת</div></div>';
+}
+function renderSelChips(){
+  const el=document.getElementById('selRow');
+  let h='';
+  if(SEL.cust) h+='<span class="selchip" onclick="clearSel(\'cust\')">👥 '+esc(SEL.cust)+' ✕</span>';
+  if(SEL.prod) h+='<span class="selchip" onclick="clearSel(\'prod\')">📦 '+esc(SEL.prod)+' ✕</span>';
+  el.innerHTML=h; el.style.display=h?'flex':'none';
+}
+function clearSel(k){ SEL[k]=null; renderAll(); loadTimeline(); }
+function pick(k,name){
+  SEL[k]=(SEL[k]===name?null:name);
+  renderAll(); loadTimeline();
+}
+function panelHtml(map, key, prevmap, search){
+  const entries=Object.entries(map).filter(function(e){return !search||e[0].includes(search);});
+  entries.sort(function(a,b){return b[1].total-a[1].total;});
+  const max=entries.length?entries[0][1].total:1;
+  let h='';
+  entries.forEach(function(e){
+    const name=e[0], o=e[1];
+    const selCls=(SEL[key]===name)?' sel':'';
+    h+='<div class="prow'+selCls+'" onclick="pick(\''+key+'\',decodeURIComponent(\''+encodeURIComponent(name)+'\'))">'
+      +'<span class="nm" title="'+esc(name)+'">'+esc(name)+'</span>'
+      +trendHtml(o.total, prevmap[name]||0)
+      +'<span class="shareWrap"><span class="share" style="width:'+Math.max(3,Math.round(o.total/max*100))+'%"></span></span>'
+      +'<span class="qty">'+fmtQ(o.total)+'</span>'
+      +'</div>';
+  });
+  return {html:h||'<span class="muted">אין נתונים</span>', n:entries.length};
+}
+function renderPanels(){
+  const custRows=RAW.filter(r=>!SEL.prod||r.prod===SEL.prod);
+  const prodRows=RAW.filter(r=>!SEL.cust||r.cust===SEL.cust);
+  const c=panelHtml(aggBy(custRows,'cust'),'cust',PREVMAP.cust,document.getElementById('custSearch').value.trim());
+  const p=panelHtml(aggBy(prodRows,'prod'),'prod',PREVMAP.prod,document.getElementById('prodSearch').value.trim());
+  document.getElementById('custPanel').innerHTML=c.html;
+  document.getElementById('prodPanel').innerHTML=p.html;
+  document.getElementById('custCount').textContent='('+c.n+')';
+  document.getElementById('prodCount').textContent='('+p.n+')';
+}
+let PIVOT=[];
+function renderPivot(){
+  const rows=rowsFiltered();
+  const units=[...new Set(rows.map(r=>r.unit))].sort();
+  const mainKey=SEL.cust?'prod':'cust', subKey=SEL.cust?'cust':'prod';
+  const main=aggBy(rows,mainKey);
+  const title=SEL.cust?'🧩 המוצרים של '+SEL.cust : SEL.prod?'🧩 הלקוחות של '+SEL.prod : '🧩 לקוחות ← מוצרים (לחץ ▸ לפתיחה)';
+  document.getElementById('pivotTitle').textContent=title;
+  const keys=Object.keys(main).sort(function(a,b){return main[b].total-main[a].total;});
+  PIVOT=[];
+  let h='<table><thead><tr><th style="min-width:190px">'+(mainKey==='cust'?'לקוח':'מוצר')+'</th>';
+  units.forEach(u=>h+='<th>'+esc(u||'—')+'</th>');
+  h+='<th>מגמה</th><th>שורות</th><th>ימים</th></tr></thead><tbody>';
+  const showChildren=!SEL.cust&&!SEL.prod;
+  keys.forEach(function(k,ix){
+    const o=main[k];
+    const prevm=mainKey==='cust'?PREVMAP.cust:PREVMAP.prod;
+    PIVOT.push(Object.assign({name:k,level:0},o));
+    h+='<tr><td>'+(showChildren?'<span class="exp" onclick="togglePv(this,'+ix+')">▸</span>':'')+'<b>'+esc(k)+'</b></td>';
+    units.forEach(u=>h+='<td><b>'+(o.units[u]?fmtQ(o.units[u]):'·')+'</b></td>');
+    h+='<td>'+trendHtml(o.total,prevm[k]||0)+'</td><td>'+o.lines+'</td><td>'+o.days+'</td></tr>';
+    if(showChildren){
+      const subs=aggBy(rows.filter(r=>r[mainKey]===k),subKey);
+      const sk=Object.keys(subs).sort(function(a,b){return subs[b].total-subs[a].total;});
+      sk.forEach(function(sname){
+        const so=subs[sname];
+        PIVOT.push(Object.assign({name:k+' ← '+sname,level:1},so));
+        h+='<tr class="child pv-c-'+ix+'" style="display:none"><td>'+esc(sname)+'</td>';
+        units.forEach(u=>h+='<td>'+(so.units[u]?fmtQ(so.units[u]):'·')+'</td>');
+        h+='<td></td><td>'+so.lines+'</td><td>'+so.days+'</td></tr>';
+      });
+    }
+  });
+  h+='</tbody></table>';
+  document.getElementById('pivotOut').innerHTML=keys.length?h:'<span class="muted">אין נתונים בטווח/בחירה</span>';
+}
+function togglePv(el,ix){
+  const open=el.textContent==='▸';
+  el.textContent=open?'▾':'▸';
+  document.querySelectorAll('.pv-c-'+ix).forEach(tr=>tr.style.display=open?'':'none');
+}
+async function loadTimeline(){
+  const from=document.getElementById('aFrom').value, to=document.getElementById('aTo').value;
+  if(!from||!to) return;
+  try{
+    const rows=await rpcAgg(from,to,'day',SEL.cust,SEL.prod);
+    const byDay={}; rows.forEach(r=>{byDay[r.k1]=(byDay[r.k1]||0)+Number(r.total||0);});
+    const weeks={};
+    Object.keys(byDay).forEach(function(ds){
+      const d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()-d.getDay());
+      const wk=iso(d); weeks[wk]=(weeks[wk]||0)+byDay[ds];
+    });
+    const wkeys=Object.keys(weeks).sort();
+    const card=document.getElementById('tlCard');
+    if(wkeys.length<2){ card.style.display='none'; return; }
+    card.style.display='block';
+    document.getElementById('tlFor').textContent=SEL.cust?('— '+SEL.cust):(SEL.prod?('— '+SEL.prod):'— הכל');
+    let max=0; wkeys.forEach(k=>{if(weeks[k]>max)max=weeks[k];});
+    document.getElementById('weekBars').innerHTML=wkeys.map(function(k){
+      const v=weeks[k];
+      return '<div class="wb" style="height:'+Math.max(6,Math.round(v/max*100))+'%"><span>'+fmtQ(v)+'</span><i>'+heDate(k)+'</i></div>';
+    }).join('');
+  }catch(e){}
+}
+function exportPivot(){
+  if(!PIVOT.length){ alert('אין נתונים להצגה'); return; }
+  const rows=rowsFiltered();
+  const units=[...new Set(rows.map(r=>r.unit))].sort();
+  let h='<table border="1"><tr><th>שם</th>';
+  units.forEach(u=>h+='<th>'+esc(u||'ללא יחידה')+'</th>');
+  h+='<th>סה"כ</th><th>שורות</th><th>ימים</th></tr>';
+  PIVOT.forEach(function(p){
+    h+='<tr><td>'+esc(p.name)+'</td>';
+    units.forEach(u=>h+='<td>'+(p.units[u]?Math.round(p.units[u]*10)/10:'')+'</td>');
+    h+='<td>'+Math.round(p.total*10)/10+'</td><td>'+p.lines+'</td><td>'+p.days+'</td></tr>';
+  });
+  dl(h+'</table>','ניתוח_הזמנות_'+document.getElementById('aFrom').value+'_'+document.getElementById('aTo').value+'.xls');
 }
 
 /* ---------- init ---------- */
