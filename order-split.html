@@ -62,7 +62,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 .pgbreak{page-break-before:always}}
 </style></head>
 <body>
-<header><h1>חלוקת הזמנות — עלומים / טרי לי</h1><span style="font-size:11px;opacity:.7"> ק-3</span>
+<header><h1>חלוקת הזמנות — עלומים / טרי לי</h1><span style="font-size:11px;opacity:.7"> ק-4</span>
 <div class="sub">קורא את הדוח היומי (כולל צבעים) ומפיק: מה להכין, מה לקבל מעלומים, מה לשלוח — ומאזן ארגזים</div></header>
 <div class="tabs">
 <button class="active" onclick="tab('proc',this)">עיבוד יומי</button>
@@ -374,7 +374,14 @@ function loadLedger(){ try{const s=localStorage.getItem('alumim_ledger'); if(s)r
 function saveLedger(){ const o=document.getElementById('opening'); if(o)LEDGER.opening=parseFloat(o.value)||0; try{localStorage.setItem('alumim_ledger',JSON.stringify(LEDGER));}catch(e){} }
 
 // הגדרות מרכזיות מהשרת (כשמתארח)
-(async function(){ try{ const r=await fetch('settings2.json?_='+Date.now(),{cache:'no-store'}); if(!r.ok)return; const j=await r.json(); if(j&&j.our_regions){ S=Object.assign({},DEFAULTS,j); renderSet(); } }catch(e){} })();
+(async function(){ try{ const r=await fetch('settings2.json?_='+Date.now(),{cache:'no-store'}); if(!r.ok)return; const j=await r.json(); if(j&&j.our_regions){
+  const keepSummer=!!S.summer_mode; /* מתג הקיץ הוא הגדרה מקומית — לא נדרס ע"י ההגדרות המרכזיות */
+  S=Object.assign({},DEFAULTS,j);
+  S.summer_mode=keepSummer;
+  renderSet();
+  try{ const c=document.getElementById('summerChk'); if(c) c.checked=keepSummer; applySummerUI(keepSummer); }catch(e){}
+  if(LAST&&LAST.sheet) runSheet(LAST.sheet);
+} }catch(e){} })();
 
 /* ---------- סנכרון Google Sheet משותף (JSONP) ---------- */
 function jsonp(url){ return new Promise((res,rej)=>{ const cb='cb_'+Math.random().toString(36).slice(2); const s=document.createElement('script'); let done=false;
