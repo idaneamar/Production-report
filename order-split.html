@@ -414,6 +414,31 @@ function applySummerUI(v){
 }
 function toggleSummer(v){ S.summer_mode=!!v; saveSetLS(); applySummerUI(v); if(LAST&&LAST.sheet) runSheet(LAST.sheet); }
 setTimeout(function(){ try{ var c=document.getElementById('summerChk'); c.checked=!!S.summer_mode; applySummerUI(!!S.summer_mode); }catch(e){} },0);
+/* ---------- טעינה אוטומטית של הראן האחרון מהמייל ---------- */
+(async function autoLoadFromInbox(){
+  try{
+    let sess=null; try{sess=JSON.parse(localStorage.getItem('trelee_session'));}catch(e){}
+    if(!sess) return;
+    const SBU='https://dddczmvjfokcbibeahyn.supabase.co';
+    const K='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+    const h={'apikey':K,'Authorization':'Bearer '+sess.access_token,'Content-Type':'application/json'};
+    const r=await fetch(SBU+'/rest/v1/report_inbox?select=id,filename,storage_path,created_at&matched_calc=eq.order-split&storage_path=not.is.null&order=created_at.desc&limit=1',{headers:h});
+    if(!r.ok) return;
+    const rows=await r.json(); if(!rows.length) return;
+    const it=rows[0];
+    const sr=await fetch(SBU+'/storage/v1/object/sign/inbox/'+it.storage_path.split('/').map(encodeURIComponent).join('/'),{method:'POST',headers:h,body:JSON.stringify({expiresIn:600})});
+    if(!sr.ok) return;
+    const sd=await sr.json();
+    const fr=await fetch(SBU+'/storage/v1'+sd.signedURL);
+    if(!fr.ok) return;
+    const blob=await fr.blob();
+    if(WB) return; /* אם המשתמש כבר טען קובץ ידנית — לא דורסים */
+    await loadFile(new File([blob], it.filename||'ראן.xlsx'));
+    const info=document.getElementById('fileinfo');
+    const d=new Date(it.created_at);
+    if(info) info.textContent='📧 נטען אוטומטית מהמייל: '+(it.filename||'')+' (התקבל '+d.getDate()+'.'+(d.getMonth()+1)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+')';
+  }catch(e){}
+})();
 
 /* ---------- תצוגה ---------- */
 function fmt(n){ return (Math.round((+n||0)*100)/100).toLocaleString('he-IL'); }
