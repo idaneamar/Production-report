@@ -236,8 +236,7 @@ function exportXls(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head>
     stops.forEach(s=>{pal+=s.pallets; h+='<tr><td>'+sh+'</td><td>'+d.name+'</td><td>'+(t?t.id:(d.contractor?'שלו':''))+'</td><td>'+(run.checkin||'')+'</td><td>'+s.name+'</td><td>'+s.pallets+'</td><td>'+(s.cartons||'')+'</td><td>'+(s.cust&&s.cust.note||'')+'</td></tr>'; });
     if(stops.length) h+='<tr><td colspan="5"><b>סה"כ '+d.name+' ('+sh+')</b></td><td><b>'+pal+'</b></td><td colspan="2"></td></tr>';
   }); });
-  h+='</table><script src="./table-resize.js"></script>
-</body></html>'; const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
+  h+='</table></body></html>'; const b=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='סידור נהגים.xls'; a.click();
 }
 
@@ -391,4 +390,5 @@ function tab(id,btn){ ['plan','fleet','cust','help'].forEach(x=>document.getElem
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
   if(id==='fleet')renderFleet(); if(id==='cust')renderCustSet(); }
 renderFleet(); renderCustSet();
-</script></body></html>
+</script><script src="./table-resize.js"></script>
+</body></html>
