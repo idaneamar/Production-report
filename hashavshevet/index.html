@@ -52,8 +52,13 @@ hidden,[hidden]{display:none!important}
  </div>
  <div class="card" id="custCard" hidden>
   <h2>2. לקוחות שזוהו — סוג מסמך לכל אחד</h2>
-  <p class="muted">סמן לכל לקוח: תעודת משלוח, חשבונית, או שניהם. לקוח בלי מספר חשבון לא ייכלל (השלם ב"מיפוי לקוחות").</p>
+  <p class="muted">סמן לכל לקוח: תעודת משלוח, חשבונית, או שניהם. לקוח בלי מספר חשבון לא ייכלל — אפשר להשלים או לערוך את מספר החשבון כאן, וזה נשמר במיפוי לתמיד.</p>
   <div id="custList"></div>
+ </div>
+ <div class="card" id="itemsQuickCard" hidden>
+  <h2>2.5 מק"טים לפריטים שזוהו</h2>
+  <p class="muted">אפשר להשלים או לתקן מק"ט לכל פריט — נשמר במיפוי לתמיד וחל מיד על כל השורות למטה.</p>
+  <div id="itemsQuickList"></div>
  </div>
  <div class="card" id="prevCard" hidden>
   <h2>3. תצוגת עריכה — כל השורות</h2>
@@ -239,12 +244,45 @@ let DOCTYPE={}; // custName -> 'D'|'I'|'B'
 function renderCustChoices(detected){ const card=document.getElementById('custCard'); card.hidden=false;
  let h='<table><thead><tr><th>לקוח (בדוח)</th><th>מספר חשבון</th><th>סוג מסמך</th></tr></thead><tbody>';
  Object.keys(detected).forEach(name=>{ const acct=detected[name]; if(!(name in DOCTYPE))DOCTYPE[name]='D';
-   h+='<tr><td>'+esc(name)+'</td><td>'+(acct?esc(acct):'<span style="color:#b45309">חסר!</span>')+'</td>'+
+   const accInp='<input style="width:90px'+(acct?'':';border-color:#b45309;background:#fff7ed')+'" value="'+esc(acct||'')+'" placeholder="חסר!" onchange="setAcct(decodeURIComponent(\''+encodeURIComponent(name)+'\'),this.value)">';
+   h+='<tr><td>'+esc(name)+'</td><td>'+accInp+'</td>'+
      '<td><select onchange="DOCTYPE[\''+esc(name).replace(/'/g,"")+'\']=this.value;buildPreview()">'+
      '<option value="D"'+(DOCTYPE[name]==='D'?' selected':'')+'>תעודת משלוח</option>'+
      '<option value="I"'+(DOCTYPE[name]==='I'?' selected':'')+'>חשבונית</option>'+
      '<option value="B"'+(DOCTYPE[name]==='B'?' selected':'')+'>שניהם</option></select></td></tr>'; });
  h+='</tbody></table>'; document.getElementById('custList').innerHTML=h;
+ renderItemsQuick();
+}
+function persistDB(){ try{localStorage.setItem('hashSettings',JSON.stringify(DB));}catch(e){} try{renderCustMap();renderItemMap();}catch(e){} }
+function setAcct(name,val){
+  val=val.trim();
+  DB.cust_map[name]=val;
+  persistDB();
+  LINES.forEach(l=>{ if(l.custName===name) l.acct=val; });
+  buildPreview();
+}
+function renderItemsQuick(){
+  const card=document.getElementById('itemsQuickCard'); if(!card) return;
+  const seen={}; LINES.forEach(l=>{ const key=l.prod+'|'+(l.badatz?'b':'p'); if(!seen[key]) seen[key]={prod:l.prod,badatz:!!l.badatz,mkt:l.mkt||''}; });
+  const items=Object.values(seen);
+  if(!items.length){ card.hidden=true; return; }
+  card.hidden=false;
+  let h='<table><thead><tr><th>פריט (בדוח)</th><th>סוג</th><th>מק"ט</th></tr></thead><tbody>';
+  items.forEach(it=>{
+    const miss=!it.mkt;
+    h+='<tr'+(it.badatz?' class="badatz"':'')+'><td>'+esc(it.prod)+'</td><td>'+(it.badatz?'בד"ץ':'רגיל')+'</td>'
+     +'<td><input style="width:90px'+(miss?';border-color:#b45309;background:#fff7ed':'')+'" value="'+esc(it.mkt)+'" placeholder="חסר!" '
+     +'onchange="setMkt(decodeURIComponent(\''+encodeURIComponent(it.prod)+'\'),'+(it.badatz?'true':'false')+',this.value)"></td></tr>';
+  });
+  document.getElementById('itemsQuickList').innerHTML=h+'</tbody></table>';
+}
+function setMkt(prod,badatz,val){
+  val=val.trim();
+  if(!DB.item_variants[prod]) DB.item_variants[prod]={badatz:'',pl:''};
+  DB.item_variants[prod][badatz?'badatz':'pl']=val;
+  persistDB();
+  LINES.forEach(l=>{ if(l.prod===prod && !!l.badatz===badatz) l.mkt=val; });
+  buildPreview();
 }
 
 // ---------- editable preview ----------
