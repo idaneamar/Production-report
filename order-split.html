@@ -233,7 +233,25 @@ function process(ws, S) {
   const hr = detectHeader(ws);
   const { regionCol, nameCol, addrCol, products } = getColumns(ws, hr, S);
   const isOurs = reg => has(reg, S.our_regions);
-  const producerOf = argb => S.green_colors.includes(argb) ? "alumim" : S.orange_colors.includes(argb) ? "us" : "unknown";
+  const producerOf = argb => {
+    if (S.green_colors.includes(argb)) return "alumim";
+    if (S.orange_colors.includes(argb)) return "us";
+    // זיהוי לפי גוון: כל כתום/כתמתם=שלנו, כל ירוק/ירקרק=עלומים (עמיד לגוונים דומים)
+    if (/^[0-9A-F]{8}$/.test(argb || "")) {
+      const r = parseInt(argb.slice(2, 4), 16), g = parseInt(argb.slice(4, 6), 16), b = parseInt(argb.slice(6, 8), 16);
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      if (max - min >= 24 && max > 90) { // לא אפור/לבן/שחור
+        let h;
+        if (max === r) h = 60 * (((g - b) / (max - min)) % 6);
+        else if (max === g) h = 60 * ((b - r) / (max - min) + 2);
+        else h = 60 * ((r - g) / (max - min) + 4);
+        if (h < 0) h += 360;
+        if (h >= 10 && h < 58) return "us";      // כתומים
+        if (h >= 70 && h <= 170) return "alumim"; // ירוקים
+      }
+    }
+    return "unknown";
+  };
 
   const buckets = { prepare: {}, receive: {}, send: {} }; // region -> {custKey -> {name,addr,region,items:[]}}
   const flags = []; let boxesOut = 0, boxesIn = 0, cartonsIn = 0, cartonsOut = 0, fruitCartons = 0, fruitPallets = 0;
