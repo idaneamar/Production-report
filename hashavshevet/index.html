@@ -335,8 +335,11 @@ function genFiles(){ if(!ROWS.length){alert('אין שורות');return;}
  let prm=[String(RECLEN)];
  for(let f=2;f<=87;f++){ const u=used[f]; prm.push(u?(u[0]+'  '+u[1]):'0  0'); }
  const prmTxt=prm.join('\r\n')+'\r\n';
- dl(docTxt,'IMOVEIN.DOC'); setTimeout(()=>dl(prmTxt,'IMOVEIN.PRM'),300);
- let m='<div class="okbox">נוצרו IMOVEIN.DOC ('+lines.length+' שורות) ו-IMOVEIN.PRM.</div>';
+ window.GEN_DOC=docTxt; window.GEN_PRM=prmTxt;
+ let m='<div class="okbox">הקבצים מוכנים ('+lines.length+' שורות) — הורד את שניהם:</div>'
+  +'<div class="row" style="display:flex;gap:8px;margin-top:8px">'
+  +'<button class="btn" onclick="dl(window.GEN_DOC,\'IMOVEIN.DOC\')">⬇ הורד IMOVEIN.DOC</button>'
+  +'<button class="btn" onclick="dl(window.GEN_PRM,\'IMOVEIN.PRM\')">⬇ הורד IMOVEIN.PRM</button></div>';
  if(bad.length) m+='<div class="warnbox">'+bad.length+' שורות דולגו (חסר חשבון/מק"ט/כמות) — תקן בטבלה אם צריך.</div>';
  document.getElementById('genMsg').innerHTML=m;
 }
