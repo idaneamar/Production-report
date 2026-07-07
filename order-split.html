@@ -262,12 +262,12 @@ function process(ws, S) {
       if (!qty || qty <= 0) continue;
       if (p.isDirect) continue; // עלומים שולח ישיר ללקוח — לא באחריותנו
       const prod = p.fromAlumim ? "alumim" : producerOf(fillARGB(cell)); // עמודת "מעלומים" = תמיד עלומים
-      if (prod === "unknown") { flags.push({ region, name, product: p.header, qty }); continue; }
       if (S.summer_mode) {
-        // מצב קיץ: אין מעבר סחורה — כתום=אנחנו מכינים ומוציאים (כל האזורים), ירוק=עלומים בלבד
-        if (prod === "us") add("prepare", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
+        // מצב קיץ: ירוק=עלומים בלבד; כל השאר (כתום או ללא צבע) = אנחנו מכינים ומוציאים
+        if (prod !== "alumim") add("prepare", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
         continue;
       }
+      if (prod === "unknown") { flags.push({ region, name, product: p.header, qty }); continue; }
       if (ours && prod === "us") add("prepare", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
       else if (ours && prod === "alumim") {
         add("receive", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
