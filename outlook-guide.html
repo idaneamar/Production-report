@@ -26,7 +26,7 @@
   <li>בענף If yes: הוסף <b>Apply to each</b> על Attachments, ובתוכו פעולה <b>HTTP</b>:
     <div class="box">
       Method: <code>POST</code><br>
-      URI: <code>https://dddczmvjfokcbibeahyn.supabase.co/functions/v1/report-inbox</code><br>
+      URI: <code>https://knqnuvoprtuqyrvzqffj.supabase.co/functions/v1/report-inbox</code><br>
       Headers: <code>x-inbox-secret</code> = הסוד שיצרת בלשונית ניהול · <code>Content-Type</code> = <code>application/json</code><br>
       Body:<br>
       <code>{ "subject": @{triggerOutputs()?['body/subject']}, "sender": @{triggerOutputs()?['body/from']}, "filename": @{items('Apply_to_each')?['name']}, "contentBase64": @{items('Apply_to_each')?['contentBytes']} }</code>
@@ -57,7 +57,7 @@
   <li>הוסף פעולה <b>HTTP</b>:
     <div class="box">
       Method: <code>GET</code><br>
-      URI: <code>https://dddczmvjfokcbibeahyn.supabase.co/functions/v1/export-backup</code><br>
+      URI: <code>https://knqnuvoprtuqyrvzqffj.supabase.co/functions/v1/export-backup</code><br>
       Headers: <code>x-inbox-secret</code> = אותו סוד מהזרימה הנכנסת
     </div>
   </li>

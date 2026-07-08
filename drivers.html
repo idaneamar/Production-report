@@ -241,8 +241,8 @@ function exportXls(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head>
 }
 
 /* ---------- מעקב נהגים (ענן) ---------- */
-const TRK_URL='https://dddczmvjfokcbibeahyn.supabase.co/rest/v1/driver_log';
-const TRK_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+const TRK_URL='https://knqnuvoprtuqyrvzqffj.supabase.co/rest/v1/driver_log';
+const TRK_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtucW51dm9wcnR1cXlydnpxZmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTM5MjEsImV4cCI6MjA5OTA4OTkyMX0.sVyNLQ7JDePgui-ATMOPbqu2Dabnn4fJIjL4ccrLEXw';
 function trackingRows(){
   const rows=[]; const drs=activeDrivers();
   SHIFTS.forEach(sh=>{ drs.forEach(d=>{

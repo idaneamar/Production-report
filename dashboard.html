@@ -32,8 +32,8 @@
   <div id="todayTrips" class="muted">טוען…</div>
 </div>
 <script>
-const SB='https://dddczmvjfokcbibeahyn.supabase.co';
-const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+const SB='https://knqnuvoprtuqyrvzqffj.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtucW51dm9wcnR1cXlydnpxZmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTM5MjEsImV4cCI6MjA5OTA4OTkyMX0.sVyNLQ7JDePgui-ATMOPbqu2Dabnn4fJIjL4ccrLEXw';
 function session(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
 function hdrs(){ const s=session(); return {'apikey':ANON,'Authorization':'Bearer '+(s?s.access_token:ANON)}; }
 async function q(path){ const r=await fetch(SB+path,{headers:hdrs()}); if(!r.ok) throw new Error(r.status); return r.json(); }

@@ -1,7 +1,7 @@
 /* טרי לי — סנכרון הגדרות לענן. נטען כסקריפט ראשון בכל מחשבון. */
 (function(){
-  var SB='https://dddczmvjfokcbibeahyn.supabase.co';
-  var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkZGN6bXZqZm9rY2JpYmVhaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMyNjE2NzUsImV4cCI6MjA5ODgzNzY3NX0.tGF5v0FbKMma_FLNMAMBYzOzh6oak-g4HW_Gt0hRmXE';
+  var SB='https://knqnuvoprtuqyrvzqffj.supabase.co';
+  var ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtucW51dm9wcnR1cXlydnpxZmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTM5MjEsImV4cCI6MjA5OTA4OTkyMX0.sVyNLQ7JDePgui-ATMOPbqu2Dabnn4fJIjL4ccrLEXw';
   var MAP={'trili_settings':'packing','alumim_set':'order-split','alumim_ledger':'order-split','alumim_fruit':'order-split','drv_set':'drivers','hashSettings':'hashav'};
   function session(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
   function hdrs(){ var s=session(); return {'apikey':ANON,'Authorization':'Bearer '+(s?s.access_token:ANON),'Content-Type':'application/json'}; }
