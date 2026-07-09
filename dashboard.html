@@ -47,16 +47,16 @@ function kpi(t,v,s,warn){ return '<div class="kpi'+(warn?' warn':'')+'"><div cla
   const K=document.getElementById('kpis');
   let html='';
   try{
-    const trips=await q('/rest/v1/driver_log?select=*&log_date=eq.'+today);
+    const trips=await q('/rest/v1/driver_log?select=*&cancelled=is.false&log_date=eq.'+today);
     const drivers=[...new Set(trips.map(r=>r.driver))];
     const pallets=trips.reduce((a,r)=>a+(Number(r.pallets)||0),0);
     html+=kpi('נסיעות היום', trips.length, drivers.length? drivers.length+' נהגים: '+drivers.join(', '):'עוד לא נרשם סידור להיום', !trips.length);
     html+=kpi('משטחים היום', pallets, '');
     /* month coverage */
     const first=iso(new Date(n.getFullYear(),n.getMonth(),1));
-    const monthRows=await q('/rest/v1/driver_log?select=log_date&log_date=gte.'+first+'&log_date=lte.'+today);
+    const monthRows=await q('/rest/v1/driver_log?select=log_date&cancelled=is.false&log_date=gte.'+first+'&log_date=lte.'+today);
     const have=new Set(monthRows.map(r=>r.log_date));
-    const fr=await q('/rest/v1/driver_log?select=log_date&order=log_date.asc&limit=1');
+    const fr=await q('/rest/v1/driver_log?select=log_date&cancelled=is.false&order=log_date.asc&limit=1');
     const firstEver=fr.length?fr[0].log_date:null;
     let missing=0;
     if(firstEver){
@@ -67,7 +67,7 @@ function kpi(t,v,s,warn){ return '<div class="kpi'+(warn?' warn':'')+'"><div cla
     }
     html+=kpi('ימים חסרים החודש', missing, missing?'פתח מעקב נהגים ← לוח כיסוי':'הכל מלא ✔', missing>0);
     /* places */
-    const allPlaces=[...new Set((await q('/rest/v1/driver_log?select=place')).map(r=>r.place))];
+    const allPlaces=[...new Set((await q('/rest/v1/driver_log?select=place&cancelled=is.false')).map(r=>r.place))];
     const classified=new Set((await q('/rest/v1/places?select=place')).map(r=>r.place));
     const unk=allPlaces.filter(p=>!classified.has(p)).length;
     html+=kpi('מקומות לא מסווגים', unk, unk?'מעקב נהגים ← מקומות':'✔', unk>0);
@@ -79,7 +79,7 @@ function kpi(t,v,s,warn){ return '<div class="kpi'+(warn?' warn':'')+'"><div cla
   K.innerHTML=html;
   /* today's trips table */
   try{
-    const trips=await q('/rest/v1/driver_log?select=*&log_date=eq.'+today+'&order=shift.asc,driver.asc');
+    const trips=await q('/rest/v1/driver_log?select=*&cancelled=is.false&log_date=eq.'+today+'&order=shift.asc,driver.asc');
     if(!trips.length){ document.getElementById('todayTrips').textContent='אין נסיעות רשומות להיום עדיין.'; return; }
     let h='<table><tr><th>משמרת</th><th>נהג</th><th>מקום</th><th>משטחים</th><th>הערה</th></tr>';
     trips.forEach(r=>h+='<tr><td>'+esc(r.shift||'')+'</td><td>'+esc(r.driver)+'</td><td>'+esc(r.place)+'</td><td>'+(r.pallets||'')+'</td><td>'+esc(r.note||'')+'</td></tr>');

@@ -42,6 +42,10 @@
   .chip.near{background:var(--green-light);color:var(--green-dark);}
   .chip.far{background:#fdf3e0;color:#8a6d1a;}
   .chip.none{background:var(--gray);color:#98a8a0;}
+  .chip.manual{background:#eef3ff;color:#3355aa;}
+  .chip.canc{background:var(--red-light);color:var(--red);font-weight:700;}
+  tr.canc-row td{text-decoration:line-through;color:#a9b6ae;background:#fafbfb;}
+  tr.canc-row .chip,tr.canc-row .del{text-decoration:none;}
   .del{background:none;border:none;color:var(--red);cursor:pointer;font-size:15px;}
   .cell-place{margin-bottom:3px;}
   #loader{position:fixed;top:10px;left:10px;background:var(--green);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;display:none;z-index:99;}
@@ -50,8 +54,8 @@
 </head>
 <body>
 <div id="loader">טוען…</div>
-<h1>🧭 מעקב נהגים</h1>
-<div class="sub">כל סידור שנרשם מ"סידור נהגים" (📤 רשום למעקב) נשמר בענן ומופיע כאן — מכל מחשב.</div>
+<h1>🧭 מעקב נהגים <span style="font-size:12px;color:#8aa094;font-weight:400">ק-5</span></h1>
+<div class="sub">כל סידור שנרשם מ"סידור נהגים" (📤 רשום למעקב) נשמר בענן ומופיע כאן — מכל מחשב. נסיעה שנוספה ידנית מסומנת <span class="chip manual">ידני</span>; ביטול נסיעה שומר אותה מתועדת עם קו חוצה ומחוץ לכל חישוב.</div>
 <div class="tabs">
   <button data-v="cover" class="active" onclick="showView('cover',this)">📅 לוח כיסוי</button>
   <button data-v="week" onclick="showView('week',this)">🗓 יומן שבועי</button>
@@ -203,7 +207,7 @@ let PLACES={}; let FIRST_DATE=null;
 async function loadMeta(){
   const ps=await sb('/places?select=*');
   PLACES={}; ps.forEach(p=>PLACES[p.place]=p.distance);
-  const f=await sb('/driver_log?select=log_date&order=log_date.asc&limit=1');
+  const f=await sb('/driver_log?select=log_date&cancelled=is.false&order=log_date.asc&limit=1');
   FIRST_DATE = f.length? f[0].log_date : null;
 }
 function distChip(place){
@@ -236,7 +240,7 @@ async function renderCover(){
   const val=document.getElementById('coverMonth').value; if(!val) return;
   const [y,m]=val.split('-').map(Number);
   const first=new Date(y,m-1,1), last=new Date(y,m,0);
-  const rows=await sb('/driver_log?select=log_date&log_date=gte.'+iso(first)+'&log_date=lte.'+iso(last));
+  const rows=await sb('/driver_log?select=log_date&cancelled=is.false&log_date=gte.'+iso(first)+'&log_date=lte.'+iso(last));
   const counts={}; rows.forEach(r=>counts[r.log_date]=(counts[r.log_date]||0)+1);
   const today=iso(new Date());
   let html=''; DAYS.forEach(d=>html+='<div class="hd">'+d+'</div>');
@@ -271,7 +275,7 @@ let WEEK_ROWS=[];
 async function renderWeek(){
   const el=document.getElementById('weekDate'); if(!el.value) el.value=iso(new Date());
   const s=weekStart(el.value), e=new Date(s); e.setDate(e.getDate()+6);
-  WEEK_ROWS=await sb('/driver_log?select=*&log_date=gte.'+iso(s)+'&log_date=lte.'+iso(e)+'&order=log_date.asc');
+  WEEK_ROWS=await sb('/driver_log?select=*&cancelled=is.false&log_date=gte.'+iso(s)+'&log_date=lte.'+iso(e)+'&order=log_date.asc');
   const drivers=[...new Set(WEEK_ROWS.map(r=>r.driver))].sort();
   const dates=[]; for(let i=0;i<7;i++){ const d=new Date(s); d.setDate(d.getDate()+i); dates.push(iso(d)); }
   let h='<table><tr><th>נהג</th>';
@@ -311,17 +315,28 @@ async function renderTrips(){
   document.getElementById('placesDL').innerHTML=[...new Set(TRIP_ROWS.map(r=>r.place))].map(p=>'<option>'+esc(p)+'</option>').join('');
   let h='<table><tr><th>תאריך</th><th>יום</th><th>משמרת</th><th>נהג</th><th>מקום</th><th>מרחק</th><th>משטחים</th><th>הערה</th><th></th></tr>';
   if(!TRIP_ROWS.length) h+='<tr><td colspan="9" class="muted">אין נסיעות בטווח/סינון שנבחר</td></tr>';
+  let activeCount=0, cancCount=0;
   TRIP_ROWS.forEach(r=>{
     const dow=new Date(r.log_date+'T00:00:00').getDay();
-    h+='<tr><td>'+heDate(r.log_date)+'</td><td>'+DAYS[dow]+'</td><td>'+esc(r.shift||'')+'</td><td>'+esc(r.driver)+'</td><td>'+esc(r.place)+'</td><td>'+distChip(r.place)+'</td><td>'+(r.pallets||'')+'</td><td>'+esc(r.note||'')+'</td>'
-      +'<td><button class="del" onclick="delTrip('+r.id+')" title="מחיקה">🗑</button></td></tr>';
+    const canc=!!r.cancelled; if(canc) cancCount++; else activeCount++;
+    const manualTag = r.source==='manual' ? ' <span class="chip manual" title="נוסף ידנית">ידני</span>' : '';
+    const cancTag = canc ? ' <span class="chip canc">בוטל</span>' : '';
+    const btn = canc
+      ? '<button class="del" style="color:var(--green-dark)" onclick="restoreTrip('+r.id+')" title="שחזור נסיעה">↩</button>'
+      : '<button class="del" onclick="delTrip('+r.id+')" title="ביטול נסיעה">🗑</button>';
+    h+='<tr class="'+(canc?'canc-row':'')+'"><td>'+heDate(r.log_date)+'</td><td>'+DAYS[dow]+'</td><td>'+esc(r.shift||'')+'</td><td>'+esc(r.driver)+manualTag+'</td><td>'+esc(r.place)+cancTag+'</td><td>'+distChip(r.place)+'</td><td>'+(r.pallets||'')+'</td><td>'+esc(r.note||'')+'</td>'
+      +'<td>'+btn+'</td></tr>';
   });
-  h+='</table><p class="muted" style="margin-top:8px">'+TRIP_ROWS.length+' נסיעות</p>';
+  h+='</table><p class="muted" style="margin-top:8px">'+activeCount+' נסיעות'+(cancCount?' · '+cancCount+' מבוטלות (מתועדות, לא בחישוב)':'')+'</p>';
   document.getElementById('tripsOut').innerHTML=h;
 }
 async function delTrip(id){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
-  if(!confirm('למחוק את הנסיעה?')) return;
-  await sb('/driver_log?id=eq.'+id,{method:'DELETE'});
+  if(!confirm('לבטל את הנסיעה?\nהיא תישאר מתועדת עם קו חוצה, אך לא תיכלל בשום ספירה או חישוב.')) return;
+  await sb('/driver_log?id=eq.'+id,{method:'PATCH',body:JSON.stringify({cancelled:true})});
+  renderTrips();
+}
+async function restoreTrip(id){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
+  await sb('/driver_log?id=eq.'+id,{method:'PATCH',body:JSON.stringify({cancelled:false})});
   renderTrips();
 }
 async function addManual(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
@@ -345,7 +360,7 @@ async function renderSummary(){
   if(!el.value){ const n=new Date(); el.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0'); }
   const [y,m]=el.value.split('-').map(Number);
   const first=new Date(y,m-1,1), last=new Date(y,m,0);
-  const rows=await sb('/driver_log?select=*&log_date=gte.'+iso(first)+'&log_date=lte.'+iso(last));
+  const rows=await sb('/driver_log?select=*&cancelled=is.false&log_date=gte.'+iso(first)+'&log_date=lte.'+iso(last));
   const by={};
   rows.forEach(r=>{
     const o=by[r.driver]||(by[r.driver]={days:new Set(),stops:0,near:0,far:0,unk:0,pallets:0});
@@ -372,7 +387,7 @@ function exportSummary(){
 /* ---------- places ---------- */
 async function renderPlaces(){
   await loadMeta();
-  const rows=await sb('/driver_log?select=place');
+  const rows=await sb('/driver_log?select=place&cancelled=is.false');
   const counts={}; rows.forEach(r=>counts[r.place]=(counts[r.place]||0)+1);
   const all=[...new Set([...Object.keys(counts),...Object.keys(PLACES)])].sort((a,b)=>a.localeCompare(b));
   let h='<table><tr><th>מקום</th><th>נסיעות</th><th>סיווג מרחק</th></tr>';
@@ -516,7 +531,7 @@ async function savePdf(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכ�
   });
   if(!rows.length){ alert('לא נבחרו נסיעות'); return; }
   if(!confirm('לשמור '+rows.length+' נסיעות לתאריך '+date+'?\n(רישום קודם של תאריך זה יוחלף)')) return;
-  await sb('/driver_log?log_date=eq.'+date,{method:'DELETE'});
+  await sb('/driver_log?log_date=eq.'+date+'&cancelled=is.false',{method:'DELETE'});
   await sb('/driver_log',{method:'POST',body:JSON.stringify(rows)});
   if(LAST_PDF_FILE){
     try{
@@ -534,7 +549,7 @@ async function savePdf(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכ�
 let DAY_ROWS=[], DAY_DATE=null;
 async function openDay(ds){
   DAY_DATE=ds;
-  DAY_ROWS=await sb('/driver_log?select=*&log_date=eq.'+ds+'&order=shift.asc,driver.asc');
+  DAY_ROWS=await sb('/driver_log?select=*&cancelled=is.false&log_date=eq.'+ds+'&order=shift.asc,driver.asc');
   DAY_ROWS=DAY_ROWS.map(r=>({driver:r.driver,place:r.place,shift:r.shift||'לילה',truck:r.truck||'',pallets:r.pallets||0,note:r.note||'',source:r.source||'edit'}));
   document.getElementById('dayEditDate').textContent=heDate(ds)+' ('+DAYS[new Date(ds+'T00:00:00').getDay()]+')';
   renderDayTbl();
@@ -575,7 +590,7 @@ async function saveDay(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכ�
   collectDay();
   const rows=DAY_ROWS.filter(r=>r.driver&&r.place).map(r=>Object.assign({},r,{log_date:DAY_DATE}));
   if(!confirm('לשמור '+rows.length+' נסיעות לתאריך '+DAY_DATE+'?\n(הרישום הקודם של היום יוחלף)')) return;
-  await sb('/driver_log?log_date=eq.'+DAY_DATE,{method:'DELETE'});
+  await sb('/driver_log?log_date=eq.'+DAY_DATE+'&cancelled=is.false',{method:'DELETE'});
   if(rows.length) await sb('/driver_log',{method:'POST',body:JSON.stringify(rows)});
   document.getElementById('dayEdit').classList.add('hidden');
   renderCover();
@@ -588,7 +603,7 @@ async function openOrigPdf(){
 }
 async function deleteDay(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   if(!confirm('למחוק את כל הנסיעות של '+DAY_DATE+'? היום יסומן כחסר.')) return;
-  await sb('/driver_log?log_date=eq.'+DAY_DATE,{method:'DELETE'});
+  await sb('/driver_log?log_date=eq.'+DAY_DATE+'&cancelled=is.false',{method:'DELETE'});
   document.getElementById('dayEdit').classList.add('hidden');
   renderCover();
 }
