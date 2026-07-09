@@ -333,7 +333,7 @@ function genFiles(){ if(!ROWS.length){alert('אין שורות');return;}
  // PRM
  let used={}; LAYOUT.forEach(([f,p,l])=>used[f]=[p,l]);
  let prm=[String(RECLEN)];
- for(let f=2;f<=87;f++){ const u=used[f]; prm.push(u?(u[0]+'  '+u[1]):'0  0'); }
+ for(let f=2;f<=87;f++){ const u=used[f]; prm.push(u?(u[0]+'  '+(u[0]+u[1]-1)):'0  0'); }
  const prmTxt=prm.join('\r\n')+'\r\n';
  dl(docTxt,'IMOVEIN.DOC'); setTimeout(()=>dl(prmTxt,'IMOVEIN.PRM'),300);
  let m='<div class="okbox">נוצרו IMOVEIN.DOC ('+lines.length+' שורות) ו-IMOVEIN.PRM.</div>';
