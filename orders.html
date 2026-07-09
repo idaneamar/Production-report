@@ -97,7 +97,7 @@
     </div>
     <div id="covBanner"></div>
     <div class="cal" id="covCal"></div>
-    <p class="muted" style="margin-top:10px">בכל יום: 📦 דוח ייצור (מחשבון אריזה) · 🔀 ראן (עלומים). ירוק = הועלה (לחיצה פותחת את תוצאת הדוח) · אדום = חסר (לחיצה מסבירה איך להוסיף בדיעבד) · אפור = לא נדרש.</p>
+    <p class="muted" style="margin-top:10px">דוח ייצור נדרש ראשון–רביעי · ראן נדרש ראשון–חמישי. ירוק = הועלה (לחיצה פותחת את התוצאה) · אדום = חסר (לחיצה מסבירה איך להוסיף) · אפור = לא נדרש (אם בכל זאת הועלה — יוצג בירוק).</p>
   </div>
 </div>
 
@@ -178,7 +178,7 @@ function showView(v,btn){
 }
 
 /* ---------- coverage ---------- */
-const CALCS=[{id:'packing',label:'📦 דוח ייצור'},{id:'alumim',label:'🔀 ראן'}];
+const CALCS=[{id:'packing',label:'📦 דוח ייצור',reqDays:[0,1,2,3]},{id:'alumim',label:'🔀 ראן',reqDays:[0,1,2,3,4]}];
 let FIRST={packing:null, alumim:null};
 async function loadFirst(){
   for(const c of CALCS){
@@ -204,15 +204,17 @@ async function renderCover(){
   const missing={packing:0, alumim:0};
   for(let day=1;day<=last.getDate();day++){
     const d=new Date(y,m-1,day), ds=iso(d), dow=d.getDay();
-    const required=dow<=4, future=ds>today;
+    const future=ds>today;
+    const anyRequired=CALCS.some(c=>c.reqDays.includes(dow));
     let chips='';
     CALCS.forEach(c=>{
       const u=have[ds+'|'+c.id];
+      const required=c.reqDays.includes(dow);
       if(u) chips+='<span class="chip ok" onclick="openResult(\''+c.id+'\',\''+ds+'\')" title="פתח את תוצאת הדוח">'+c.label+' ✔</span>';
       else if(required && !future && FIRST[c.id] && ds>=FIRST[c.id]){ chips+='<span class="chip miss" style="cursor:pointer" onclick="howToAdd(\''+c.id+'\',\''+ds+'\')" title="איך להוסיף בדיעבד">'+c.label+' ✖</span>'; missing[c.id]++; }
       else chips+='<span class="chip na">'+c.label+'</span>';
     });
-    html+='<div class="day'+(required?'':' off')+(ds===today?' today':'')+'"><div class="num">'+day+'</div>'+chips+'</div>';
+    html+='<div class="day'+(anyRequired?'':' off')+(ds===today?' today':'')+'"><div class="num">'+day+'</div>'+chips+'</div>';
   }
   document.getElementById('covCal').innerHTML=html;
   const b=document.getElementById('covBanner');
