@@ -240,14 +240,14 @@ function process(ws, S) {
     if (/^[0-9A-F]{8}$/.test(argb || "")) {
       const r = parseInt(argb.slice(2, 4), 16), g = parseInt(argb.slice(4, 6), 16), b = parseInt(argb.slice(6, 8), 16);
       const max = Math.max(r, g, b), min = Math.min(r, g, b);
-      if (max - min >= 24 && max > 90) { // לא אפור/לבן/שחור
+      if (max - min >= 15 && max > 80) { // לא אפור/לבן/שחור (סף מוקטן — גוונים חיוורים נזרקו)
         let h;
         if (max === r) h = 60 * (((g - b) / (max - min)) % 6);
         else if (max === g) h = 60 * ((b - r) / (max - min) + 2);
         else h = 60 * ((r - g) / (max - min) + 4);
         if (h < 0) h += 360;
-        if (h >= 10 && h < 58) return "us";      // כתומים
-        if (h >= 70 && h <= 170) return "alumim"; // ירוקים
+        if (h >= 10 && h < 58) return "us";       // כתומים
+        if (h >= 58 && h <= 175) return "alumim";  // ירוקים (הפער 58-70 הפיל כמויות ל-unknown)
       }
     }
     return "unknown";
@@ -515,7 +515,14 @@ function sectionHtml(title,cls,bucket,withChk){
 function render(R){
   const msg=document.getElementById('msg'); const out=document.getElementById('out');
   let w='';
-  if(R.flags.length) w+='<div class="warn"><b>'+R.flags.length+' תאים ללא צבע</b> (לא שובצו למי-מכין) — כדאי לצבוע אותם בקובץ. לדוגמה: '+R.flags.slice(0,4).map(f=>f.region+'/'+f.name).join(' · ')+'</div>';
+  if(R.flags.length){
+    // הכמויות האלה לא נכנסו לשום דלי — הן פשוט נעלמו. חייבים להציג כמה בדיוק אבד.
+    const lostQty=R.flags.reduce((a,f)=>a+(Number(f.qty)||0),0);
+    w+='<div class="warn"><b>⚠ '+R.flags.length+' תאים לא סווגו (כתום/ירוק) — סה"כ '+lostQty+' יחידות לא נכללו בשום חישוב.</b>'
+      +'<br>צבע אותם בקובץ ובנה מחדש. לדוגמה: '
+      +R.flags.slice(0,6).map(f=>esc(f.region+'/'+f.name+' · '+f.product+' = '+f.qty)).join(' · ')
+      +(R.flags.length>6?' ועוד '+(R.flags.length-6):'')+'</div>';
+  }
   const unknownReg=R.regionsSeen.filter(rg=>!S.our_regions.some(k=>rg.indexOf(k)>=0));
   msg.innerHTML='<div class="ok">גיליון <b>'+esc(R.sheet)+'</b> · '+R.productCount+' מוצרים · '+R.regionsSeen.length+' מחוזות.</div>'+w;
   // קלפי סיכום
@@ -650,16 +657,19 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
   if(!regs.length) return '';
   var html='<div class="card sec-prepare"><h2>📋 האזורים שלנו — לפי לקוח (כמה ללקט מאצלנו · כמה מעלומים · סה"כ)</h2>';
   regs.forEach(function(reg){ var custs=Object.keys(m[reg]).map(function(k){return m[reg][k];}).sort(function(a,b){return a.name.localeCompare(b.name,'he');});
-    var regUs=0,regAl=0,regUnits=0,cb='';
-    custs.forEach(function(c){ var usBox=0,usCart=0,alBox=0,alCart=0;
+    var regUs=0,regAl=0,regUnits=0,regPal=0,cb='';
+    custs.forEach(function(c){ var usBox=0,usCart=0,alBox=0,alCart=0,custUnits=0;
       var prods=Object.keys(c.prods).map(function(p){return [p,c.prods[p]];}).sort(function(a,b){return (b[1].us+b[1].al)-(a[1].us+a[1].al);});
       var rows='';
       prods.forEach(function(pr){ var v=pr[1];
         if(!v.isCarton){ usBox+=v.us; alBox+=v.al; } else if(!v.isFruit){ usCart+=v.us; alCart+=v.al; }
-        if(!v.isFruit) regUnits+=v.us+v.al;
+        if(!v.isFruit){ regUnits+=v.us+v.al; custUnits+=v.us+v.al; }
         var tot=v.us+v.al;
         rows+='<tr><td style="text-align:right">'+esc(pr[0])+(v.isFruit?' <span class="muted">(פרי)</span>':v.isCarton?' <span class="muted">(קרטון)</span>':'')+'</td><td>'+(v.us||'—')+'</td><td class="alcell">'+(v.al||'—')+'</td><td><b>'+tot+'</b></td></tr>'; });
       var allTot=usBox+usCart+alBox+alCart;
+      // משטחים לפי לקוח, עם מגבלת הארגזים-למשטח שלו — לקוחות לא חולקים משטח
+      var cLim=palletLimitFor(c.name, S.pallet_limits||[], S.boxes_per_pallet||60);
+      regPal += cLim>0 ? Math.ceil(custUnits/cLim) : 0;
       regUs+=usBox+usCart; regAl+=alBox+alCart;
       cb+='<div class="cust"><div class="cn">'+custDisp(c.name)+' <span class="pill"><b>סה"כ '+allTot+'</b></span></div>'
         +(c.addr?'<div class="addr">'+esc(c.addr)+'</div>':'')
@@ -671,7 +681,7 @@ function ourCombinedHtml(R){ var m=combinedOurs(R); var regs=Object.keys(m).sort
         +'<tr style="font-weight:700;background:#eef3f7"><td>סה"כ</td><td>'+(usBox+alBox)+'</td><td>'+(usCart+alCart)+'</td><td>'+allTot+'</td></tr>'
         +'</tbody></table>'
         +'</div></div>'; });
-    var pal=S.boxes_per_pallet>0?Math.ceil(regUnits/S.boxes_per_pallet):0;
+    var pal=regPal;   // סכום המשטחים של כל לקוח בנפרד (לקוחות לא חולקים משטח)
     html+='<div class="regblock"><div class="reghead"><span>'+esc(reg)+'</span><span>סה"כ '+(regUs+regAl)+' (מאצלנו '+regUs+' · מעלומים '+regAl+')'+(pal?' · ~'+pal+' משטח':'')+'</span></div>'+cb+'</div>'; });
   return html+'</div>'; }
 function custDisp(name){ var n=esc(name); (S.display_notes||[]).forEach(function(d){ if(name.indexOf(d.match)>=0) n+=' <span class="muted">('+esc(d.note)+')</span>'; }); return n; }

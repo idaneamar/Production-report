@@ -205,14 +205,19 @@ function calcLine(r,p,qty){
 const TYPE_HE={CARTON:'קרטונים',CAGE:'כלוב',PALLET:'משטח שקיות',BARREL:'חביות',DOLEV:'דולב',UNITS:'יחידות'};
 
 function aggregate(custTotalsByType){
-  // custTotalsByType: {type:{boxes,kg,units,barrels,maxbox,maxkg}}
-  let res={boxes:0,pallets:0,kg:0,units:0,barrels:0,containers:0,parts:[]};
-  for(const t in custTotalsByType){
-    const x=custTotalsByType[t];
+  // המפתח הוא type|max_kg|max_boxes — הסוג עצמו יושב ב-x.type
+  let res={boxes:0,pallets:0,kg:0,units:0,barrels:0,containers:0,parts:[],noLimit:[]};
+  for(const k in custTotalsByType){
+    const x=custTotalsByType[k]; const t=x.type;
     res.kg+=x.kg; res.units+=x.units;
     if(t==='CARTON'||t==='UNITS'){ res.boxes+=x.boxes; const pal=x.maxbox?ceil(x.boxes/x.maxbox):0; res.pallets+=pal;
       res.parts.push({t,boxes:x.boxes,pallets:pal}); }
-    else if(t==='CAGE'||t==='PALLET'||t==='DOLEV'){ const cont=x.maxkg?ceil(x.kg/x.maxkg):0; res.containers+=cont; res.pallets+=cont;
+    else if(t==='CAGE'||t==='PALLET'||t==='DOLEV'){
+      // max_kg=0 פירושו "לא הוגדרה מגבלה" — עד כה זה הניב 0 משטחים בשקט על משלוח אמיתי.
+      let cont;
+      if(x.maxkg>0) cont=ceil(x.kg/x.maxkg);
+      else { cont = x.kg>0 ? 1 : 0; if(x.kg>0) res.noLimit.push(t); }
+      res.containers+=cont; res.pallets+=cont;
       res.parts.push({t,containers:cont,kg:x.kg}); }
     else if(t==='BARREL'){ res.barrels+=x.barrels; res.pallets+=x.barrels; res.parts.push({t,barrels:x.barrels,kg:x.kg}); }
   }
@@ -405,10 +410,14 @@ function computeAndRender(items,warn,scope){
 function computeShipment(cust,pqs){
   const lines=pqs.map(pq=>{ const rule=resolve(cust,pq.prod); const ln=calcLine(rule,pq.prod,pq.qty);
     ln.product=pq.prod.name; ln.qty=pq.qty; ln.rule=rule; return ln; });
+  // מקבצים לפי סוג אריזה *וגם* לפי המגבלות בפועל. אחרת כלל מיוחד (למשל פלפל אדום של
+  // חמים וטעים — כלוב עד 300 "לא למעוך") נבלע יחד עם שאר הכלובים (600), והמגבלה שלו
+  // נעלמת — כשהתוצאה אף תלויה בסדר השורות בדוח.
   const byType={};
-  lines.forEach(ln=>{ const t=ln.type; if(!byType[t]) byType[t]={boxes:0,kg:0,units:0,barrels:0,maxbox:ln.rule.max_boxes,maxkg:ln.rule.max_kg};
-    byType[t].boxes+=ln.boxes; byType[t].kg+=ln.kg; byType[t].units+=ln.units; byType[t].barrels+=ln.barrels;
-    if(ln.rule.max_kg) byType[t].maxkg=ln.rule.max_kg; if(ln.rule.max_boxes) byType[t].maxbox=ln.rule.max_boxes; });
+  lines.forEach(ln=>{ const t=ln.type;
+    const k=t+'|'+(+ln.rule.max_kg||0)+'|'+(+ln.rule.max_boxes||0);
+    if(!byType[k]) byType[k]={type:t,boxes:0,kg:0,units:0,barrels:0,maxbox:ln.rule.max_boxes,maxkg:ln.rule.max_kg};
+    byType[k].boxes+=ln.boxes; byType[k].kg+=ln.kg; byType[k].units+=ln.units; byType[k].barrels+=ln.barrels; });
   return {lines:lines.sort((a,b)=>a.product.localeCompare(b.product,'he')),agg:aggregate(byType)};
 }
 
@@ -417,6 +426,9 @@ function render(results,warnInfo,scope){
   let warnHtml='';
   if(warnInfo.unmatchedHdr&&warnInfo.unmatchedHdr.length) warnHtml+='עמודות שלא מופו ללקוח (נדרש לעדכן "כינוי בדוח"): <b>'+warnInfo.unmatchedHdr.map(esc).join(' · ')+'</b><br>';
   if(warnInfo.unmatchedProd&&warnInfo.unmatchedProd.length) warnHtml+='מוצרים שלא זוהו (התעלמנו מהם): <b>'+warnInfo.unmatchedProd.map(esc).join(' · ')+'</b>';
+  // לקוחות שסוג האריזה שלהם דורש מגבלת ק"ג אבל היא ריקה — עד כה הם קיבלו 0 משטחים בשקט
+  const noLim=results.filter(r=>r.agg.noLimit&&r.agg.noLimit.length).map(r=>r.cust.name);
+  if(noLim.length) warnHtml+=(warnHtml?'<br>':'')+'⚠ חסרה מגבלת ק"ג למשטח/כלוב (הוגדר 1 כברירת מחדל — עדכן בהגדרות): <b>'+noLim.map(esc).join(' · ')+'</b>';
   msg.innerHTML = '<div class="ok">'+(scope?'<b>'+esc(scope)+'</b> · ':'')+'זוהו '+results.length+' לקוחות.</div>' + (warnHtml?'<div class="warn">'+warnHtml+'</div>':'');
   // טוטלים כלליים
   let tBoxes=0,tPallets=0,tKg=0;
