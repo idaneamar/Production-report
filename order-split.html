@@ -373,15 +373,24 @@ function saveSetLS(){ try{localStorage.setItem('alumim_set',JSON.stringify(S));}
 function loadLedger(){ try{const s=localStorage.getItem('alumim_ledger'); if(s)return JSON.parse(s);}catch(e){} return {opening:0,entries:[]}; }
 function saveLedger(){ const o=document.getElementById('opening'); if(o)LEDGER.opening=parseFloat(o.value)||0; try{localStorage.setItem('alumim_ledger',JSON.stringify(LEDGER));}catch(e){} }
 
-// הגדרות מרכזיות מהשרת (כשמתארח)
-(async function(){ try{ const r=await fetch('settings2.json?_='+Date.now(),{cache:'no-store'}); if(!r.ok)return; const j=await r.json(); if(j&&j.our_regions){
-  const keepSummer=!!S.summer_mode; /* מתג הקיץ הוא הגדרה מקומית — לא נדרס ע"י ההגדרות המרכזיות */
-  S=Object.assign({},DEFAULTS,j);
-  S.summer_mode=keepSummer;
-  renderSet();
-  try{ const c=document.getElementById('summerChk'); if(c) c.checked=keepSummer; applySummerUI(keepSummer); }catch(e){}
-  if(LAST&&LAST.sheet) runSheet(LAST.sheet);
-} }catch(e){} })();
+// ההגדרות המרכזיות = הענן (app_settings ← "order-split:alumim_set"), מסונכרן ע"י cloud-sync.js.
+// settings2.json שימש קודם כ"הגדרות מרכזיות" — אבל הוא דרס בכל טעינה את מה שנשמר,
+// ולכן כל עריכה במסך ההגדרות נמחקה בשקט (וזה גם מה שכיבה את מתג הקיץ).
+// עכשיו הוא רק זרע ראשוני: נטען אך ורק כשאין עדיין הגדרות שמורות.
+(async function(){
+  try{
+    var hasSaved=false; try{ hasSaved=!!localStorage.getItem('alumim_set'); }catch(e){}
+    if(hasSaved) return;                       // יש הגדרות (מקומיות/מהענן) — לא נוגעים
+    const r=await fetch('settings2.json?_='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
+    const j=await r.json(); if(!(j&&j.our_regions)) return;
+    const keepSummer=!!S.summer_mode;
+    S=Object.assign({},DEFAULTS,j);
+    S.summer_mode=keepSummer;
+    renderSet();
+    try{ const c=document.getElementById('summerChk'); if(c) c.checked=keepSummer; applySummerUI(keepSummer); }catch(e){}
+    if(LAST&&LAST.sheet) runSheet(LAST.sheet);
+  }catch(e){}
+})();
 
 /* ---------- סנכרון Google Sheet משותף (JSONP) ---------- */
 function jsonp(url){ return new Promise((res,rej)=>{ const cb='cb_'+Math.random().toString(36).slice(2); const s=document.createElement('script'); let done=false;
