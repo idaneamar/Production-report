@@ -74,6 +74,10 @@
   .wb i{position:absolute;bottom:-17px;left:0;right:0;text-align:center;font-size:10px;color:#8aa094;font-style:normal;white-space:nowrap;}
   .selchip{display:inline-flex;align-items:center;gap:6px;background:var(--green);color:#fff;border-radius:16px;padding:4px 12px;font-size:13px;font-weight:700;cursor:pointer;}
   .exp{cursor:pointer;user-select:none;color:var(--green-dark);font-weight:800;width:22px;display:inline-block;}
+  .prow.kid{padding-right:26px;background:#fbfdfc;}
+  .prow.kid .nm{font-weight:500;font-size:13px;}
+  .prow.kid.sel{background:var(--green);color:#fff;}
+  .ranKids{border-right:2px solid var(--green-light);margin-right:8px;}
   tr.child td{background:#fbfdfc;color:#3c554a;font-size:13.5px;}
   tr.child td:first-child{padding-inline-start:34px;}
 
@@ -247,13 +251,29 @@ function quickRange(days){
   document.getElementById('aTo').value=iso(to);
   loadAna();
 }
-let RAW=[], PREVMAP={cust:{},prod:{}}, SEL={cust:null,prod:null};
+const RAN='משרד החינוך (ראן)';
+let RAW=[], PREVMAP={cust:{},prod:{},top:{}}, SEL={cust:null,prod:null};
 function fmtQ(n){ n=Math.round(n*10)/10; return n>=10000? (Math.round(n/100)/10)+'K' : (''+n); }
-async function rpcAgg(from,to,group,cust,prod){
+async function rpcAgg(from,to,group,cust,prod,calcOv){
   return sb('/rest/v1/rpc/orders_agg',{method:'POST',body:JSON.stringify({
     p_from:from,p_to:to,p_group:group,
-    p_calc:document.getElementById('aCalc').value||null,
+    p_calc:(calcOv!==undefined?calcOv:(document.getElementById('aCalc').value||null)),
     p_customer:cust||null,p_product:prod||null})});
+}
+/* שולף לכל מחשבון בנפרד כדי לדעת אילו שורות הן ראן — ומקבץ אותן תחת לקוח-אב אחד */
+async function fetchTagged(from,to){
+  const sel=document.getElementById('aCalc').value;
+  const calcs = sel? [sel] : ['packing','alumim'];
+  let out=[];
+  for(const c of calcs){
+    const rows=await rpcAgg(from,to,'customer_product',null,null,c);
+    rows.forEach(function(r){ const cp=splitK(r.k1);
+      out.push({calc:c, cust:cp[0], prod:cp[1], unit:r.unit||'',
+                total:Number(r.total)||0, lines:Number(r.lines)||0, days:Number(r.days)||0,
+                top:(c==='alumim'? RAN : cp[0])});
+    });
+  }
+  return out;
 }
 function splitK(k){ const ix=k.indexOf(' × '); return ix<0?[k,'']:[k.slice(0,ix),k.slice(ix+3)]; }
 async function loadAna(){
@@ -265,17 +285,18 @@ async function loadAna(){
   const pTo=new Date(d1); pTo.setDate(pTo.getDate()-1);
   const pFrom=new Date(pTo); pFrom.setDate(pFrom.getDate()-span+1);
   try{
-    const cur=await rpcAgg(from,to,'customer_product');
-    const prev=await rpcAgg(iso(pFrom),iso(pTo),'customer_product');
-    RAW=cur.map(r=>{ const cp=splitK(r.k1); return {cust:cp[0],prod:cp[1],unit:r.unit||'',total:Number(r.total)||0,lines:Number(r.lines)||0,days:Number(r.days)||0}; });
-    PREVMAP={cust:{},prod:{}};
-    prev.forEach(r=>{ const cp=splitK(r.k1); const t=Number(r.total)||0;
-      PREVMAP.cust[cp[0]]=(PREVMAP.cust[cp[0]]||0)+t; PREVMAP.prod[cp[1]]=(PREVMAP.prod[cp[1]]||0)+t; });
+    RAW=await fetchTagged(from,to);
+    const prev=await fetchTagged(iso(pFrom),iso(pTo));
+    PREVMAP={cust:{},prod:{},top:{}};
+    prev.forEach(function(r){ const t=r.total;
+      PREVMAP.cust[r.cust]=(PREVMAP.cust[r.cust]||0)+t;
+      PREVMAP.prod[r.prod]=(PREVMAP.prod[r.prod]||0)+t;
+      PREVMAP.top[r.top]=(PREVMAP.top[r.top]||0)+t; });
     renderAll(); loadTimeline();
   }catch(e){ document.getElementById('pivotOut').innerHTML='<span class="muted">'+esc(e.message)+'</span>'; }
 }
 function rowsFiltered(){
-  return RAW.filter(r=>(!SEL.cust||r.cust===SEL.cust)&&(!SEL.prod||r.prod===SEL.prod));
+  return RAW.filter(r=>(!SEL.cust||r.top===SEL.cust||r.cust===SEL.cust)&&(!SEL.prod||r.prod===SEL.prod));
 }
 function aggBy(rows,key){
   const m={};
@@ -293,10 +314,10 @@ function trendHtml(cur,prevTot){
 function renderAll(){ renderKpis(); renderSelChips(); renderPanels(); renderPivot(); }
 function renderKpis(){
   const rows=rowsFiltered();
-  const custs=new Set(rows.map(r=>r.cust)), prods=new Set(rows.map(r=>r.prod));
+  const custs=new Set(rows.map(r=>SEL.cust?r.cust:r.top)), prods=new Set(rows.map(r=>r.prod));
   const tot=rows.reduce((a,r)=>a+r.total,0);
   let prevTot=0;
-  if(SEL.cust) prevTot=PREVMAP.cust[SEL.cust]||0;
+  if(SEL.cust) prevTot=(SEL.cust===RAN? PREVMAP.top[RAN] : (PREVMAP.cust[SEL.cust]||PREVMAP.top[SEL.cust]))||0;
   else if(SEL.prod) prevTot=PREVMAP.prod[SEL.prod]||0;
   else{ for(const k in PREVMAP.cust) prevTot+=PREVMAP.cust[k]; }
   document.getElementById('anaKpis').innerHTML=
@@ -334,10 +355,60 @@ function panelHtml(map, key, prevmap, search){
   });
   return {html:h||'<span class="muted">אין נתונים</span>', n:entries.length};
 }
+function custRow(name,o,max,prevmap,isKid){
+  const sel=(SEL.cust===name)?' sel':'';
+  const enc=encodeURIComponent(name);
+  return '<div class="prow'+(isKid?' kid':'')+sel+'" onclick="pick(\'cust\',decodeURIComponent(\''+enc+'\'))">'
+    +'<span class="nm" title="'+esc(name)+'">'+(isKid?'↳ ':'')+esc(name)+'</span>'
+    +trendHtml(o.total, prevmap[name]||0)
+    +'<span class="shareWrap"><span class="share" style="width:'+Math.max(3,Math.round(o.total/max*100))+'%"></span></span>'
+    +'<span class="qty">'+fmtQ(o.total)+'</span>'
+    +'</div>';
+}
+function custPanelHtml(rows, search){
+  const map=aggBy(rows,'top');
+  let entries=Object.entries(map);
+  const kidsAll=aggBy(rows.filter(r=>r.top===RAN),'cust');
+  if(search){
+    entries=entries.filter(function(e){
+      if(e[0].includes(search)) return true;
+      if(e[0]===RAN) return Object.keys(kidsAll).some(k=>k.includes(search));
+      return false;
+    });
+  }
+  entries.sort(function(a,b){return b[1].total-a[1].total;});
+  const max=entries.length?entries[0][1].total:1;
+  let h='';
+  entries.forEach(function(e){
+    const name=e[0], o=e[1];
+    if(name!==RAN){ h+=custRow(name,o,max,PREVMAP.top,false); return; }
+    /* לקוח-אב: משרד החינוך (ראן) — עם ▸ לפתיחת הילדים */
+    let ks=Object.entries(kidsAll).filter(function(k){return !search||k[0].includes(search);});
+    ks.sort(function(a,b){return b[1].total-a[1].total;});
+    const kmax=ks.length?ks[0][1].total:1;
+    const open=RAN_OPEN?'▾':'▸';
+    const sel=(SEL.cust===RAN)?' sel':'';
+    const enc=encodeURIComponent(RAN);
+    h+='<div class="prow'+sel+'">'
+      +'<span class="exp" onclick="event.stopPropagation();toggleRan()">'+open+'</span>'
+      +'<span class="nm" style="cursor:pointer" title="'+esc(RAN)+'" onclick="pick(\'cust\',decodeURIComponent(\''+enc+'\'))">'+esc(RAN)+' <span class="muted" style="font-weight:400">('+ks.length+')</span></span>'
+      +trendHtml(o.total, PREVMAP.top[RAN]||0)
+      +'<span class="shareWrap"><span class="share" style="width:'+Math.max(3,Math.round(o.total/max*100))+'%"></span></span>'
+      +'<span class="qty">'+fmtQ(o.total)+'</span>'
+      +'</div>';
+    h+='<div class="ranKids"'+(RAN_OPEN?'':' style="display:none"')+'>';
+    ks.forEach(function(k){ h+=custRow(k[0],k[1],kmax,PREVMAP.cust,true); });
+    if(!ks.length) h+='<div class="prow kid"><span class="nm muted">אין לקוחות בטווח</span></div>';
+    h+='</div>';
+  });
+  return {html:h||'<span class="muted">אין נתונים</span>', n:entries.length};
+}
+let RAN_OPEN=false;
+function toggleRan(){ RAN_OPEN=!RAN_OPEN; renderPanels(); }
 function renderPanels(){
   const custRows=RAW.filter(r=>!SEL.prod||r.prod===SEL.prod);
-  const prodRows=RAW.filter(r=>!SEL.cust||r.cust===SEL.cust);
-  const c=panelHtml(aggBy(custRows,'cust'),'cust',PREVMAP.cust,document.getElementById('custSearch').value.trim());
+  const prodRows=RAW.filter(r=>!SEL.cust||r.top===SEL.cust||r.cust===SEL.cust);
+  const c=custPanelHtml(custRows,document.getElementById('custSearch').value.trim());
   const p=panelHtml(aggBy(prodRows,'prod'),'prod',PREVMAP.prod,document.getElementById('prodSearch').value.trim());
   document.getElementById('custPanel').innerHTML=c.html;
   document.getElementById('prodPanel').innerHTML=p.html;
@@ -348,19 +419,22 @@ let PIVOT=[];
 function renderPivot(){
   const rows=rowsFiltered();
   const units=[...new Set(rows.map(r=>r.unit))].sort();
-  const mainKey=SEL.cust?'prod':'cust', subKey=SEL.cust?'cust':'prod';
+  const isRan=(SEL.cust===RAN);
+  let mainKey, subKey, prevm, title;
+  if(isRan){ mainKey='cust'; subKey='prod'; prevm=PREVMAP.cust; title='🧩 הלקוחות של '+RAN+' (לחץ ▸ לפתיחת המוצרים)'; }
+  else if(SEL.cust){ mainKey='prod'; subKey='cust'; prevm=PREVMAP.prod; title='🧩 המוצרים של '+SEL.cust; }
+  else if(SEL.prod){ mainKey='top'; subKey='prod'; prevm=PREVMAP.top; title='🧩 הלקוחות של '+SEL.prod; }
+  else { mainKey='top'; subKey='prod'; prevm=PREVMAP.top; title='🧩 לקוחות ← מוצרים (לחץ ▸ לפתיחה)'; }
   const main=aggBy(rows,mainKey);
-  const title=SEL.cust?'🧩 המוצרים של '+SEL.cust : SEL.prod?'🧩 הלקוחות של '+SEL.prod : '🧩 לקוחות ← מוצרים (לחץ ▸ לפתיחה)';
   document.getElementById('pivotTitle').textContent=title;
   const keys=Object.keys(main).sort(function(a,b){return main[b].total-main[a].total;});
   PIVOT=[];
-  let h='<table><thead><tr><th style="min-width:190px">'+(mainKey==='cust'?'לקוח':'מוצר')+'</th>';
+  let h='<table><thead><tr><th style="min-width:190px">'+(mainKey==='prod'?'מוצר':'לקוח')+'</th>';
   units.forEach(u=>h+='<th>'+esc(u||'—')+'</th>');
   h+='<th>מגמה</th><th>שורות</th><th>ימים</th></tr></thead><tbody>';
-  const showChildren=!SEL.cust&&!SEL.prod;
+  const showChildren=isRan||(!SEL.cust&&!SEL.prod);
   keys.forEach(function(k,ix){
     const o=main[k];
-    const prevm=mainKey==='cust'?PREVMAP.cust:PREVMAP.prod;
     PIVOT.push(Object.assign({name:k,level:0},o));
     h+='<tr><td>'+(showChildren?'<span class="exp" onclick="togglePv(this,'+ix+')">▸</span>':'')+'<b>'+esc(k)+'</b></td>';
     units.forEach(u=>h+='<td><b>'+(o.units[u]?fmtQ(o.units[u]):'·')+'</b></td>');
@@ -389,7 +463,8 @@ async function loadTimeline(){
   const from=document.getElementById('aFrom').value, to=document.getElementById('aTo').value;
   if(!from||!to) return;
   try{
-    const rows=await rpcAgg(from,to,'day',SEL.cust,SEL.prod);
+    const isRan=(SEL.cust===RAN);
+    const rows=await rpcAgg(from,to,'day', isRan?null:SEL.cust, SEL.prod, isRan?'alumim':undefined);
     const byDay={}; rows.forEach(r=>{byDay[r.k1]=(byDay[r.k1]||0)+Number(r.total||0);});
     const weeks={};
     Object.keys(byDay).forEach(function(ds){
