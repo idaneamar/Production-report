@@ -445,7 +445,7 @@ async function loadFile(f){
   document.getElementById('msg').innerHTML=''; document.getElementById('out').innerHTML='';
   try{ ensureXL(); WB=new ExcelJS.Workbook(); await WB.xlsx.load(await f.arrayBuffer()); WBNAME=f.name;
     const names=WB.worksheets.map(w=>w.name);
-    const sel=document.getElementById('sheetSel'); sel.innerHTML=names.map(n=>'<option>'+n+'</option>').join('');
+    const sel=document.getElementById('sheetSel'); sel.innerHTML=names.map(n=>'<option>'+esc(n)+'</option>').join('');
     const lt=tomorrowLetter(); const def=names.find(n=>n.indexOf("יום "+lt)>=0)||names[0];
     sel.value=def; document.getElementById('sheetbar').classList.remove('hidden'); sel.onchange=()=>runSheet(sel.value);
     info.textContent='✓ נטען: '+f.name;
@@ -514,7 +514,7 @@ function render(R){
   let w='';
   if(R.flags.length) w+='<div class="warn"><b>'+R.flags.length+' תאים ללא צבע</b> (לא שובצו למי-מכין) — כדאי לצבוע אותם בקובץ. לדוגמה: '+R.flags.slice(0,4).map(f=>f.region+'/'+f.name).join(' · ')+'</div>';
   const unknownReg=R.regionsSeen.filter(rg=>!S.our_regions.some(k=>rg.indexOf(k)>=0));
-  msg.innerHTML='<div class="ok">גיליון <b>'+R.sheet+'</b> · '+R.productCount+' מוצרים · '+R.regionsSeen.length+' מחוזות.</div>'+w;
+  msg.innerHTML='<div class="ok">גיליון <b>'+esc(R.sheet)+'</b> · '+R.productCount+' מוצרים · '+R.regionsSeen.length+' מחוזות.</div>'+w;
   // קלפי סיכום
   let h;
   if(R.summer){

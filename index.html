@@ -245,11 +245,16 @@ function splitDelivery(header){
 }
 function findCustomer(header){
   const h=splitDelivery(header).clean; if(!h) return null;
-  let best=null,blen=-1;
+  // עדיפות: (1) התאמה מדויקת — הכי ספציפית; (2) הכותרת מכילה כינוי — הכינוי הארוך ביותר;
+  // (3) כינוי מכיל את הכותרת — הכינוי הקצר (הקרוב) ביותר. מונע שיוך שגוי בין לקוחות עם שם דומה.
+  let exact=null, byHeader=null, bhLen=-1, byAlias=null, baLen=Infinity;
   for(const c of DB.customers){ const aliases=(c.alias||c.name).split('|');
     for(let a of aliases){ a=norm(a); if(!a) continue;
-      if(h.includes(a)||a.includes(h)){ if(a.length>blen){best=c;blen=a.length;} } } }
-  return best;
+      if(a===h){ exact=c; break; }
+      if(h.includes(a)){ if(a.length>bhLen){ byHeader=c; bhLen=a.length; } }
+      else if(a.includes(h)){ if(a.length<baLen){ byAlias=c; baLen=a.length; } } }
+    if(exact) break; }
+  return exact || byHeader || byAlias || null;
 }
 
 /* ---------- פירוק המטריצה ---------- */
@@ -362,7 +367,7 @@ function run(){
   out.innerHTML=''; msg.innerHTML='';
   const pr=parseMatrix(document.getElementById('inp').value);
   if(pr.error){ msg.innerHTML='<div class="warn">'+pr.error+'</div>'; return; }
-  if(pr.items.length===0){ msg.innerHTML='<div class="warn">לא נמצאו כמויות בגיליון זה.<br>'+(pr.unmatchedHdr.length?'עמודות שלא זוהו ככותרת לקוח: '+pr.unmatchedHdr.join(', '):'ייתכן שזה גיליון ריק/תבנית ללא כותרות לקוחות — אם טענת קובץ עם כמה ימים, בחר יום אחר מהרשימה למעלה.')+'</div>'; return; }
+  if(pr.items.length===0){ msg.innerHTML='<div class="warn">לא נמצאו כמויות בגיליון זה.<br>'+(pr.unmatchedHdr.length?'עמודות שלא זוהו ככותרת לקוח: '+pr.unmatchedHdr.map(esc).join(', '):'ייתכן שזה גיליון ריק/תבנית ללא כותרות לקוחות — אם טענת קובץ עם כמה ימים, בחר יום אחר מהרשימה למעלה.')+'</div>'; return; }
   computeAndRender(pr.items,{unmatchedHdr:pr.unmatchedHdr,unmatchedProd:pr.unmatchedProd},'');
 }
 function dayShort(s){ return (s||'').replace('יום ','').trim(); }
@@ -410,9 +415,9 @@ function computeShipment(cust,pqs){
 function render(results,warnInfo,scope){
   const out=document.getElementById('out'); const msg=document.getElementById('msg');
   let warnHtml='';
-  if(warnInfo.unmatchedHdr&&warnInfo.unmatchedHdr.length) warnHtml+='עמודות שלא מופו ללקוח (נדרש לעדכן "כינוי בדוח"): <b>'+warnInfo.unmatchedHdr.join(' · ')+'</b><br>';
-  if(warnInfo.unmatchedProd&&warnInfo.unmatchedProd.length) warnHtml+='מוצרים שלא זוהו (התעלמנו מהם): <b>'+warnInfo.unmatchedProd.join(' · ')+'</b>';
-  msg.innerHTML = '<div class="ok">'+(scope?'<b>'+scope+'</b> · ':'')+'זוהו '+results.length+' לקוחות.</div>' + (warnHtml?'<div class="warn">'+warnHtml+'</div>':'');
+  if(warnInfo.unmatchedHdr&&warnInfo.unmatchedHdr.length) warnHtml+='עמודות שלא מופו ללקוח (נדרש לעדכן "כינוי בדוח"): <b>'+warnInfo.unmatchedHdr.map(esc).join(' · ')+'</b><br>';
+  if(warnInfo.unmatchedProd&&warnInfo.unmatchedProd.length) warnHtml+='מוצרים שלא זוהו (התעלמנו מהם): <b>'+warnInfo.unmatchedProd.map(esc).join(' · ')+'</b>';
+  msg.innerHTML = '<div class="ok">'+(scope?'<b>'+esc(scope)+'</b> · ':'')+'זוהו '+results.length+' לקוחות.</div>' + (warnHtml?'<div class="warn">'+warnHtml+'</div>':'');
   // טוטלים כלליים
   let tBoxes=0,tPallets=0,tKg=0;
   results.forEach(r=>{tBoxes+=r.agg.boxes;tPallets+=r.agg.pallets;tKg+=r.agg.kg;});
@@ -609,7 +614,7 @@ async function loadXlsx(f){ ensureXlsx(); WB=XLSX.read(await f.arrayBuffer(),{ty
   const today=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'][new Date().getDay()];
   const withData=sheets.filter(sheetHasData);
   let def = (sheets.find(n=>n.indexOf(today)>=0 && sheetHasData(n))) || withData[0] || sheets[0];
-  if(sheets.length>1){ sel.innerHTML=sheets.map(n=>'<option'+(sheetHasData(n)?'':' style="color:#aaa"')+'>'+n+(sheetHasData(n)?'':' (ריק)')+'</option>').join('');
+  if(sheets.length>1){ sel.innerHTML=sheets.map(n=>'<option'+(sheetHasData(n)?'':' style="color:#aaa"')+'>'+esc(n)+(sheetHasData(n)?'':' (ריק)')+'</option>').join('');
     sel.value=def; document.getElementById('sheetbar').classList.remove('hidden');
     sel.onchange=()=>useSheet(sel.value.replace(' (ריק)','')); }
   else document.getElementById('sheetbar').classList.add('hidden');

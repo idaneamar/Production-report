@@ -366,8 +366,9 @@ function parseExportFile(text){ let doc; try{doc=new DOMParser().parseFromString
     if(hi<0)return;
     for(let r=hi+1;r<trs.length;r++){ const cells=[].slice.call(trs[r].children).map(x=>x.textContent.trim());
       const name=cells[nc]; if(!name||/סה.?כ/.test(name))continue;
-      const pal=parseFloat((cells[pc]||'').replace(/[^0-9.]/g,'')); if(isNaN(pal))continue;
+      const pal=parseFloat((cells[pc]||'').replace(/[^0-9.]/g,''))||0;
       const car=cc>=0?(parseFloat((cells[cc]||'').replace(/[^0-9.]/g,''))||0):0;
+      if(pal<=0&&car<=0)continue; // דלג רק אם אין משטחים וגם אין קרטונים (עמודת קרטונים בלבד כן נכללת)
       const reg=rc>=0?(cells[rc]||'').trim():'';
       out.push({name:name,pallets:pal,cartons:car,region:reg}); } });
   return out; }
