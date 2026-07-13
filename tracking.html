@@ -409,6 +409,17 @@ async function setPlace(sel,place){ if(!CAN_EDIT){ alert('אין לך הרשאת
 }
 
 /* ---------- init ---------- */
+window.__refresh=async function(){
+  try{
+    await loadMeta();
+    const vis=id=>{ const e=document.getElementById(id); return e && !e.classList.contains('hidden'); };
+    if(vis('v-cover')) renderCover();
+    if(vis('v-week'))  renderWeek();
+    if(vis('v-trips')) renderTrips();
+    if(vis('v-month')) renderSummary();
+    if(vis('v-places')) renderPlaces();
+  }catch(e){}
+};
 (async function(){
   const n=new Date();
   document.getElementById('coverMonth').value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');

@@ -41,7 +41,7 @@ const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שיש
 function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function kpi(t,v,s,warn){ return '<div class="kpi'+(warn?' warn':'')+'"><div class="t">'+t+'</div><div class="v">'+v+'</div><div class="s">'+(s||'')+'</div></div>'; }
-(async function(){
+async function loadDash(){
   const n=new Date(), today=iso(n);
   document.getElementById('todayHe').textContent='יום '+DAYS[n.getDay()]+' '+n.getDate()+'.'+(n.getMonth()+1);
   const K=document.getElementById('kpis');
@@ -85,7 +85,9 @@ function kpi(t,v,s,warn){ return '<div class="kpi'+(warn?' warn':'')+'"><div cla
     trips.forEach(r=>h+='<tr><td>'+esc(r.shift||'')+'</td><td>'+esc(r.driver)+'</td><td>'+esc(r.place)+'</td><td>'+(r.pallets||'')+'</td><td>'+esc(r.note||'')+'</td></tr>');
     document.getElementById('todayTrips').innerHTML=h+'</table>';
   }catch(e){ document.getElementById('todayTrips').textContent='אין הרשאת צפייה במעקב נהגים.'; }
-})();
+}
+window.__refresh=loadDash;
+loadDash();
 </script>
 <script src="./table-resize.js"></script>
 </body>

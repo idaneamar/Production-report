@@ -377,6 +377,9 @@ function activate(id){
       if(f.dataset.loaded) switchInner(f, t.inner);
       else f.dataset.pendingInner=t.inner;
     }
+    /* המודול כבר טעון מקודם — נרענן את הנתונים שלו במעבר ללשונית,
+       אחרת לוח הכיסוי מציג מצב ישן עד סגירת האפליקציה */
+    if(f.dataset.loaded){ try{ f.contentWindow.__refresh && f.contentWindow.__refresh(); }catch(e){} }
   }
   localStorage.setItem('trelee_last_tab', t.id);
   if(t.id==='admin') loadAdmin();
