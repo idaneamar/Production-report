@@ -65,7 +65,8 @@ hidden,[hidden]{display:none!important}
   <p class="muted">אפשר לתקן כל שדה: מספר חשבון, מק"ט, כמות, תאריך, סוג מסמך. שורה צהובה = זוהתה כבד"ץ.</p>
   <div style="max-height:460px;overflow:auto"><table id="prevTbl"></table></div>
   <div class="row">
-   <button class="btn" onclick="genFiles()">⬇ צור קבצים לחשבשבת (IMOVEIN)</button>
+   <button class="btn" id="sendBtn" onclick="sendToHash()">📤 שלח לחשבשבת</button>
+   <button class="btn sec" onclick="genFiles()">⬇ הורד קבצים ידנית</button>
    <span class="muted" id="prevSum"></span>
   </div>
   <div id="genMsg"></div>
@@ -313,7 +314,13 @@ function pad(s,len){ s=String(s==null?'':s); if(s.length>len)s=s.substring(0,len
 function fmtDate(iso){ if(!iso)return ''; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
 // פריסה: F2 לקוח(1,15) F3 מסמך(16,9) F4 סוג(25,2) F9 ת.אסמכתא(27,10) F10 ת.ערך(37,10) F12 מחסן(47,9) F22 פריט(56,20) F23 כמות(76,13). אורך=88
 const LAYOUT=[[2,1,15],[3,16,9],[4,25,2],[9,27,10],[10,37,10],[12,47,9],[22,56,20],[23,76,13]]; const RECLEN=88;
-function genFiles(){ if(!ROWS.length){alert('אין שורות');return;}
+/* ---------- חיבור לשרת (לשליחה אוטומטית) ---------- */
+const SB_URL='https://knqnuvoprtuqyrvzqffj.supabase.co/rest/v1';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtucW51dm9wcnR1cXlydnpxZmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTM5MjEsImV4cCI6MjA5OTA4OTkyMX0.sVyNLQ7JDePgui-ATMOPbqu2Dabnn4fJIjL4ccrLEXw';
+function hSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+function hHdr(){ const s=hSession(); return {'apikey':SB_KEY,'Authorization':'Bearer '+(s?s.access_token:SB_KEY),'Content-Type':'application/json'}; }
+
+function buildFiles(){ if(!ROWS.length){alert('אין שורות');return null;}
  const date=fmtDate(document.getElementById('docDate').value);
  const valid=r=>r.acct&&r.mkt&&(parseFloat(r.qty)>0);
  let bad=ROWS.filter(r=>!valid(r));
@@ -328,17 +335,40 @@ function genFiles(){ if(!ROWS.length){alert('אין שורות');return;}
    function put(start,len,val){ val=String(val==null?'':val); for(let i=0;i<len&&i<val.length;i++)buf[start-1+i]=val[i]; }
    put(1,15,r.acct); put(16,9,dnum); put(25,2,r.docType); put(27,10,date); put(37,10,date); put(47,9,'1'); put(56,20,r.mkt); put(76,13,String(r.qty));
    lines.push(buf.join('')); });
- if(!lines.length){alert('אין שורות תקינות (צריך חשבון + מק"ט + כמות).');return;}
+ if(!lines.length){alert('אין שורות תקינות (צריך חשבון + מק"ט + כמות).');return null;}
  const docTxt=lines.join('\r\n')+'\r\n';
  // PRM
  let used={}; LAYOUT.forEach(([f,p,l])=>used[f]=[p,l]);
  let prm=[String(RECLEN)];
  for(let f=2;f<=87;f++){ const u=used[f]; prm.push(u?(u[0]+'  '+(u[0]+u[1]-1)):'0  0'); }
  const prmTxt=prm.join('\r\n')+'\r\n';
- dl(docTxt,'IMOVEIN.DOC'); setTimeout(()=>dl(prmTxt,'IMOVEIN.PRM'),300);
- let m='<div class="okbox">נוצרו IMOVEIN.DOC ('+lines.length+' שורות) ו-IMOVEIN.PRM.</div>';
- if(bad.length) m+='<div class="warnbox">'+bad.length+' שורות דולגו (חסר חשבון/מק"ט/כמות) — תקן בטבלה אם צריך.</div>';
- document.getElementById('genMsg').innerHTML=m;
+ return {docTxt:docTxt, prmTxt:prmTxt, lines:lines, bad:bad};
+}
+function badMsg(bad){ return bad.length? '<div class="warnbox">'+bad.length+' שורות דולגו (חסר חשבון/מק"ט/כמות) — תקן בטבלה אם צריך.</div>' : ''; }
+/* הורדה ידנית — נשאר כגיבוי */
+function genFiles(){
+ const b=buildFiles(); if(!b) return;
+ dl(b.docTxt,'IMOVEIN.DOC'); setTimeout(()=>dl(b.prmTxt,'IMOVEIN.PRM'),300);
+ document.getElementById('genMsg').innerHTML='<div class="okbox">נוצרו IMOVEIN.DOC ('+b.lines.length+' שורות) ו-IMOVEIN.PRM.</div>'+badMsg(b.bad);
+}
+/* שליחה אוטומטית — הסוכן על maya-dt כותב את הקובץ לתיקייה תוך כדקה */
+async function sendToHash(){
+ const b=buildFiles(); if(!b) return;
+ const s=hSession(); if(!s){ alert('אין חיבור — התחבר מחדש דרך המסך הראשי'); return; }
+ const btn=document.getElementById('sendBtn');
+ btn.disabled=true; btn.textContent='שולח…';
+ try{
+   const r=await fetch(SB_URL+'/hashav_exports',{method:'POST',
+     headers:Object.assign({},hHdr(),{'Prefer':'return=minimal'}),
+     body:JSON.stringify({report_date:document.getElementById('docDate').value||null,
+       doc_text:b.docTxt, prm_text:b.prmTxt, lines_count:b.lines.length,
+       created_by:(s.username||s.email||''), status:'pending'})});
+   if(!r.ok) throw new Error(r.status+' '+(await r.text()));
+   document.getElementById('genMsg').innerHTML=
+     '<div class="okbox">✅ נשלח לחשבשבת — '+b.lines.length+' שורות.<br>הקובץ ייכתב ל-\\maya-dt\\hash\\rep תוך כדקה. אין צורך להוריד או להעתיק כלום.</div>'+badMsg(b.bad);
+ }catch(e){
+   document.getElementById('genMsg').innerHTML='<div class="warnbox">שגיאה בשליחה: '+String(e.message)+'<br>אפשר להשתמש ב"הורד קבצים ידנית" כגיבוי.</div>';
+ }finally{ btn.disabled=false; btn.textContent='📤 שלח לחשבשבת'; }
 }
 function dl(txt,name){ const blob=new Blob([txt],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
 function msg(h){document.getElementById('msg').innerHTML=h;}
