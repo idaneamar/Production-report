@@ -216,8 +216,23 @@ function findProduct(name,code){
   if(!p && n) p=DB.products.find(x=>norm(x.name) && (norm(x.name).includes(n)||n.includes(norm(x.name))));
   return p||null;
 }
+/* כותרת לקוח בדוח מכילה לעיתים את זמן האספקה, למשל:
+   "מרינה חדרה אספקה יום שני" · "סלטי בוסתן שלישי בבוקר" · "שלום שיווק אספקה שלישי לילה"
+   מפרידים את הזמן מהשם — אחרת השם לא מזוהה, והימים משתנים ממילא כל שבוע. */
+const DELIV_DAYS='ראשון|שני|שלישי|רביעי|חמישי|שישי|שבת';
+const DELIV_TIMES='בבוקר|בוקר|בצהריים|צהריים|בערב|ערב|בלילה|לילה';
+const DELIV_RE=new RegExp('\\s*(אספקה\\s*)?(ביום|יום)?\\s*('+DELIV_DAYS+')\\s*('+DELIV_TIMES+')?\\s*$');
+function splitDelivery(header){
+  const h=norm(header); if(!h) return {clean:'',deliv:''};
+  const m=h.match(DELIV_RE);
+  if(m && m[3]){
+    const clean=h.slice(0,m.index).replace(/[-–,]\s*$/,'').trim();
+    if(clean) return {clean:clean, deliv:h.slice(m.index).replace(/^\s*אספקה\s*/,'').trim()};
+  }
+  return {clean:h, deliv:''};
+}
 function findCustomer(header){
-  const h=norm(header); if(!h) return null;
+  const h=splitDelivery(header).clean; if(!h) return null;
   let best=null,blen=-1;
   for(const c of DB.customers){ const aliases=(c.alias||c.name).split('|');
     for(let a of aliases){ a=norm(a); if(!a) continue;
@@ -252,7 +267,10 @@ function parseMatrix(text){
   const custCols=[]; const unmatchedHdr=[];
   header.forEach((h,i)=>{ if(i===nameCol||i===codeCol) return; const hn=norm(h); if(!hn) return;
     if(META.some(m=>hn===norm(m))) return;
-    const c=findCustomer(h); if(c) custCols.push({i,c,header:h}); else unmatchedHdr.push(h); });
+    const sd=splitDelivery(h);
+    const c=findCustomer(h);
+    if(c) custCols.push({i,c,header:h,deliv:sd.deliv});
+    else if(unmatchedHdr.indexOf(sd.clean)<0) unmatchedHdr.push(sd.clean); });
   const items=[]; const unmatchedProd=new Set();
   for(let r=hIdx+1;r<grid.length;r++){ const row=grid[r];
     const pname = nameCol>=0?row[nameCol]:''; const pcode = codeCol>=0?row[codeCol]:'';
