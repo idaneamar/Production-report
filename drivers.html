@@ -100,9 +100,39 @@ input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid
 const DEFAULTS = {"trucks": [{"id": "503", "license": 15, "loadTon": 16, "maxPallets": 18, "cooling": "good", "terminal": true, "active": true}, {"id": "702", "license": 15, "loadTon": 6, "maxPallets": 15.5, "cooling": "good", "terminal": false, "active": true}, {"id": "902", "license": 12, "loadTon": 15, "maxPallets": 14, "cooling": "weak", "terminal": false, "active": true}, {"id": "703", "license": 12, "loadTon": 5, "maxPallets": 12, "cooling": "good", "terminal": false, "active": true}, {"id": "704", "license": 12, "loadTon": 5, "maxPallets": 14, "cooling": "good", "terminal": false, "active": true}], "drivers": [{"name": "אלון", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יהודה", "license": 15, "terminal": true, "contractor": false, "active": true, "note": ""}, {"name": "יניב דמרי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "שי", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "מטר", "license": 15, "terminal": false, "contractor": false, "active": true, "note": ""}, {"name": "יניב מחלבני", "license": 15, "terminal": false, "contractor": false, "active": true, "note": "בדרך כלל הנהג שנוסע לעלומים בצהריים"}, {"name": "קבלן", "license": 15, "terminal": false, "contractor": true, "active": true, "note": "מגיע עם משאית שלו; רק קו צפון מזרח 7; משובץ אחרון"}], "customers": [{"name": "איכילוב", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "תל השומר", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "לוינשטיין", "flags": ["בית חולים"], "from": "06:00", "to": "", "shift": "לילה", "north": false, "note": "אספקה עם שחר"}, {"name": "סלטי גל", "flags": [], "from": "06:00", "to": "", "shift": "בוקר", "north": false, "note": ""}, {"name": "ברכת עץ השדה", "flags": [], "from": "", "to": "24:00", "shift": "לילה", "north": false, "note": ""}, {"name": "משה קילופים", "flags": [], "from": "", "to": "23:30", "shift": "לילה", "north": false, "note": ""}, {"name": "אייסמן", "flags": [], "from": "", "to": "11:30", "shift": "בוקר", "north": false, "note": "לקוח בוקר"}, {"name": "טרמינל", "flags": ["טרמינל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "נמל — רק משאית 503 + נהג מורשה (מקדונלד רגיל אינו טרמינל)"}, {"name": "אברהם איליה", "flags": ["ספק", "משקל"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "דולב 270-300 ק\"ג; דולבים ריקים"}, {"name": "גלאט עלים", "flags": ["ספק"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "אוספים רק כשנותנים סחורה"}, {"name": "כפר יעבץ", "flags": ["ספק", "ראש בראש"], "from": "", "to": "", "shift": "לילה", "north": false, "note": "יואב ורחמים; ראש בראש משטחים"}], "rules": {"max_drive_hours": 12, "break_after_hours": 6, "ayalon_block": "06:30-09:00", "contractor_last": true, "boxes_per_pallet": 60, "alumim_time": "16:00", "alumim_driver": "יניב מחלבני"}, "gemini_proxy_url": "", "gemini_key": ""};
 let DB = load();
 let STOPS = []; // [{name, pallets, cartons, driver, cust(attr)}]
-function load(){ try{const s=localStorage.getItem('drv_set'); if(s)return Object.assign({},JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(s));}catch(e){} return JSON.parse(JSON.stringify(DEFAULTS)); }
-function persist(){ try{localStorage.setItem('drv_set',JSON.stringify(DB));}catch(e){} }
-(async function(){ try{const r=await fetch('settings3.json?_='+Date.now(),{cache:'no-store'}); if(r.ok){const j=await r.json(); if(j&&j.trucks){const gp=DB.gemini_proxy_url||'',gk=DB.gemini_key||''; DB=Object.assign({},DEFAULTS,j,{gemini_proxy_url:gp,gemini_key:gk}); renderFleet();renderCustSet();}}}catch(e){} })();
+/* מפתחות ה-AI הם סוד של המחשב הזה — נשמרים מקומית בלבד (drv_ai),
+   לא ב-drv_set ולא בענן, כדי שסנכרון ההגדרות לא ימחק אותם. */
+function loadAI(){ try{const s=localStorage.getItem('drv_ai'); if(s) return JSON.parse(s);}catch(e){} return {gemini_proxy_url:'',gemini_key:''}; }
+function saveAI(){ try{localStorage.setItem('drv_ai',JSON.stringify({gemini_proxy_url:DB.gemini_proxy_url||'',gemini_key:DB.gemini_key||''}));}catch(e){} }
+function applyAI(d){
+  var ai=loadAI();
+  /* מיגרציה חד-פעמית: אם המפתחות עדיין יושבים ב-drv_set — מעבירים אותם למקום המקומי לפני שהסנכרון ידרוס */
+  if(!ai.gemini_key && !ai.gemini_proxy_url && (d.gemini_key||d.gemini_proxy_url)){
+    ai={gemini_proxy_url:d.gemini_proxy_url||'',gemini_key:d.gemini_key||''};
+    try{localStorage.setItem('drv_ai',JSON.stringify(ai));}catch(e){}
+  }
+  d.gemini_proxy_url=ai.gemini_proxy_url||''; d.gemini_key=ai.gemini_key||'';
+  return d;
+}
+function load(){ try{const s=localStorage.getItem('drv_set'); if(s)return applyAI(Object.assign({},JSON.parse(JSON.stringify(DEFAULTS)),JSON.parse(s)));}catch(e){} return applyAI(JSON.parse(JSON.stringify(DEFAULTS))); }
+function persist(){
+  try{ var copy=Object.assign({},DB); delete copy.gemini_proxy_url; delete copy.gemini_key;
+       localStorage.setItem('drv_set',JSON.stringify(copy)); }catch(e){}
+  saveAI();
+}
+/* ההגדרות המרכזיות = הענן (app_settings ← "drivers:drv_set"), מסונכרן ע"י cloud-sync.js.
+   settings3.json דרס קודם את ההגדרות בכל טעינה — ולכן כל עריכה של נהג/משאית/לקוח נמחקה בשקט.
+   עכשיו הוא זרע ראשוני בלבד: נטען אך ורק כשאין עדיין הגדרות שמורות. */
+(async function(){ try{
+  var hasSaved=false; try{ hasSaved=!!localStorage.getItem('drv_set'); }catch(e){}
+  if(hasSaved) return;
+  const r=await fetch('settings3.json?_='+Date.now(),{cache:'no-store'});
+  if(!r.ok) return;
+  const j=await r.json();
+  if(j&&j.trucks){ const gp=DB.gemini_proxy_url||'',gk=DB.gemini_key||'';
+    DB=Object.assign({},DEFAULTS,j,{gemini_proxy_url:gp,gemini_key:gk});
+    renderFleet(); renderCustSet(); }
+}catch(e){} })();
 /* הזנת גישת AI (למורשה בלבד) דרך כתובת סודית: ...drivers.html?proxy=URL — נשמר בדפדפן ונמחק מהכתובת */
 (function(){ try{ const u=new URL(location.href); const p=u.searchParams.get('proxy'), k=u.searchParams.get('aikey'); let ch=false;
   if(p){DB.gemini_proxy_url=p;ch=true;} if(k){DB.gemini_key=k;ch=true;}
