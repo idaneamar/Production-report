@@ -557,7 +557,7 @@
   },
   {
    "name": "אלוניאל בע\"מ (מקדונלס)",
-   "alias": "מקדונלד|254|255|256",
+   "alias": "מקדונלד|254|255|256|מודיעין",
    "type": "UNITS",
    "bag_default": 1,
    "bpb_small": 15,
@@ -1029,6 +1029,23 @@
    "special_max_kg": 0,
    "special_units": 0,
    "note": "נוסף אוטומטית 7.26 — לבדוק כללי אריזה",
+   "pickup": false
+  },
+  {
+   "name": "סלטי בוסתן",
+   "alias": "סלטי בוסתן",
+   "type": "PALLET",
+   "bag_default": 10,
+   "bpb_small": 15,
+   "bpb_large": 10,
+   "units_per_box": 0,
+   "max_kg": 400,
+   "max_boxes": 55,
+   "special_cat": "",
+   "special_type": "",
+   "special_max_kg": 0,
+   "special_units": 0,
+   "note": "משטח שקיות 10 ק\"ג",
    "pickup": false
   }
  ]
