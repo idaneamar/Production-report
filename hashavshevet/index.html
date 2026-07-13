@@ -232,7 +232,17 @@ function parseDay(){ if(!WB)return; const ws=WB.getWorksheet(document.getElement
  renderCustChoices(detected); buildPreview();
  msg('<div class="okbox">זוהו '+Object.keys(detected).length+' לקוחות · '+LINES.length+' שורות.</div>');
 }
-function acctFor(name){ const n=norm(name); for(const [k,v] of Object.entries(DB.cust_map)){ if(n.indexOf(norm(k))>=0) return v; } return ''; }
+/* קודם התאמה מדויקת, אחר כך המפתח הארוך ביותר שמוכל בשם — אחרת "טיב וטעים" (הכללי)
+   חוטף את העמודה של "טיב וטעים חברת החשמל", וגם תיקון ידני ב-setAcct לעולם לא נתפס. */
+function acctFor(name){ const n=norm(name);
+  let best='', blen=-1;
+  for(const [k,v] of Object.entries(DB.cust_map)){
+    const nk=norm(k); if(!nk) continue;          // מפתח ריק (משורת "הוסף") התאים לכל דבר
+    if(nk===n) return v;                          // התאמה מדויקת מנצחת
+    if(n.indexOf(nk)>=0 && nk.length>blen){ best=v; blen=nk.length; }
+  }
+  return best;
+}
 function isPL(name){ const n=norm(name); return (DB.pl_customers||[]).some(p=>n.indexOf(norm(p))>=0); }
 function pickMkt(prod,base,custName,badatz){ const n=norm(prod); let best=null,bl=-1;
  for(const [k,v] of Object.entries(DB.item_variants)){ const nk=norm(k); if(n.indexOf(nk)>=0 && nk.length>bl){best=v;bl=nk.length;} }

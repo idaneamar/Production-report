@@ -400,6 +400,9 @@ function jsonp(url){ return new Promise((res,rej)=>{ const cb='cb_'+Math.random(
   setTimeout(()=>{if(!done){rej(new Error('timeout'));cleanup();}},15000); }); }
 function syncBanner(html,kind){ const m=document.getElementById('msg'); if(!m)return; const d=document.createElement('div'); d.className=(kind==='ok')?'ok':'warn'; d.innerHTML=html; m.appendChild(d); }
 async function autoRecord(R){ if(!S.sheet_webapp_url||!R) return;
+  /* במצב קיץ אין מאזן ארגזים כלל (הלולאה מדלגת על boxesIn/boxesOut), ולכן dailyNet ו-fruitPallets
+     תמיד 0. לרשום אותם ליומן המשותף = לדרוס את הרישום האמיתי של אותו יום באפס. */
+  if(R.summer){ syncBanner('מצב קיץ — היומן המשותף לא עודכן (אין מאזן ארגזים בקיץ).','ok'); return; }
   if(!R.reportDate){ syncBanner('⚠ לא זוהה תאריך בדוח — לא נרשם ליומן המשותף.','warn'); return; }
   try{ const u=S.sheet_webapp_url+'?action=record&date='+encodeURIComponent(R.reportDate)+'&net='+R.dailyNet+'&fruit='+R.fruitPallets;
     const r=await jsonp(u); let msgs=[];
@@ -846,7 +849,10 @@ function exportForDrivers(){ if(!LAST){alert('קודם חשב');return;}
   const m=combinedOurs(LAST); var rows=[];
   for(const reg in m) for(const ck in m[reg]){ const c=m[reg][ck]; var units=0,cart=0;
     Object.keys(c.prods).forEach(p=>{const v=c.prods[p]; if(v.isFruit)return; units+=v.us+v.al; if(v.isCarton)cart+=v.us+v.al;});
-    const pal=S.boxes_per_pallet>0?Math.ceil(units/S.boxes_per_pallet):0;
+    /* מגבלת ארגזים למשטח לפי לקוח (משי הוד 50, איכילוב/תל השומר/שפע טעים 40...).
+       עד כה נעשה שימוש ב-60 הגלובלי בלבד — הנהגים קיבלו מספר משטחים נמוך מדי. */
+    const lim=palletLimitFor(c.name, S.pallet_limits||[], S.boxes_per_pallet||60);
+    const pal=lim>0?Math.ceil(units/lim):0;
     if(pal>0||cart>0) rows.push({name:c.name,reg:reg,pallets:pal,cartons:cart}); }
   rows.sort((a,b)=>a.name.localeCompare(b.name,'he'));
   let h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1"><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>מחוז</th></tr>';
