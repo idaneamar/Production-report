@@ -55,11 +55,22 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .carton{color:var(--orange)} .hidden{display:none} .chk{width:18px;height:18px}
 .pill{display:inline-block;background:#eef3f7;border-radius:20px;padding:1px 9px;font-size:12px;margin-right:6px}
 code{background:#eef3f7;padding:1px 5px;border-radius:4px}
+@page{size:A4 portrait;margin:10mm}
+@page mxland{size:A4 landscape;margin:8mm}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 .tabs,.dropzone,.btn,#sheetbar,header .sub{display:none}
 .cust,.regblock>.reghead{break-inside:avoid;page-break-inside:avoid}
 .cust{page-break-inside:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}
-.pgbreak{page-break-before:always}}
+.pgbreak{page-break-before:always}
+/* מוצר x לקוח — לרוחב על כל הדף בהדפסה */
+.mx-print{page:mxland;page-break-before:always;break-before:page}
+.mx-print>div[style*="overflow"]{overflow:visible!important}
+.mx-print table.matrix{width:100%!important;font-size:13px!important;table-layout:auto}
+.mx-print table.matrix th,.mx-print table.matrix td{padding:4px 6px!important}
+.mx-print table.matrix th:first-child,.mx-print table.matrix td:first-child{position:static!important}
+.mx-print table.matrix th.rot{max-width:none;min-width:0}
+.mx-print table.matrix thead{display:table-header-group}
+.mx-print table.matrix tr{page-break-inside:avoid}}
 </style></head>
 <body>
 <header><h1>חלוקת הזמנות — עלומים / טרי לי</h1><span style="font-size:11px;opacity:.7"> ק-4</span>
@@ -571,12 +582,14 @@ async function ordSubmit(calc, defDate, lines, summary){
     r=await fetch(ORD_SB+'/rest/v1/order_uploads?on_conflict=report_date,calc',{method:'POST',headers:Object.assign({},H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({report_date:date,calc:calc,summary:summary,uploaded_by:s.username||s.email||'',uploaded_at:new Date().toISOString()})});
     if(!r.ok) throw new Error('עדכון סטטוס '+r.status);
     /* שמירת תמונת התוצאה */
+    let snapOk=false;
     try{
       const css=[...document.querySelectorAll('style')].map(x=>x.innerHTML).join('\n');
       const snap='<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>'+calc+' '+date+'</title><style>'+css+'</style></head><body style="padding:16px">'+document.getElementById('out').innerHTML+'</body></html>';
-      await fetch(ORD_SB+'/storage/v1/object/order-results/'+calc+'/'+date+'.html',{method:'POST',headers:Object.assign({},H,{'Content-Type':'text/html','x-upsert':'true'}),body:new Blob([snap],{type:'text/html'})});
-    }catch(e){}
-    alert('✔ נרשם למעקב הזמנות: '+lines.length+' שורות בתאריך '+date);
+      const sr=await fetch(ORD_SB+'/storage/v1/object/order-results/'+calc+'/'+date+'.html',{method:'POST',headers:Object.assign({},H,{'Content-Type':'text/html','x-upsert':'true'}),body:new Blob([snap],{type:'text/html'})});
+      snapOk=sr.ok;
+    }catch(e){ snapOk=false; }
+    alert('✔ נרשם למעקב הזמנות: '+lines.length+' שורות בתאריך '+date+(snapOk?'':'\n\n⚠ תצוגת התוצאה לא נשמרה בענן (הנתונים עצמם נשמרו). רענן Ctrl+F5 ורשום שוב כדי שאפשר יהיה לפתוח את הדוח בהמשך.'));
   }catch(e){ alert('שגיאה: '+e.message); }
 }
 
@@ -622,7 +635,7 @@ function prodCustMatrixHtml(R){ var m=combinedOurs(R);
     return h; }
   var header='<tr><th>מוצר \\ לקוח</th>'+custs.map(function(cn){return '<th class="rot">'+esc(cn)+'</th>';}).join('')+'<th>סה"כ</th></tr>';
   var body=section('🟧 מלקטים אצלנו',ourP,'sec-prepare')+section('🟩 מעלומים',alP,'sec-receive');
-  return '<div class="card sec-prepare"><h2>🧩 מוצר × לקוח — מי מקבל מה (ארגזים)</h2>'
+  return '<div class="card sec-prepare mx-print"><h2>🧩 מוצר × לקוח — מי מקבל מה (ארגזים)</h2>'
     +'<p class="muted">לכל מוצר: לאילו לקוחות הוא הולך וכמה ארגזים. החלק העליון = מה שמלקטים אצלנו, התחתון = מה שמגיע מעלומים. (פירות לא נכללים — נספרים בנפרד.)</p>'
     +'<div style="overflow-x:auto"><table class="matrix"><thead>'+header+'</thead><tbody>'+body+'</tbody></table></div></div>'; }
 function lineProducts(R){ var m=combinedOurs(R); var out={};

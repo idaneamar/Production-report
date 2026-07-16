@@ -257,17 +257,24 @@ function howToAdd(calc, ds){
   const name=calc==='packing'?'מחשבון אריזה':'חלוקת הזמנות עלומים';
   alert('הוספה בדיעבד של '+ds+':\n\n1. פתח את '+name+' בתפריט\n2. טען את קובץ ההזמנות של אותו יום'+(calc==='alumim'?' ובחר את הגיליון הנכון':'')+'\n3. לחץ "📊 רשום למעקב הזמנות"\n4. בחלון התאריך הזן: '+ds+'\n\nהיום יהפוך לירוק כאן מיד אחרי השמירה.');
 }
+const PRINT_FIX='<style>@page{size:A4 portrait;margin:10mm}@page mxland{size:A4 landscape;margin:8mm}@media print{.mx-print,.card:has(table.matrix){page:mxland;page-break-before:always;break-before:page}.mx-print>div[style*="overflow"],.card:has(table.matrix) div[style*="overflow"]{overflow:visible!important}table.matrix{width:100%!important;font-size:13px!important;table-layout:auto}table.matrix th,table.matrix td{padding:4px 6px!important}table.matrix th:first-child,table.matrix td:first-child{position:static!important}table.matrix th.rot{max-width:none;min-width:0}table.matrix thead{display:table-header-group}table.matrix tr{page-break-inside:avoid}}<\/style>';
+function injectPrintFix(html){ return html.indexOf('</head>')>=0 ? html.replace('</head>',PRINT_FIX+'</head>') : PRINT_FIX+html; }
 async function openResult(calc, ds){
   loader.style.display='block';
   try{
-    const r=await fetch(SB+'/storage/v1/object/sign/order-results/'+calc+'/'+ds+'.html',{method:'POST',headers:H(),body:JSON.stringify({expiresIn:3600})});
+    const sign=()=>fetch(SB+'/storage/v1/object/sign/order-results/'+calc+'/'+ds+'.html',{method:'POST',headers:H(),body:JSON.stringify({expiresIn:3600})});
+    let r=await sign();
+    if(!r.ok){ await new Promise(res=>setTimeout(res,600)); r=await sign(); }
+    if(!r.ok){ alert('תוצאת הדוח לא נמצאה בענן ('+r.status+').\n\nהנתונים של '+ds+' שמורים — כדי לשחזר את התצוגה: פתח את המחשבון, טען את קובץ אותו יום ולחץ "📊 רשום למעקב הזמנות" עם התאריך '+ds+'.'); return; }
     const d=await r.json();
-    if(!r.ok){ alert('הדוח נרשם אך תוצאתו לא נשמרה (גרסה ישנה של המחשבון?)'); return; }
     const res=await fetch(SB+'/storage/v1'+d.signedURL);
-    const html=await res.text();
+    let html=await res.text();
+    html=injectPrintFix(html);
     const url=URL.createObjectURL(new Blob([html],{type:'text/html'}));
-    window.open(url,'_blank');
-  } finally { loader.style.display='none'; }
+    const w=window.open(url,'_blank');
+    if(!w) alert('הדפדפן חסם את פתיחת החלון — אשר חלונות קופצים לאתר ונסה שוב.');
+  } catch(e){ alert('שגיאה בפתיחת הדוח: '+e.message); }
+  finally { loader.style.display='none'; }
 }
 
 /* ---------- analysis (smart pivot) ---------- */

@@ -343,12 +343,14 @@ async function ordSubmit(calc, defDate, lines, summary){
     r=await fetch(ORD_SB+'/rest/v1/order_uploads?on_conflict=report_date,calc',{method:'POST',headers:Object.assign({},H,{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({report_date:date,calc:calc,summary:summary,uploaded_by:s.username||s.email||'',uploaded_at:new Date().toISOString()})});
     if(!r.ok) throw new Error('עדכון סטטוס '+r.status);
     /* שמירת תמונת התוצאה */
+    let snapOk=false;
     try{
       const css=[...document.querySelectorAll('style')].map(x=>x.innerHTML).join('\n');
       const snap='<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>'+calc+' '+date+'</title><style>'+css+'</style></head><body style="padding:16px">'+document.getElementById('out').innerHTML+'</body></html>';
-      await fetch(ORD_SB+'/storage/v1/object/order-results/'+calc+'/'+date+'.html',{method:'POST',headers:Object.assign({},H,{'Content-Type':'text/html','x-upsert':'true'}),body:new Blob([snap],{type:'text/html'})});
-    }catch(e){}
-    alert('✔ נרשם למעקב הזמנות: '+lines.length+' שורות בתאריך '+date);
+      const sr=await fetch(ORD_SB+'/storage/v1/object/order-results/'+calc+'/'+date+'.html',{method:'POST',headers:Object.assign({},H,{'Content-Type':'text/html','x-upsert':'true'}),body:new Blob([snap],{type:'text/html'})});
+      snapOk=sr.ok;
+    }catch(e){ snapOk=false; }
+    alert('✔ נרשם למעקב הזמנות: '+lines.length+' שורות בתאריך '+date+(snapOk?'':'\n\n⚠ תצוגת התוצאה לא נשמרה בענן (הנתונים עצמם נשמרו). רענן Ctrl+F5 ורשום שוב כדי שאפשר יהיה לפתוח את הדוח בהמשך.'));
   }catch(e){ alert('שגיאה: '+e.message); }
 }
 
