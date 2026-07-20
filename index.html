@@ -55,6 +55,23 @@ details .body{padding:8px 12px}
 code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 .deliv{display:inline-block;background:#eef3ff;color:#3355aa;border-radius:8px;padding:0 7px;font-size:12px;font-weight:600;margin-right:6px;white-space:nowrap}
 .pickup{color:#b8860b;font-weight:700;cursor:help}
+/* ---------- בדיקת מלקט (עמוד אחרון) ---------- */
+.pick{width:100%;font-size:12.5px;border-collapse:collapse}
+.pick th{background:#eef3f7;font-weight:700;padding:6px 8px;border:1px solid var(--line)}
+.pick td{border:1px solid var(--line);padding:6px 8px;vertical-align:top;text-align:center}
+.pick td.cn{text-align:right;font-weight:700;white-space:nowrap;max-width:200px}
+.pick td.big{font-size:21px;font-weight:800;background:#eef7e6;width:76px}
+.pick td.prods{text-align:right;line-height:1.9}
+.pick .pitem{display:inline-block;background:#f7f9fb;border:1px solid var(--line);border-radius:12px;padding:1px 8px;margin:0 0 3px 4px;white-space:nowrap}
+.pick tr.pk{background:#fff7e6}
+.pick tr.totrow td{background:#eef3f7;font-weight:800}
+@page{size:A4 portrait;margin:10mm}
+@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+.tabs,.dropzone,.btn,header .sub{display:none!important}
+body{background:#fff}
+.pick-check{page-break-before:always;break-before:page}
+.pick thead{display:table-header-group}
+.pick tr{page-break-inside:avoid}}
 tr.pk,details.pk>summary{background:#fff7e6}
 ol li,ul li{margin:5px 0}
 </style>
@@ -465,9 +482,56 @@ function render(results,warnInfo,scope){
     html+='</div></details>';
   });
   html+='</div>';
+  html+=pickerCheckHtml(results);
   out.innerHTML=html;
 }
 function toggleAll(o){ document.querySelectorAll('#out details').forEach(d=>d.open=o); }
+
+/* ---------- בדיקת מלקט: עמוד אחרון לבקרה מול המשטחים בפועל ----------
+   שורה אחת לכל לקוח: משטחים, מכולות, שקיות והמוצרים — כדי לזהות במבט
+   אם חסר או עודף משהו. מתחיל בעמוד חדש בהדפסה. */
+function pickerCheckHtml(results){
+  if(!results || !results.length) return '';
+  var tp=0, tb=0;
+  var rows='';
+  results.forEach(function(r){
+    var pm=new Map(), tmap=new Map(), bags=0;
+    r.shipments.forEach(function(s){
+      (s.agg.parts||[]).forEach(function(pt){
+        if(!tmap.has(pt.t)) tmap.set(pt.t,{boxes:0,containers:0,barrels:0});
+        var x=tmap.get(pt.t);
+        x.boxes+=pt.boxes||0; x.containers+=pt.containers||0; x.barrels+=pt.barrels||0; });
+      s.lines.forEach(function(ln){
+        bags+=ln.bags||0;
+        if(!pm.has(ln.product)) pm.set(ln.product,{kg:0,units:0,boxes:0});
+        var x=pm.get(ln.product);
+        if(ln.type==='UNITS') x.units+=ln.units||0; else x.kg+=ln.kg||0;
+        x.boxes+=ln.boxes||0; }); });
+    var cont=Array.from(tmap.entries()).map(function(e){
+      var t=e[0], v=e[1];
+      if(t==='CARTON'||t==='UNITS') return v.boxes+' ארגז';
+      if(t==='BARREL') return v.barrels+' חבית';
+      return v.containers+' '+(TYPE_HE[t]||t); }).join(' · ')||'—';
+    var plist=Array.from(pm.entries()).sort(function(a,b){
+        return (b[1].boxes||0)-(a[1].boxes||0) || ((b[1].kg+b[1].units)-(a[1].kg+a[1].units)); })
+      .map(function(e){
+        var n=e[0], v=e[1];
+        var q = v.units ? fmt(v.units)+' יח׳' : fmt(v.kg)+' ק"ג';
+        return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+'</span>'; }).join('');
+    tp+=r.agg.pallets||0; tb+=r.agg.boxes||0;
+    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+'</td>'
+        +'<td class="big">'+(r.agg.pallets||0)+'</td>'
+        +'<td>'+cont+'</td>'
+        +'<td>'+(bags||'—')+'</td>'
+        +'<td class="prods">'+(plist||'—')+'</td></tr>';
+  });
+  return '<div class="card pick-check"><h2>✅ בדיקת מלקט — מה צריך לצאת לכל לקוח</h2>'
+    +'<p class="muted">שורה אחת ללקוח: כמה משטחים, כמה מכולות, כמה שקיות ואילו מוצרים. אם מספר המשטחים בפועל לא תואם — חסר או עודף משהו.</p>'
+    +'<table class="pick"><thead><tr><th>לקוח</th><th>משטחים</th><th>מכולות</th><th>שקיות</th><th>מוצרים (כמות · ארגזים)</th></tr></thead><tbody>'
+    +rows
+    +'<tr class="totrow"><td class="cn">סה"כ</td><td class="big">'+tp+'</td><td>'+(tb?tb+' ארגז':'—')+'</td><td>—</td><td>—</td></tr>'
+    +'</tbody></table></div>';
+}
 function lineTable(lines){ let h='<table><thead><tr><th>מוצר</th><th>כמות</th><th>סוג אריזה</th><th>שקיות/יח׳</th><th>ארגזים/מיכלים</th></tr></thead><tbody>';
   lines.forEach(ln=>{ let cont=(ln.type==='CARTON'||ln.type==='UNITS')?ln.boxes+' ארגז':ln.type==='BARREL'?ln.barrels+' חבית':(TYPE_HE[ln.type]+' '+fmt(ln.kg)+' ק"ג');
     let unitcell=ln.type==='UNITS'?ln.units+' יח׳':ln.type==='CARTON'?ln.bags+' שקיות':'—';
