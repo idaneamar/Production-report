@@ -211,12 +211,16 @@ function resolve(c,p){
 }
 function calcLine(r,p,qty){
   const o={type:r.type,kg:0,bags:0,boxes:0,units:0,cont_kg:0,barrels:0};
-  if(r.type==='UNITS'){ const upb=r.upb||10; o.units=qty; o.boxes=upb?ceil(qty/upb):0; return o; }
-  o.kg=qty;
-  if(r.type==='CARTON'){ const w=(p.pack_kg!=null&&p.pack_kg!=='')?+p.pack_kg:(r.bag_def||1);
-    const bpb=r.bpb||10; o.bags=ceil(qty/w); o.boxes=bpb?ceil(o.bags/bpb):0; }
-  else if(r.type==='CAGE'||r.type==='PALLET'||r.type==='DOLEV'){ o.cont_kg=qty; }
-  else if(r.type==='BARREL'){ const bk=r.max_kg||110; o.barrels=ceil(qty/bk); o.cont_kg=qty; }
+  // כלל: משקל בשם המוצר (pack_kg קיים) => הכמות בדוח היא יחידות/חבילות, והק"ג = יחידות × משקל.
+  // מוצר בתפזורת (בלי משקל בשם) => הכמות היא ק"ג.
+  const hasW=(p.pack_kg!=null&&p.pack_kg!=='');
+  if(r.type==='UNITS'){ const upb=r.upb||10; o.units=qty; o.boxes=upb?ceil(qty/upb):0; if(hasW)o.kg=qty*(+p.pack_kg); return o; }
+  if(hasW){ o.units=qty; o.kg=qty*(+p.pack_kg); } else { o.kg=qty; }
+  if(r.type==='CARTON'){ const bpb=r.bpb||10;
+    o.bags = hasW ? qty : ceil(o.kg/(r.bag_def||1));   // מוצר שקול: כל יחידה=שקית; תפזורת: לפי משקל שקית
+    o.boxes = bpb?ceil(o.bags/bpb):0; }
+  else if(r.type==='CAGE'||r.type==='PALLET'||r.type==='DOLEV'){ o.cont_kg=o.kg; }
+  else if(r.type==='BARREL'){ const bk=r.max_kg||110; o.barrels=ceil(o.kg/bk); o.cont_kg=o.kg; }
   return o;
 }
 const TYPE_HE={CARTON:'קרטונים',CAGE:'כלוב',PALLET:'משטח שקיות',BARREL:'חביות',DOLEV:'דולב',UNITS:'יחידות'};
@@ -505,8 +509,7 @@ function pickerCheckHtml(results){
         bags+=ln.bags||0;
         if(!pm.has(ln.product)) pm.set(ln.product,{kg:0,units:0,boxes:0});
         var x=pm.get(ln.product);
-        if(ln.type==='UNITS') x.units+=ln.units||0; else x.kg+=ln.kg||0;
-        x.boxes+=ln.boxes||0; }); });
+        x.units+=ln.units||0; x.kg+=ln.kg||0; x.boxes+=ln.boxes||0; }); });
     var cont=Array.from(tmap.entries()).map(function(e){
       var t=e[0], v=e[1];
       if(t==='CARTON'||t==='UNITS') return v.boxes+' ארגז';
@@ -516,7 +519,7 @@ function pickerCheckHtml(results){
         return (b[1].boxes||0)-(a[1].boxes||0) || ((b[1].kg+b[1].units)-(a[1].kg+a[1].units)); })
       .map(function(e){
         var n=e[0], v=e[1];
-        var q = v.units ? fmt(v.units)+' יח׳' : fmt(v.kg)+' ק"ג';
+        var q = v.units ? fmt(v.units)+' יח׳'+(v.kg?' ('+fmt(v.kg)+' ק"ג)':'') : fmt(v.kg)+' ק"ג';
         return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+'</span>'; }).join('');
     tp+=r.agg.pallets||0; tb+=r.agg.boxes||0;
     rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+'</td>'
@@ -535,7 +538,7 @@ function pickerCheckHtml(results){
 function lineTable(lines){ let h='<table><thead><tr><th>מוצר</th><th>כמות</th><th>סוג אריזה</th><th>שקיות/יח׳</th><th>ארגזים/מיכלים</th></tr></thead><tbody>';
   lines.forEach(ln=>{ let cont=(ln.type==='CARTON'||ln.type==='UNITS')?ln.boxes+' ארגז':ln.type==='BARREL'?ln.barrels+' חבית':(TYPE_HE[ln.type]+' '+fmt(ln.kg)+' ק"ג');
     let unitcell=ln.type==='UNITS'?ln.units+' יח׳':ln.type==='CARTON'?ln.bags+' שקיות':'—';
-    let qcell=ln.type==='UNITS'?ln.qty+' יח׳':fmt(ln.qty)+' ק"ג';
+    let qcell=(ln.type==='UNITS'||ln.units)?fmt(ln.units||ln.qty)+' יח׳'+(ln.kg?' · '+fmt(ln.kg)+' ק"ג':''):fmt(ln.qty)+' ק"ג';
     h+='<tr><td style="text-align:right">'+ln.product+'</td><td>'+qcell+'</td><td>'+TYPE_HE[ln.type]+'</td><td>'+unitcell+'</td><td>'+cont+'</td></tr>'; });
   return h+'</tbody></table>'; }
 function partsTxt(agg){ const a=[]; (agg.parts||[]).forEach(p=>{ if(p.t==='CARTON'||p.t==='UNITS') a.push(p.boxes+' ארגז→'+p.pallets+' משטח');
