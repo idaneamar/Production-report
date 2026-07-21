@@ -159,7 +159,7 @@ function loadStops(){ const t=document.getElementById('inp').value; const lines=
   STOPS=[]; let unknown=[];
   lines.forEach(l=>{ const p=l.split(/\t|;/).map(x=>x.trim());
     if(!p.length)return; const name=p[0]; const pallets=parseFloat((p[1]||'').replace(/[^0-9.]/g,''))||0; const cartons=parseFloat((p[2]||'').replace(/[^0-9.]/g,''))||0; const region=(p[3]||'').trim();
-    if(!name||(pallets===0&&cartons===0&&p.length<2))return;
+    if(!name||/^["'\u05f3\u05f4]?[א-ת]["'\u05f3\u05f4]?$/.test(name.trim())||(pallets===0&&cartons===0&&p.length<2))return;
     const c=findCust(name); STOPS.push({name:name,pallets:pallets,cartons:cartons,driver:'',shift:(c&&c.shift)||'לילה',region:region,cust:c}); });
   if(!STOPS.some(s=>/עלומים/.test(s.name))) STOPS.push({name:'עלומים — החלפת סחורה',pallets:0,cartons:0,driver:'',shift:'צהריים',cust:{flags:['החלפה'],note:'מביא לעלומים מה שהכנו להם, לוקח מהם מה שהכינו לנו'}});
   document.getElementById('stops').classList.remove('hidden');

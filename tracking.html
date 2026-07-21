@@ -483,6 +483,7 @@ function parseSidurItems(items){
     if(o.time){ const m=o.time.match(/\d{1,2}:\d{2}/); if(m) meta.time=m[0]; }
     let place=(o.place||'').trim().replace(/\s*\.\s*/g,'.');
     if(!place || normS(place)==='איןקבלן') return;
+    if(/^[א-ת]$/.test(normS(place))) return; /* שבר טקסט (אות בודדת כמו "ה") — לא שם לקוח */
     block.push({place, ownDriver:rowDriver||'', pallets:parseFloat(String(o.pallets||'').replace(/[^\d.]/g,''))||0, note:(o.note||'').trim()});
   });
   flush();
