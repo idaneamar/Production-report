@@ -240,7 +240,7 @@ async function renderCover(){
     CALCS.forEach(c=>{
       const u=have[ds+'|'+c.id];
       const required=c.reqDays.includes(dow);
-      if(u) chips+='<span class="chip ok" onclick="openResult(\''+c.id+'\',\''+ds+'\')" title="פתח את תוצאת הדוח">'+c.label+' ✔</span>';
+      if(u) chips+='<span class="chip ok" onclick="openResult(\''+c.id+'\',\''+ds+'\')" title="פתח את תוצאת הדוח">'+c.label+' ✔</span>'+'<span class="chip mv" style="cursor:pointer" onclick="editReportDate(\''+c.id+'\',\''+ds+'\')" title="העבר לתאריך אחר">✎</span>';
       else if(required && !future && FIRST[c.id] && ds>=FIRST[c.id]){ chips+='<span class="chip miss" style="cursor:pointer" onclick="howToAdd(\''+c.id+'\',\''+ds+'\')" title="איך להוסיף בדיעבד">'+c.label+' ✖</span>'; missing[c.id]++; }
       else chips+='<span class="chip na">'+c.label+'</span>';
     });
@@ -256,6 +256,30 @@ async function renderCover(){
 function howToAdd(calc, ds){
   const name=calc==='packing'?'מחשבון אריזה':'חלוקת הזמנות עלומים';
   alert('הוספה בדיעבד של '+ds+':\n\n1. פתח את '+name+' בתפריט\n2. טען את קובץ ההזמנות של אותו יום'+(calc==='alumim'?' ובחר את הגיליון הנכון':'')+'\n3. לחץ "📊 רשום למעקב הזמנות"\n4. בחלון התאריך הזן: '+ds+'\n\nהיום יהפוך לירוק כאן מיד אחרי השמירה.');
+}
+async function editReportDate(calc, oldDs){
+  var nd=prompt('העבר את הדוח ('+calc+') מ-'+oldDs+' לתאריך (שנה-חודש-יום):', oldDs);
+  if(!nd) return; nd=nd.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(nd)){ alert('תאריך לא תקין (פורמט: 2026-07-23)'); return; }
+  if(nd===oldDs) return;
+  if(!confirm('להעביר את הדוח מ-'+oldDs+' ל-'+nd+'?\n(אם קיים כבר דוח מאותו סוג בתאריך היעד — הוא יוחלף.)')) return;
+  loader.style.display='block';
+  try{
+    const h=H();
+    await fetch(SB+'/rest/v1/order_lines?report_date=eq.'+nd+'&calc=eq.'+calc,{method:'DELETE',headers:h});
+    await fetch(SB+'/rest/v1/order_uploads?report_date=eq.'+nd+'&calc=eq.'+calc,{method:'DELETE',headers:h});
+    let r=await fetch(SB+'/rest/v1/order_lines?report_date=eq.'+oldDs+'&calc=eq.'+calc,{method:'PATCH',headers:Object.assign({},h,{'Prefer':'return=minimal'}),body:JSON.stringify({report_date:nd})});
+    if(!r.ok) throw new Error('העברת שורות '+r.status+(r.status===401||r.status===403?' — אין הרשאת עריכה':''));
+    r=await fetch(SB+'/rest/v1/order_uploads?report_date=eq.'+oldDs+'&calc=eq.'+calc,{method:'PATCH',headers:Object.assign({},h,{'Prefer':'return=minimal'}),body:JSON.stringify({report_date:nd,uploaded_at:new Date().toISOString()})});
+    if(!r.ok) throw new Error('העברת רישום '+r.status);
+    try{
+      await fetch(SB+'/storage/v1/object/copy',{method:'POST',headers:Object.assign({},h,{'Content-Type':'application/json'}),body:JSON.stringify({bucketId:'order-results',sourceKey:calc+'/'+oldDs+'.html',destinationKey:calc+'/'+nd+'.html'})});
+      await fetch(SB+'/storage/v1/object/order-results/'+calc+'/'+oldDs+'.html',{method:'DELETE',headers:h});
+    }catch(e){}
+    alert('✔ הדוח הועבר מ-'+oldDs+' ל-'+nd);
+    renderCover();
+  }catch(e){ alert('שגיאה בהעברת הדוח: '+e.message); }
+  finally{ loader.style.display='none'; }
 }
 const PRINT_FIX='<style>@page{size:A4 portrait;margin:10mm}@page mxland{size:A4 landscape;margin:8mm}@media print{.mx-print,.card:has(table.matrix){page:mxland;page-break-before:always;break-before:page}.mx-print>div[style*="overflow"],.card:has(table.matrix) div[style*="overflow"]{overflow:visible!important}table.matrix{width:100%!important;font-size:13px!important;table-layout:auto}table.matrix th,table.matrix td{padding:4px 6px!important}table.matrix th:first-child,table.matrix td:first-child{position:static!important}table.matrix th.rot{max-width:none;min-width:0}table.matrix thead{display:table-header-group}table.matrix tr{page-break-inside:avoid}}<\/style>';
 function injectPrintFix(html){ return html.indexOf('</head>')>=0 ? html.replace('</head>',PRINT_FIX+'</head>') : PRINT_FIX+html; }
