@@ -207,14 +207,16 @@ function resolve(c,p){
   }
   const band=sizeBand(p.pack_kg);
   const bpb = band==='small' ? (+c.bpb_small||+c.bpb_large||10) : (+c.bpb_large||10);
-  return {type:t,bag_def:+c.bag_default||1,bpb:bpb,max_kg:max_kg,max_boxes:+c.max_boxes||55,upb:upb};
+  let per_box=+p.per_box||0;                 // יח'/קרטון של המוצר
+  if(c.prod_per_box){ const ov=c.prod_per_box[p.name]; if(ov!=null&&ov!=='') per_box=+ov||0; }  // עקיפה ללקוח ספציפי
+  return {type:t,bag_def:+c.bag_default||1,bpb:bpb,max_kg:max_kg,max_boxes:+c.max_boxes||55,upb:upb,per_box:per_box};
 }
 function calcLine(r,p,qty){
   const o={type:r.type,kg:0,bags:0,boxes:0,units:0,cont_kg:0,barrels:0};
   // כלל: משקל בשם המוצר (pack_kg קיים) => הכמות בדוח היא יחידות/חבילות, והק"ג = יחידות × משקל.
   // מוצר בתפזורת (בלי משקל בשם) => הכמות היא ק"ג.
   const hasW=(p.pack_kg!=null&&p.pack_kg!=='');
-  const perBox=+p.per_box||0;              // יח' לקרטון ברמת המוצר (גובר על הלקוח)
+  const perBox=+r.per_box||0;              // יח' לקרטון (מוצר, או עקיפה ללקוח דרך resolve)
   const isUnit=hasW||perBox>0;             // נספר ביחידות אם יש משקל בשם או הגדרת יח'/קרטון
   if(r.type==='UNITS'){ const upb=r.upb||perBox||10; o.units=qty; o.boxes=upb?ceil(qty/upb):0; if(hasW)o.kg=qty*(+p.pack_kg); return o; }
   if(isUnit){ o.units=qty; o.kg=hasW?qty*(+p.pack_kg):0; } else { o.kg=qty; }
