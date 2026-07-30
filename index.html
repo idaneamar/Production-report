@@ -71,6 +71,8 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 body{background:#fff}
 .pick-check{page-break-before:always;break-before:page}
 .pick thead{display:table-header-group}
+.pick th,.pick td{border:1.4px solid #111!important}
+.pick{border:2px solid #111!important}
 .pick tr{page-break-inside:avoid}}
 tr.pk,details.pk>summary{background:#fff7e6}
 ol li,ul li{margin:5px 0}
@@ -529,14 +531,13 @@ function pickerCheckHtml(results){
     rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+'</td>'
         +'<td class="big">'+(r.agg.pallets||0)+'</td>'
         +'<td>'+cont+'</td>'
-        +'<td>'+(bags||'—')+'</td>'
         +'<td class="prods">'+(plist||'—')+'</td></tr>';
   });
   return '<div class="card pick-check"><h2>✅ בדיקת מלקט — מה צריך לצאת לכל לקוח</h2>'
-    +'<p class="muted">שורה אחת ללקוח: כמה משטחים, כמה מכולות, כמה שקיות ואילו מוצרים. אם מספר המשטחים בפועל לא תואם — חסר או עודף משהו.</p>'
-    +'<table class="pick"><thead><tr><th>לקוח</th><th>משטחים</th><th>מכולות</th><th>שקיות</th><th>מוצרים (כמות · ארגזים)</th></tr></thead><tbody>'
+    +'<p class="muted">שורה אחת ללקוח: כמה משטחים, כמה קרטונים ואילו מוצרים. אם מספר המשטחים בפועל לא תואם — חסר או עודף משהו.</p>'
+    +'<table class="pick"><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>מוצרים (כמות · ארגזים)</th></tr></thead><tbody>'
     +rows
-    +'<tr class="totrow"><td class="cn">סה"כ</td><td class="big">'+tp+'</td><td>'+(tb?tb+' ארגז':'—')+'</td><td>—</td><td>—</td></tr>'
+    +'<tr class="totrow"><td class="cn">סה"כ</td><td class="big">'+tp+'</td><td>'+(tb?tb+' ארגז':'—')+'</td><td>—</td></tr>'
     +'</tbody></table></div>';
 }
 function lineTable(lines){ let h='<table><thead><tr><th>מוצר</th><th>כמות</th><th>סוג אריזה</th><th>שקיות/יח׳</th><th>ארגזים/מיכלים</th></tr></thead><tbody>';
