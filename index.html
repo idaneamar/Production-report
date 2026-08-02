@@ -60,6 +60,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 .pick th{background:#eef3f7;font-weight:700;padding:6px 8px;border:1px solid var(--line)}
 .pick td{border:1px solid var(--line);padding:6px 8px;vertical-align:top;text-align:center}
 .pick td.cn{text-align:right;font-weight:700;white-space:nowrap;max-width:200px}
+.pick td.cn .drv{font-size:10px;font-weight:600;color:#2557c7;margin-top:2px;white-space:normal}
 .pick td.big{font-size:21px;font-weight:800;background:#eef7e6;width:76px}
 .pick td.prods{text-align:right;line-height:1.9}
 .pick .pitem{display:inline-block;background:#f7f9fb;border:1px solid var(--line);border-radius:12px;padding:1px 8px;margin:0 0 3px 4px;white-space:nowrap}
@@ -351,6 +352,23 @@ function shipLabel(label){
 const ORD_SB='https://knqnuvoprtuqyrvzqffj.supabase.co';
 const ORD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtucW51dm9wcnR1cXlydnpxZmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTM5MjEsImV4cCI6MjA5OTA4OTkyMX0.sVyNLQ7JDePgui-ATMOPbqu2Dabnn4fJIjL4ccrLEXw';
 function ordSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+/* ---------- מיפוי נהג+משמרת לכל לקוח (ממעקב הנהגים) ---------- */
+var DRV_MAP={}, DRV_LOADED=0;
+async function loadDriverMap(){
+  if(Date.now()-DRV_LOADED<120000 && Object.keys(DRV_MAP).length) return;
+  try{
+    var s=ordSession(); if(!s) return;
+    var r=await fetch(ORD_SB+'/rest/v1/driver_log?select=place,driver,shift,cancelled&order=log_date.desc&limit=600',{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
+    if(!r.ok) return;
+    var rows=await r.json(); var map={};
+    rows.forEach(function(x){ if(x.cancelled) return; var k=norm(x.place); if(!k||map[k]) return; map[k]={driver:x.driver||'',shift:x.shift||''}; });
+    DRV_MAP=map; DRV_LOADED=Date.now();
+  }catch(e){}
+}
+function drvForCust(c){ var names=[c.name].concat((c.alias||'').split('|')).map(norm).filter(Boolean);
+  for(var i=0;i<names.length;i++){ if(DRV_MAP[names[i]]) return DRV_MAP[names[i]]; }
+  for(var k in DRV_MAP){ for(var j=0;j<names.length;j++){ var n=names[j]; if(k&&n.length>1&&(n.indexOf(k)>=0||k.indexOf(n)>=0)) return DRV_MAP[k]; } } return null; }
+function shiftLbl(sh){ sh=sh||''; if(sh.indexOf('לילה')>=0)return 'ערב'; if(sh.indexOf('בוקר')>=0)return 'בוקר למחרת'; if(sh.indexOf('צהר')>=0)return 'צהריים'; return sh; }
 async function ordSubmit(calc, defDate, lines, summary){
   const s=ordSession();
   if(!s){ alert('צריך להיות מחובר למערכת כדי לרשום למעקב הזמנות'); return; }
@@ -396,16 +414,17 @@ function submitOrdersPk(){
   ordSubmit('packing', null, lines, {customers:LAST.length, lines:lines.length, kg:Math.round(kg), boxes:boxes, pallets:pallets});
 }
 
-function run(){
+async function run(){
   const msg=document.getElementById('msg'); const out=document.getElementById('out');
   out.innerHTML=''; msg.innerHTML='';
   const pr=parseMatrix(document.getElementById('inp').value);
   if(pr.error){ msg.innerHTML='<div class="warn">'+pr.error+'</div>'; return; }
   if(pr.items.length===0){ msg.innerHTML='<div class="warn">לא נמצאו כמויות בגיליון זה.<br>'+(pr.unmatchedHdr.length?'עמודות שלא זוהו ככותרת לקוח: '+pr.unmatchedHdr.map(esc).join(', '):'ייתכן שזה גיליון ריק/תבנית ללא כותרות לקוחות — אם טענת קובץ עם כמה ימים, בחר יום אחר מהרשימה למעלה.')+'</div>'; return; }
+  await loadDriverMap();
   computeAndRender(pr.items,{unmatchedHdr:pr.unmatchedHdr,unmatchedProd:pr.unmatchedProd},'');
 }
 function dayShort(s){ return (s||'').replace('יום ','').trim(); }
-function runAllDays(){
+async function runAllDays(){
   const msg=document.getElementById('msg'); const out=document.getElementById('out'); out.innerHTML=''; msg.innerHTML='';
   if(!WB){ msg.innerHTML='<div class="warn">כדי לראות סיכום כל הימים, טען קודם קובץ Excel עם גיליונות של ימים.</div>'; return; }
   const sheets=WB.SheetNames.filter(sheetHasData);
@@ -414,6 +433,7 @@ function runAllDays(){
     const pr=parseMatrix(tsv); if(pr.items) pr.items.forEach(it=>items.push(Object.assign({},it,{col:dayShort(sn)+' · '+(it.col||it.cust.name)})));
     (pr.unmatchedHdr||[]).forEach(x=>uh.add(x)); (pr.unmatchedProd||[]).forEach(x=>up.add(x)); });
   if(items.length===0){ msg.innerHTML='<div class="warn">לא נמצאו נתונים בימים.</div>'; return; }
+  await loadDriverMap();
   computeAndRender(items,{unmatchedHdr:[...uh],unmatchedProd:[...up]},'כל הימים — סיכום שבועי ('+sheets.map(dayShort).join(', ')+')');
 }
 function computeAndRender(items,warn,scope){
@@ -528,7 +548,8 @@ function pickerCheckHtml(results){
         var q = v.units ? fmt(v.units)+' יח׳'+(v.kg?' ('+fmt(v.kg)+' ק"ג)':'') : fmt(v.kg)+' ק"ג';
         return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+'</span>'; }).join('');
     tp+=r.agg.pallets||0; tb+=r.agg.boxes||0;
-    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+'</td>'
+    var dv=drvForCust(r.cust); var drvLine=(dv&&dv.driver)?'<div class="drv">🚚 '+esc(dv.driver)+' · '+shiftLbl(dv.shift)+'</div>':'';
+    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+'</td>'
         +'<td class="big">'+(r.agg.pallets||0)+'</td>'
         +'<td>'+cont+'</td>'
         +'<td class="prods">'+(plist||'—')+'</td></tr>';
