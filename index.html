@@ -520,6 +520,11 @@ function toggleAll(o){ document.querySelectorAll('#out details').forEach(d=>d.op
 /* ---------- בדיקת מלקט: עמוד אחרון לבקרה מול המשטחים בפועל ----------
    שורה אחת לכל לקוח: משטחים, מכולות, שקיות והמוצרים — כדי לזהות במבט
    אם חסר או עודף משהו. מתחיל בעמוד חדש בהדפסה. */
+function packLabel(rule){ if(!rule) return '';
+  var bag=+rule.bag_def||1;
+  if(rule.type==='CARTON'){ if(bag==1) return ''; return 'שקית '+bag+' ק"ג × '+(+rule.bpb||0)+' בקרטון'; }
+  if((rule.type==='CAGE'||rule.type==='PALLET'||rule.type==='DOLEV') && bag!=1) return 'שקית '+bag+' ק"ג';
+  return ''; }
 function pickerCheckHtml(results){
   if(!results || !results.length) return '';
   var tp=0, tb=0;
@@ -533,8 +538,9 @@ function pickerCheckHtml(results){
         x.boxes+=pt.boxes||0; x.containers+=pt.containers||0; x.barrels+=pt.barrels||0; });
       s.lines.forEach(function(ln){
         bags+=ln.bags||0;
-        if(!pm.has(ln.product)) pm.set(ln.product,{kg:0,units:0,boxes:0});
+        if(!pm.has(ln.product)) pm.set(ln.product,{kg:0,units:0,boxes:0,rule:ln.rule,isUnit:false});
         var x=pm.get(ln.product);
+        if((ln.units||0)>0) x.isUnit=true;
         x.units+=ln.units||0; x.kg+=ln.kg||0; x.boxes+=ln.boxes||0; }); });
     var cont=Array.from(tmap.entries()).map(function(e){
       var t=e[0], v=e[1];
@@ -546,7 +552,8 @@ function pickerCheckHtml(results){
       .map(function(e){
         var n=e[0], v=e[1];
         var q = v.units ? fmt(v.units)+' יח׳'+(v.kg?' ('+fmt(v.kg)+' ק"ג)':'') : fmt(v.kg)+' ק"ג';
-        return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+'</span>'; }).join('');
+        var pk = (!v.isUnit && v.rule) ? packLabel(v.rule) : '';
+        return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+(pk?' · <b style="color:#b45309">'+pk+'</b>':'')+'</span>'; }).join('');
     tp+=r.agg.pallets||0; tb+=r.agg.boxes||0;
     var dv=drvForCust(r.cust); var drvLine=(dv&&dv.driver)?'<div class="drv">🚚 '+esc(dv.driver)+' · '+shiftLbl(dv.shift)+'</div>':'';
     rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+'</td>'
