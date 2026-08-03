@@ -439,6 +439,7 @@ pdfDrop.ondragleave=()=>pdfDrop.style.background='';
 pdfDrop.ondrop=e=>{ e.preventDefault(); pdfDrop.style.background=''; const f=e.dataTransfer.files[0]; if(f) handlePdf(f); };
 
 const normS=s2=>String(s2||'').replace(/[\s"\u201d'\u05f3\u05f4]/g,'');
+function normDriver(n){ n=String(n||'').trim(); if(/יניב/.test(n) && !/מחלבני/.test(n)) return 'יניב דמרי'; return n; }
 function parseSidurItems(items){
   const H2={driver:'שםהנהג',place:'שםלקוח',note:'הערות',truck:'משאית',time:'התייצבות',pallets:'משטחים',cartons:'קרטונים'};
   const hdrDriver=items.find(i=>normS(i.str).includes(H2.driver));
@@ -467,7 +468,7 @@ function parseSidurItems(items){
       let sh=shift;
       if(meta.time){ const hh=parseInt(meta.time); if(hh>=11&&hh<20) sh='צהריים'; }
       if(sh==='בוקר') sh='בוקר למחרת'; /* בוקר בסידור = בוקר של יום המחרת */
-      out.push({driver:b.ownDriver||meta.driver, place:b.place, pallets:b.pallets, note:b.note, truck:meta.truck, time:meta.time, shift:sh});
+      out.push({driver:normDriver(b.ownDriver||meta.driver), place:b.place, pallets:b.pallets, note:b.note, truck:meta.truck, time:meta.time, shift:sh});
     });
     block=[]; meta={driver:'',truck:'',time:''};
   }
