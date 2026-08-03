@@ -98,6 +98,9 @@
 .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .usec{margin-bottom:18px}
 .usec-h{font-size:15px;font-weight:800;color:var(--green-dark);margin:0 0 8px;padding-bottom:4px;border-bottom:2px solid var(--green-light)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:center;margin-top:8px;font-size:12.5px}
+.legend .lg{display:inline-flex;align-items:center;gap:5px;color:#3a4a41}
+.legend .lg i{width:12px;height:12px;border-radius:3px;display:inline-block}
 .ecard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:.12s}
 .ecard:hover{box-shadow:0 3px 12px rgba(0,0,0,.12);transform:translateY(-1px)}
 .ecard .en{font-weight:700;font-size:14px;color:var(--green-dark);min-height:38px;line-height:1.25}
@@ -162,6 +165,7 @@
   <div class="row" id="anaModeRow" style="margin:0 0 12px;gap:8px">
     <button class="btn amode on" id="modeCust" onclick="A_mode('cust')">👥 לקוחות</button>
     <button class="btn sec amode" id="modeProd" onclick="A_mode('prod')">📦 מוצרים</button>
+    <button class="btn sec amode" id="modeAll" onclick="A_mode('all')">📊 סה"כ הכל</button>
   </div>
   <div id="anaBoard"></div>
   <div id="anaDetail" style="display:none"></div>
@@ -445,10 +449,11 @@ function granBtns(){ return '<span class="row" style="margin:0;gap:6px">'
   +[['week','שבועי'],['month','חודשי']].map(function(x){return '<button class="btn sec'+(GRAN===x[0]?' on':'')+'" onclick="A_gran(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</span>'; }
 function A_render(){
   var board=document.getElementById('anaBoard'), detail=document.getElementById('anaDetail'), moderow=document.getElementById('anaModeRow');
-  var mc=document.getElementById('modeCust'), mp=document.getElementById('modeProd');
-  if(mc) mc.className='btn amode'+(MODE==='cust'?' on':' sec'); if(mp) mp.className='btn amode'+(MODE==='prod'?' on':' sec');
-  if(SEL.cust||SEL.prod){ board.style.display='none'; moderow.style.display='none'; detail.style.display='block'; A_card(); }
-  else { detail.style.display='none'; board.style.display='block'; moderow.style.display='flex'; A_board(); }
+  var btns={cust:'modeCust',prod:'modeProd',all:'modeAll'};
+  for(var m in btns){ var b=document.getElementById(btns[m]); if(b) b.className='btn amode'+(MODE===m?' on':' sec'); }
+  if(MODE==='all'){ moderow.style.display='flex'; board.style.display='none'; detail.style.display='block'; A_all(); return; }
+  if(SEL.cust||SEL.prod){ moderow.style.display='none'; board.style.display='none'; detail.style.display='block'; A_card(); return; }
+  detail.style.display='none'; board.style.display='block'; moderow.style.display='flex'; A_board();
 }
 function A_mode(m){ MODE=m; SEL={cust:null,prod:null}; A_render(); }
 function A_gran(g){ GRAN=g; A_render(); }
@@ -500,6 +505,63 @@ function A_card(){
     +'<span class="rbarw"><span class="rbar" style="width:'+Math.max(4,Math.round(o._q/rmax*100))+'%"></span></span>'
     +'<span class="rq">'+fmtQ(o._q)+' '+esc(o._u)+'</span></div>'; });
   document.getElementById('anaDetail').innerHTML=h+'</div>';
+}
+var PAL=['#1a7a4a','#c0392b','#2c6e9e','#d98a2b','#7d5ba6','#0e8a8a','#b0942b'];
+var ALL_UNIT=null;
+function lineChart(series, labels){
+  if(!labels.length || !series.length) return '<span class="muted">אין נתונים בטווח</span>';
+  var W=760,H=300,mL=48,mR=14,mT=14,mB=42, iw=W-mL-mR, ih=H-mT-mB;
+  var maxY=0; series.forEach(function(s){ s.vals.forEach(function(v){ if(v>maxY) maxY=v; }); }); if(maxY<=0) maxY=1;
+  function X(i){ return mL + (labels.length<=1? iw/2 : iw*i/(labels.length-1)); }
+  function Y(v){ return mT + ih - (v/maxY)*ih; }
+  var g='';
+  [0,0.5,1].forEach(function(f){ var y=mT+ih-f*ih; g+='<line x1="'+mL+'" y1="'+y+'" x2="'+(W-mR)+'" y2="'+y+'" stroke="#e5ece8"/>'
+    +'<text x="'+(mL-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="11" fill="#8aa094">'+fmtQ(maxY*f)+'</text>'; });
+  var step=Math.max(1,Math.ceil(labels.length/8));
+  labels.forEach(function(lb,i){ if(i%step===0||i===labels.length-1){ g+='<text x="'+X(i).toFixed(1)+'" y="'+(H-mB+16)+'" text-anchor="middle" font-size="11" fill="#8aa094">'+esc(lb)+'</text>'; } });
+  series.forEach(function(s){ var pts=s.vals.map(function(v,i){ return X(i).toFixed(1)+','+Y(v).toFixed(1); }).join(' ');
+    g+='<polyline points="'+pts+'" fill="none" stroke="'+s.color+'" stroke-width="'+(s.thick?3.4:2.4)+'" stroke-linejoin="round" stroke-linecap="round"'+(s.dash?' stroke-dasharray="5 4"':'')+'/>';
+    s.vals.forEach(function(v,i){ g+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(v).toFixed(1)+'" r="2.6" fill="'+s.color+'"/>'; }); });
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">'+g+'</svg>';
+  var leg='<div class="legend">'+series.map(function(s){ return '<span class="lg"><i style="background:'+s.color+'"></i>'+esc(s.name)+'</span>'; }).join('')+'</div>';
+  return '<div class="chartbox">'+svg+leg+'</div>';
+}
+function A_allUnit(u){ ALL_UNIT=u; A_all(); }
+function A_all(){
+  var us=unitsIn(RAW);
+  if(!us.length){ document.getElementById('anaDetail').innerHTML='<div class="ehname">📊 סה"כ הכל</div><p class="muted">אין נתונים בטווח. בחר טווח למעלה ולחץ "הצג".</p>'; return; }
+  if(!ALL_UNIT || us.indexOf(ALL_UNIT)<0) ALL_UNIT=us[0];
+  var unit=ALL_UNIT;
+  var rows=RAW.filter(function(r){return r.unit===unit;}), prows=PREV.filter(function(r){return r.unit===unit;});
+  var bset={}; rows.forEach(function(r){ bset[bucketOf(r.date)]=1; });
+  var buckets=Object.keys(bset).sort(), labels=buckets.map(bucketLabel);
+  var pAgg={}; rows.forEach(function(r){ pAgg[r.prod]=(pAgg[r.prod]||0)+r.qty; });
+  var topProds=Object.keys(pAgg).sort(function(a,b){return pAgg[b]-pAgg[a];}).slice(0,6);
+  function ser(prod){ var m={}; rows.forEach(function(r){ if(r.prod===prod){ var b=bucketOf(r.date); m[b]=(m[b]||0)+r.qty; } }); return buckets.map(function(b){return m[b]||0;}); }
+  var totVals=buckets.map(function(b){ var t=0; rows.forEach(function(r){ if(bucketOf(r.date)===b) t+=r.qty; }); return t; });
+  var series=[{name:'סה"כ',color:'#111',vals:totVals,thick:true,dash:true}].concat(topProds.map(function(pn,i){ return {name:pn,color:PAL[i%PAL.length],vals:ser(pn)}; }));
+  var totNow=0; totVals.forEach(function(v){totNow+=v;}); var totPrev=0; prows.forEach(function(r){ totPrev+=r.qty; });
+  var h='<div class="ehname">📊 סה"כ הכל</div>';
+  h+='<div class="row" style="gap:6px;margin:2px 0 10px;align-items:center"><span class="muted">יחידה:</span> '
+    +us.map(function(u){return '<button class="btn sec'+(u===unit?' on':'')+'" onclick="A_allUnit(decodeURIComponent(\''+encodeURIComponent(u)+'\'))">'+esc(u)+'</button>';}).join('')
+    +' <span style="flex:1"></span>'+granBtns()+'</div>';
+  h+='<div class="kstrip"><div class="kbox"><div class="kv">'+fmtQ(totNow)+' '+esc(unit)+'</div><div class="kl">סה"כ בתקופה</div></div>'
+    +'<div class="kbox"><div class="kv">'+trendBig(totNow,totPrev)+'</div><div class="kl">מול התקופה הקודמת</div></div></div>';
+  h+='<div class="row" style="margin:12px 0 6px"><b style="font-size:15px">📈 מגמה לפי '+(GRAN==='week'?'שבוע':'חודש')+' — הקו השחור המקווקו = סה"כ, כל צבע = מוצר</b></div>';
+  h+=lineChart(series,labels);
+  var cur={},prv={},names={};
+  rows.forEach(function(r){ cur[r.prod]=(cur[r.prod]||0)+r.qty; names[r.prod]=1; });
+  prows.forEach(function(r){ prv[r.prod]=(prv[r.prod]||0)+r.qty; names[r.prod]=1; });
+  var ch=Object.keys(names).map(function(k){ var c=cur[k]||0,p=prv[k]||0; return {k:k,c:c,p:p,pct:(p?Math.round((c-p)/p*100):null)}; });
+  var up=ch.filter(function(x){return x.p>0 && x.c>x.p;}).sort(function(a,b){return b.pct-a.pct;});
+  var nw=ch.filter(function(x){return x.p===0 && x.c>0;}).sort(function(a,b){return b.c-a.c;});
+  var dn=ch.filter(function(x){return x.p>0 && x.c<x.p;}).sort(function(a,b){return (a.c-a.p)-(b.c-b.p);});
+  function rowc(x){ return '<div class="relrow"><span class="rn">'+esc(x.k)+'</span><span class="rq">'+fmtQ(x.c)+'</span><span style="flex:0 0 84px;text-align:left">'+trendHtml(x.c,x.p)+'</span></div>'; }
+  h+='<div class="two-col" style="margin-top:14px">';
+  h+='<div><h3 style="color:#1a7a4a;font-size:15px">📈 עלו / חדשים</h3><div class="rellist">'+((up.concat(nw)).slice(0,8).map(rowc).join('')||'<span class="muted">—</span>')+'</div></div>';
+  h+='<div><h3 style="color:#c0392b;font-size:15px">📉 ירדו / הפסיקו</h3><div class="rellist">'+(dn.slice(0,8).map(rowc).join('')||'<span class="muted">—</span>')+'</div></div>';
+  h+='</div>';
+  document.getElementById('anaDetail').innerHTML=h;
 }
 
 /* ---------- בורר יחידה ---------- */
