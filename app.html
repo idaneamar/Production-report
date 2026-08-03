@@ -288,6 +288,7 @@ const TABS = [
   {id:'orders',    label:'📊 מעקב הזמנות',   src:'./orders.html',    perm:'orders'},
   {id:'hashav',    label:'🧾 חשבשבת',        src:'./hashavshevet/index.html', perm:'hashav'},
   {id:'inbox',     label:'📥 דוחות נכנסים',  src:'./inbox.html',     perm:'inbox', notif:true},
+  {id:'fuel',      label:'⛽ תדלוקים',       src:'./fuel.html',      perm:'fuel'},
   {sep:true, adminOnly:false},
   {id:'account',   label:'👤 החשבון שלי'},
   {id:'guide',     label:'📖 הוראות חיבור',  src:'./outlook-guide.html', adminOnly:true},
@@ -469,6 +470,7 @@ const FEATURES=[
   {id:'orders', label:'מעקב הזמנות'},
   {id:'hashav', label:'חשבשבת'},
   {id:'inbox', label:'דוחות נכנסים'},
+  {id:'fuel', label:'תדלוקים'},
 ];
 async function adminApi(payload){
   const r=await fetch(SB+'/functions/v1/admin-api',{method:'POST',headers:authHdrs(),body:JSON.stringify(payload)});
@@ -636,7 +638,7 @@ async function manualBackup(){
   document.getElementById('backupInfo').textContent='מוריד…';
   try{
     const dump={exported_at:new Date().toISOString(), source:'manual'};
-    for(const t of ['driver_log','places','app_settings','report_inbox']){
+    for(const t of ['driver_log','places','app_settings','report_inbox','fuelings','fuel_settings']){
       let rows=[], from=0;
       while(true){
         const r=await fetch(SB+'/rest/v1/'+t+'?select=*',{headers:Object.assign({},authHdrs(),{'Range':from+'-'+(from+999)})});

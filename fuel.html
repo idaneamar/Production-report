@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>תדלוקים — טרי לי</title>
+<style>
+  :root{--green:#1a7a4a;--green-dark:#14603a;--green-light:#e8f5ee;--bg:#f4f6f5;--text:#1c2b23;--border:#d8e2dc;--red:#c0392b;--amber:#8a6d1a;--amberbg:#fdf3e0;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);padding:16px;}
+  h1{font-size:20px;color:var(--green-dark);margin-bottom:2px;}
+  h2{font-size:16px;color:var(--green-dark);margin-bottom:8px;}
+  .sub{font-size:13px;color:#6b7f74;margin-bottom:14px;max-width:900px;}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+  .tabs button{font-family:inherit;font-size:14px;padding:9px 16px;border:1px solid var(--border);background:#fff;border-radius:10px;cursor:pointer;}
+  .tabs button.active{background:var(--green);color:#fff;border-color:var(--green);font-weight:700;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;}
+  .hidden{display:none;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  label{font-size:13px;color:#4a5a51;}
+  input,select{font-family:inherit;font-size:14px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;}
+  input:disabled{background:#f2f5f3;color:#8aa094;}
+  .btn{background:var(--green);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+  .btn:hover{background:var(--green-dark);}
+  .btn.sec{background:#fff;color:var(--green-dark);border:1px solid var(--green);}
+  .lnk{background:none;border:none;color:var(--green-dark);cursor:pointer;font-size:14px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;}
+  th,td{border:1px solid var(--border);padding:7px 10px;text-align:center;vertical-align:middle;}
+  th{background:var(--green-light);position:sticky;top:0;}
+  td:last-child{text-align:right;}
+  tfoot td{background:var(--green-light);font-weight:700;}
+  tr.gap td{background:var(--amberbg);}
+  .muted{color:#8aa094;font-size:12px;}
+  .chip{display:inline-block;border-radius:8px;padding:1px 8px;font-size:12px;}
+  .chip.canc{background:var(--amberbg);color:var(--amber);font-weight:700;}
+  .cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;}
+  .scard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 20px;min-width:150px;text-align:center;}
+  .scard .t{font-size:13px;color:#6b7f74;}
+  .scard .big{font-size:26px;font-weight:800;color:var(--green-dark);}
+  .scard .s{font-size:12px;color:#8aa094;}
+  #loader{position:fixed;top:10px;left:10px;background:var(--green);color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;display:none;z-index:99;}
+  @media print{.tabs,.row,.btn,.lnk{display:none!important;} body{padding:0;background:#fff;} th,td{border:1px solid #444;}}
+</style>
+</head>
+<body>
+<div id="loader">טוען…</div>
+<h1>⛽ תדלוקים <span style="font-size:12px;color:#8aa094;font-weight:400">ק-1</span></h1>
+<div class="sub">יומן אובייקטיבי של כל תדלוק שנמדד פיזית במיכל הסולר (חיישן פולסים). מקור אמת עצמאי — להשוואה ידנית מול הרישום של הנהגים. הכתיבה אוטומטית מהמחשב במשרד; כאן צופים, עורכים הערה, מכיילים ומייצאים. הליטרים מחושבים לפי היחס הנוכחי, כך שתיקון היחס מתקן את כל ההיסטוריה.</div>
+
+<div class="tabs">
+  <button data-v="log" class="active" onclick="showView('log',this)">📋 יומן תדלוקים</button>
+  <button data-v="set" onclick="showView('set',this)">⚙️ הגדרות וכיול</button>
+</div>
+
+<div id="v-log">
+  <div class="row">
+    <label>מ־ <input type="date" id="fFrom"></label>
+    <label>עד <input type="date" id="fTo"></label>
+    <button class="btn sec" onclick="quickRange(7)">7 ימים</button>
+    <button class="btn sec" onclick="quickRange(30)">30 יום</button>
+    <button class="btn" onclick="loadLog()">רענן</button>
+    <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
+  </div>
+  <div class="cards" id="sumCards"></div>
+  <div class="card" style="overflow:auto;padding:0"><div id="logTbl" style="padding:2px"></div></div>
+</div>
+
+<div id="v-set" class="hidden">
+  <div class="card"><h2>הגדרות</h2><div id="setBox"></div></div>
+  <div class="card"><h2>כלי כיול — פולסים לליטר</h2><div id="calBox"></div></div>
+</div>
+
+<script>
+const SB_URL='https://knqnuvoprtuqyrvzqffj.supabase.co/rest/v1';
+const RPC='https://knqnuvoprtuqyrvzqffj.supabase.co/rest/v1/rpc';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtucW51dm9wcnR1cXlydnpxZmZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTM5MjEsImV4cCI6MjA5OTA4OTkyMX0.sVyNLQ7JDePgui-ATMOPbqu2Dabnn4fJIjL4ccrLEXw';
+function session(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
+function H(){ var s=session(); return {'apikey':SB_KEY,'Authorization':'Bearer '+(s?s.access_token:SB_KEY),'Content-Type':'application/json'}; }
+var loader=document.getElementById('loader');
+async function sb(path,opts){ loader.style.display='block';
+  try{ var r=await fetch(SB_URL+path, Object.assign({headers:Object.assign({},H(),{'Range':'0-99999'})},opts||{}));
+    if(r.status===401||r.status===403) throw new Error('אין הרשאה — התחבר מחדש דרך המסך הראשי');
+    if(!r.ok) throw new Error(r.status+' '+await r.text());
+    return (opts&&opts.method&&opts.method!=='GET')? true : await r.json();
+  } finally{ loader.style.display='none'; } }
+function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function pad2(n){ return String(n).padStart(2,'0'); }
+function fmt(n,d){ n=+n||0; return n.toLocaleString('he-IL',{maximumFractionDigits:(d==null?1:d)}); }
+function dl(h,name){ var doc='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+h+'</body></html>'; var b=new Blob(['﻿'+doc],{type:'application/vnd.ms-excel'}); var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }
+
+var CAN_EDIT=false, SET={}, ROWS=[];
+var CFG_KEYS=['pulses_per_liter','shelly_ip','poll_interval_seconds','end_threshold_seconds','gap_threshold_seconds'];
+async function loadMyPerms(){ var s=session(); if(!s) return;
+  try{ var r=await fetch(SB_URL+'/user_perms?select=is_admin,perms&user_id=eq.'+s.uid,{headers:H()}); var d=await r.json();
+    if(d.length) CAN_EDIT = d[0].is_admin || (d[0].perms||{}).fuel==='edit'; }catch(e){} }
+function ratio(){ return parseFloat(SET.pulses_per_liter)||41.3; }
+function liters(p){ return (+p||0)/ratio(); }
+async function loadSettings(){ var rows=await sb('/fuel_settings?select=key,value'); SET={}; rows.forEach(function(r){SET[r.key]=r.value;}); }
+
+function showView(v,btn){ document.querySelectorAll('.tabs button').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
+  document.getElementById('v-log').classList.toggle('hidden',v!=='log');
+  document.getElementById('v-set').classList.toggle('hidden',v!=='set');
+  if(v==='set') renderSettings(); }
+
+function startOfWeek(){ var d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-d.getDay()); return d; }
+function startOfMonth(){ var d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1); }
+function quickRange(days){ var to=new Date(), from=new Date(); from.setDate(from.getDate()-days+1);
+  document.getElementById('fFrom').value=iso(from); document.getElementById('fTo').value=iso(to); loadLog(); }
+
+async function loadLog(){
+  var from=document.getElementById('fFrom').value, to=document.getElementById('fTo').value;
+  var q='/fuelings?select=*&order=started_at.desc';
+  if(from) q+='&started_at=gte.'+from+'T00:00:00';
+  if(to) q+='&started_at=lte.'+to+'T23:59:59';
+  ROWS=await sb(q);
+  renderLog(); renderSummary();
+}
+function hhmm(ts){ if(!ts) return '—'; var d=new Date(ts); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
+function dmy(ts){ if(!ts) return '—'; var d=new Date(ts); return pad2(d.getDate())+'.'+pad2(d.getMonth()+1)+'.'+String(d.getFullYear()).slice(2); }
+function dur(sec){ sec=+sec||0; if(!sec) return '—'; if(sec<60) return sec+' שנ׳'; return Math.floor(sec/60)+':'+pad2(sec%60)+' דק׳'; }
+
+function renderLog(){
+  var rc=ratio();
+  var h='<table><thead><tr><th>תאריך</th><th>התחלה</th><th>סיום</th><th>משך</th><th>פולסים</th><th>יחס המרה</th><th>ליטרים</th><th>הערה</th></tr></thead><tbody>';
+  var totL=0, totP=0;
+  ROWS.forEach(function(r){
+    var L=liters(r.pulses); totL+=L; totP+=(+r.pulses||0);
+    var atT=r.pulses_per_liter_at_time;
+    var ratioCell=fmt(rc,2)+((atT&&Math.abs(atT-rc)>0.01)?' <span class="muted" title="היחס שהיה בתוקף בזמן הרישום">(נרשם '+fmt(atT,2)+')</span>':'');
+    var noteBtn=CAN_EDIT?' <button class="lnk" title="ערוך הערה" onclick="editNote('+r.id+',this)">✎</button>':'';
+    h+='<tr'+(r.is_gap?' class="gap"':'')+'>'
+      +'<td>'+dmy(r.started_at)+'</td>'
+      +'<td>'+hhmm(r.started_at)+'</td>'
+      +'<td>'+hhmm(r.ended_at)+'</td>'
+      +'<td>'+(r.is_gap?'<span class="muted">חלון רחב</span>':dur(r.duration_seconds))+'</td>'
+      +'<td>'+fmt(r.pulses,0)+'</td>'
+      +'<td>'+ratioCell+'</td>'
+      +'<td><b>'+fmt(L,1)+'</b></td>'
+      +'<td>'+(r.is_gap?'<span class="chip canc">תקופה לא מנוטרת</span> ':'')+esc(r.note||'')+noteBtn+'</td></tr>';
+  });
+  h+='</tbody><tfoot><tr><td colspan="4">סה"כ ('+ROWS.length+' רשומות)</td><td>'+fmt(totP,0)+'</td><td>—</td><td>'+fmt(totL,1)+' ל׳</td><td></td></tr></tfoot></table>';
+  document.getElementById('logTbl').innerHTML=h;
+}
+
+async function renderSummary(){
+  try{
+    var sm=iso(startOfMonth());
+    var rows=await sb('/fuelings?select=started_at,pulses,is_gap&started_at=gte.'+sm+'T00:00:00');
+    var wkStart=startOfWeek().getTime();
+    var mL=0,mN=0,mG=0,wL=0,wN=0;
+    rows.forEach(function(r){ var L=liters(r.pulses); mL+=L; if(r.is_gap)mG++; else mN++;
+      if(new Date(r.started_at).getTime()>=wkStart){ wL+=L; if(!r.is_gap)wN++; } });
+    document.getElementById('sumCards').innerHTML=
+        scard('השבוע', fmt(wL,0)+' ל׳', wN+' תדלוקים')
+      + scard('החודש', fmt(mL,0)+' ל׳', mN+' תדלוקים'+(mG?' · '+mG+' פערים':''))
+      + scard('יחס נוכחי', fmt(ratio(),2), 'פולס / ליטר');
+  }catch(e){}
+}
+function scard(t,big,s){ return '<div class="scard"><div class="t">'+t+'</div><div class="big">'+big+'</div><div class="s">'+s+'</div></div>'; }
+
+async function editNote(id){
+  var row=ROWS.find(function(r){return r.id==id;}); if(!row) return;
+  var t=prompt('הערה לתדלוק (תאריך '+dmy(row.started_at)+'):', row.note||''); if(t===null) return;
+  try{ await fetch(RPC+'/set_fuel_note',{method:'POST',headers:H(),body:JSON.stringify({p_id:id,p_note:t})});
+    row.note=t; renderLog();
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+
+function exportXls(){
+  if(!ROWS.length){ alert('אין רשומות בטווח'); return; }
+  var rc=ratio();
+  var h='<table border="1"><tr><th colspan="8" style="background:#1a7a4a;color:#fff">יומן תדלוקים · '+(document.getElementById('fFrom').value||'')+' — '+(document.getElementById('fTo').value||'')+'</th></tr>';
+  h+='<tr><th>תאריך</th><th>התחלה</th><th>סיום</th><th>משך (שנ׳)</th><th>פולסים</th><th>יחס המרה</th><th>ליטרים</th><th>הערה</th></tr>';
+  var totL=0;
+  ROWS.forEach(function(r){ var L=liters(r.pulses); totL+=L;
+    h+='<tr><td>'+dmy(r.started_at)+'</td><td>'+hhmm(r.started_at)+'</td><td>'+hhmm(r.ended_at)+'</td><td>'+(+r.duration_seconds||'')+'</td><td>'+(+r.pulses||0)+'</td><td>'+fmt(rc,2)+'</td><td>'+fmt(L,1)+'</td><td>'+esc((r.is_gap?'[תקופה לא מנוטרת] ':'')+(r.note||''))+'</td></tr>'; });
+  h+='<tr><td colspan="6"><b>סה"כ</b></td><td><b>'+fmt(totL,1)+'</b></td><td></td></tr></table>';
+  dl(h,'תדלוקים_'+(document.getElementById('fFrom').value||'')+'.xls');
+}
+
+/* ---- הגדרות ---- */
+var CFG_LABELS={pulses_per_liter:'פולסים לליטר (יחס המרה)',shelly_ip:'כתובת IP של השלי',poll_interval_seconds:'תדירות דגימה (שנ׳)',end_threshold_seconds:'סף סיום תדלוק (שנ׳)',gap_threshold_seconds:'סף "תקופה לא מנוטרת" (שנ׳)'};
+function renderSettings(){
+  var dis=CAN_EDIT?'':'disabled';
+  var h='<table style="max-width:520px">';
+  CFG_KEYS.forEach(function(k){ h+='<tr><td style="text-align:right">'+CFG_LABELS[k]+'</td><td><input id="s_'+k+'" value="'+esc(SET[k]||'')+'" '+dis+' style="width:150px"></td></tr>'; });
+  h+='</table>';
+  if(CAN_EDIT) h+='<div class="row" style="margin-top:10px"><button class="btn" onclick="saveSettings()">💾 שמור הגדרות</button></div>';
+  else h+='<p class="muted" style="margin-top:8px">צפייה בלבד — אין לך הרשאת עריכה.</p>';
+  document.getElementById('setBox').innerHTML=h;
+  renderCalib();
+}
+async function patchSetting(k,v){ await fetch(SB_URL+'/fuel_settings?key=eq.'+encodeURIComponent(k),{method:'PATCH',headers:Object.assign({},H(),{'Prefer':'return=minimal'}),body:JSON.stringify({value:v,updated_at:new Date().toISOString()})}); SET[k]=v; }
+async function saveSettings(){
+  if(!CAN_EDIT){ alert('אין הרשאת עריכה'); return; }
+  try{ for(var i=0;i<CFG_KEYS.length;i++){ var k=CFG_KEYS[i]; var v=document.getElementById('s_'+k).value.trim(); if(v!==(SET[k]||'')) await patchSetting(k,v); }
+    alert('✔ נשמר'); loadLog();
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+
+/* ---- כיול ---- */
+function calibSamples(){ try{return JSON.parse(SET.calibrations||'[]');}catch(e){return [];} }
+function rollingAvg(s){ if(!s.length) return 0; var last=s.slice(-5); var sum=0; last.forEach(function(x){sum+=x.ratio;}); return sum/last.length; }
+function renderCalib(){
+  if(!CAN_EDIT){ document.getElementById('calBox').innerHTML='<p class="muted">כלי הכיול דורש הרשאת עריכה.</p>'; return; }
+  var opts=ROWS.filter(function(r){return !r.is_gap && r.pulses>0;}).slice(0,30).map(function(r){ return '<option value="'+r.id+'">'+dmy(r.started_at)+' '+hhmm(r.started_at)+' · '+fmt(r.pulses,0)+' פולסים</option>'; }).join('');
+  var samples=calibSamples(); var avg=rollingAvg(samples);
+  var h='<p class="muted">בחר תדלוק, הזן כמה ליטר יצאו בפועל לפי מד K33, והמערכת תחשב את היחס האמיתי. אחרי כמה מדידות — לחיצה אחת מעדכנת את היחס לממוצע.</p>';
+  h+='<div class="row"><select id="calSel">'+(opts||'<option>אין תדלוקים בטווח</option>')+'</select> <input id="calLit" type="number" step="0.1" placeholder="ליטר בפועל (K33)" style="width:160px"> <button class="btn sec" onclick="calibCompute()">חשב יחס</button></div>';
+  h+='<div id="calOut" style="margin:6px 0;font-size:14px"></div>';
+  h+='<div class="row" style="margin-top:6px">ממוצע מתגלגל ('+samples.length+' מדידות אחרונות): <b style="font-size:16px">'+(avg?fmt(avg,2):'—')+'</b> פולס/ליטר '
+    +(avg?' <button class="btn" onclick="calibApply('+avg+')">✔ עדכן את היחס ל-'+fmt(avg,2)+'</button>':'')
+    +(samples.length?' <button class="btn sec" onclick="calibClear()">אפס מדידות</button>':'')+'</div>';
+  document.getElementById('calBox').innerHTML=h;
+}
+function calibCompute(){
+  var id=document.getElementById('calSel').value; var lit=parseFloat(document.getElementById('calLit').value);
+  var r=ROWS.find(function(x){return x.id==id;});
+  if(!r||!(lit>0)){ document.getElementById('calOut').textContent='בחר תדלוק והזן ליטרים תקינים.'; return; }
+  var ra=r.pulses/lit;
+  document.getElementById('calOut').innerHTML=fmt(r.pulses,0)+' פולסים ÷ '+fmt(lit,1)+' ל׳ = <b>'+fmt(ra,2)+'</b> פולס/ליטר &nbsp; <button class="btn sec" onclick="calibAdd('+r.pulses+','+lit+','+ra+')">➕ הוסף למדידות</button>';
+}
+async function calibAdd(pulses,lit,ra){ var s=calibSamples(); s.push({ts:new Date().toISOString(),pulses:pulses,liters:lit,ratio:ra}); await patchSetting('calibrations',JSON.stringify(s)); document.getElementById('calLit').value=''; renderCalib(); }
+async function calibClear(){ if(!confirm('לאפס את כל מדידות הכיול?')) return; await patchSetting('calibrations','[]'); renderCalib(); }
+async function calibApply(v){ v=Math.round(v*100)/100; if(!confirm('לעדכן את פולסים-לליטר ל-'+v+'?\nזה משנה את חישוב הליטרים של כל ההיסטוריה (הגולמי נשמר).')) return; await patchSetting('pulses_per_liter',String(v)); alert('✔ עודכן ל-'+v); renderSettings(); loadLog(); }
+
+/* ---- init ---- */
+(async function(){ try{ await loadMyPerms(); await loadSettings(); }catch(e){} quickRange(30); })();
+</script>
+</body>
+</html>
