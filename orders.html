@@ -93,6 +93,28 @@
   tr.child td{background:#fbfdfc;color:#3c554a;font-size:13.5px;}
   tr.child td:first-child{padding-inline-start:34px;}
 
+.btn.sec.on,.btn.amode.on{background:var(--green);color:#fff;border-color:var(--green)}
+.amode{padding:9px 18px;font-size:15px}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.ecard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:.12s}
+.ecard:hover{box-shadow:0 3px 12px rgba(0,0,0,.12);transform:translateY(-1px)}
+.ecard .en{font-weight:700;font-size:14px;color:var(--green-dark);min-height:38px;line-height:1.25}
+.ecard .eq{font-size:24px;font-weight:800;margin-top:4px}
+.ecard .eq .eu{font-size:13px;color:#8aa094;font-weight:600}
+.ecard .et{margin-top:4px}
+.ehname{font-size:22px;font-weight:800;color:var(--green-dark);margin:10px 0}
+.kstrip{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0}
+.kbox{flex:1;min-width:130px;background:var(--green-light);border-radius:12px;padding:14px;text-align:center}
+.kbox .kv{font-size:26px;font-weight:800;color:var(--green-dark)}
+.kbox .kl{font-size:12px;color:#6b7f74;margin-top:2px}
+.chartbox{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 12px 6px;margin-bottom:6px}
+.rellist{display:flex;flex-direction:column;gap:6px}
+.relrow{display:flex;align-items:center;gap:10px}
+.relrow .rn{flex:0 0 42%;font-weight:600;font-size:13.5px}
+.relrow .rbarw{flex:1;background:#eef3f0;border-radius:8px;height:16px;overflow:hidden}
+.relrow .rbar{display:block;height:100%;background:var(--green);border-radius:8px}
+.relrow .rq{flex:0 0 100px;text-align:left;font-weight:700;font-size:13.5px}
+.tbig{font-weight:800}.tbig.up{color:#1a7a4a}.tbig.down{color:#c0392b}.tbig.na{color:#8aa094;font-size:18px}
 </style>
 </head>
 <body>
@@ -135,6 +157,13 @@
     </div>
     <p class="muted" style="margin:0">המגמות מחושבות מול התקופה המקבילה שקדמה. לחיצה על לקוח או מוצר מסננת את כל המסך.</p>
   </div>
+  <div class="row" id="anaModeRow" style="margin:0 0 12px;gap:8px">
+    <button class="btn amode on" id="modeCust" onclick="A_mode('cust')">👥 לקוחות</button>
+    <button class="btn sec amode" id="modeProd" onclick="A_mode('prod')">📦 מוצרים</button>
+  </div>
+  <div id="anaBoard"></div>
+  <div id="anaDetail" style="display:none"></div>
+  <div id="anaOld" style="display:none">
   <div class="row" id="unitBar" style="margin:0 0 10px 0;gap:6px;align-items:center"></div>
   <div class="kpis" id="anaKpis"></div>
   <div class="card" id="tlCard" style="display:none">
@@ -175,6 +204,7 @@
     </div>
     <div style="max-height:64vh;overflow:auto" id="pivotOut"><span class="muted">בחר טווח ולחץ "הצג"</span></div>
   </div>
+  </div>
 </div>
 
 <script>
@@ -194,6 +224,7 @@ async function sb(path,opts){
 }
 const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function heDate(b){ var p=String(b).split('-'); return p.length>=3 ? (p[2]+'.'+p[1]) : b; }
 function esc(x){ return String(x==null?'':x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function dl(html,name){
   const h='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+html+'</body></html>';
@@ -372,7 +403,7 @@ async function loadAna(){
     if(!UNIT || us.indexOf(UNIT)<0) UNIT = us[0]||null;
     renderAll();
   }catch(e){
-    document.getElementById('pivotOut').innerHTML='<span class="muted">'+esc(e.message)+'</span>';
+    document.getElementById('anaBoard').innerHTML='<span class="muted">'+esc(e.message)+'</span>';
   }
 }
 
@@ -400,7 +431,70 @@ function trendHtml(cur,prev){
   return pct>0 ? '<span class="trend up">▲ '+pct+'%</span>' : '<span class="trend down">▼ '+Math.abs(pct)+'%</span>';
 }
 
-function renderAll(){ renderUnitBar(); renderKpis(); renderSelChips(); renderPanels(); renderTimeline(); renderDetail(); renderCompare(); renderPivot(); }
+function renderAll(){ A_render(); }
+var MODE='cust', A_LIST=[], A_REL=[];
+function primaryUnit(o){ var best=null,bq=-1,u; for(u in (o.units||{})){ if(o.units[u]>bq){bq=o.units[u];best=u;} } return best||unitsIn(RAW)[0]||''; }
+function trendBig(cur,prev){ if(!prev) return cur?'<span class="tbig na">חדש</span>':'<span class="tbig na">—</span>';
+  if(!cur) return '<span class="tbig down">הפסיק</span>';
+  var pct=Math.round((cur-prev)/prev*100);
+  if(pct===0) return '<span class="tbig na">ללא שינוי</span>';
+  return pct>0?'<span class="tbig up">▲ '+pct+'%</span>':'<span class="tbig down">▼ '+Math.abs(pct)+'%</span>'; }
+function granBtns(){ return '<span class="row" style="margin:0;gap:6px">'
+  +[['week','שבועי'],['month','חודשי']].map(function(x){return '<button class="btn sec'+(GRAN===x[0]?' on':'')+'" onclick="A_gran(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</span>'; }
+function A_render(){
+  var board=document.getElementById('anaBoard'), detail=document.getElementById('anaDetail'), moderow=document.getElementById('anaModeRow');
+  var mc=document.getElementById('modeCust'), mp=document.getElementById('modeProd');
+  if(mc) mc.className='btn amode'+(MODE==='cust'?' on':' sec'); if(mp) mp.className='btn amode'+(MODE==='prod'?' on':' sec');
+  if(SEL.cust||SEL.prod){ board.style.display='none'; moderow.style.display='none'; detail.style.display='block'; A_card(); }
+  else { detail.style.display='none'; board.style.display='block'; moderow.style.display='flex'; A_board(); }
+}
+function A_mode(m){ MODE=m; SEL={cust:null,prod:null}; A_render(); }
+function A_gran(g){ GRAN=g; A_render(); }
+function A_open(i){ var o=A_LIST[i]; if(!o) return; if(MODE==='cust') SEL={cust:o.key,prod:null}; else SEL={cust:null,prod:o.key}; A_render(); }
+function A_openRel(i){ var o=A_REL[i]; if(!o) return; if(SEL.cust){ MODE='prod'; SEL={cust:null,prod:o.key}; } else { MODE='cust'; SEL={cust:o.key,prod:null}; } A_render(); }
+function A_back(){ SEL={cust:null,prod:null}; A_render(); }
+function A_board(){
+  var keyf=MODE==='cust'?function(r){return r.top;}:function(r){return r.prod;};
+  var agg=aggBy(RAW,keyf), prev=aggBy(PREV,keyf);
+  A_LIST=Object.values(agg); A_LIST.forEach(function(o){o._u=primaryUnit(o);o._q=uq(o,o._u);});
+  A_LIST.sort(function(a,b){return b._q-a._q;});
+  var el=document.getElementById('anaBoard');
+  if(!A_LIST.length){ el.innerHTML='<p class="muted">אין נתונים בטווח. בחר טווח למעלה ולחץ "הצג".</p>'; return; }
+  var h='<div class="board">';
+  A_LIST.forEach(function(o,i){ var p=prev[o.key], pq=p?uq(p,o._u):0;
+    h+='<div class="ecard" onclick="A_open('+i+')"><div class="en">'+esc(o.key)+'</div>'
+      +'<div class="eq">'+fmtQ(o._q)+' <span class="eu">'+esc(o._u)+'</span></div>'
+      +'<div class="et">'+trendHtml(o._q,pq)+'</div></div>'; });
+  el.innerHTML=h+'</div>';
+}
+function A_card(){
+  var isCust=!!SEL.cust, name=SEL.cust||SEL.prod;
+  var rows=RAW.filter(matchSel), prows=PREV.filter(matchSel);
+  var agg=aggBy(rows,function(){return '_';})['_']||{units:{},nDays:0};
+  var pagg=aggBy(prows,function(){return '_';})['_']||{units:{}};
+  var u=primaryUnit(agg), q=uq(agg,u), pq=uq(pagg,u);
+  var others=Object.keys(agg.units||{}).filter(function(x){return x!==u && agg.units[x]>0;});
+  var h='<button class="btn sec" onclick="A_back()">← חזרה לרשימה</button>';
+  h+='<div class="ehname">'+(isCust?'👤 ':'📦 ')+esc(name)+'</div>';
+  h+='<div class="kstrip">'
+    +'<div class="kbox"><div class="kv">'+fmtQ(q)+' '+esc(u)+'</div><div class="kl">סה"כ בתקופה</div></div>'
+    +'<div class="kbox"><div class="kv">'+trendBig(q,pq)+'</div><div class="kl">מול התקופה הקודמת</div></div>'
+    +'<div class="kbox"><div class="kv">'+(agg.nDays||0)+'</div><div class="kl">ימי הזמנה</div></div>'
+    +'<div class="kbox"><div class="kv">'+(agg.nDays?fmtQ(q/agg.nDays):'—')+'</div><div class="kl">ממוצע ליום</div></div>'
+    +'</div>';
+  if(others.length) h+='<div class="muted" style="margin:2px 0 8px">גם: '+others.map(function(x){return fmtQ(agg.units[x])+' '+esc(x);}).join(' · ')+'</div>';
+  h+='<div class="row" style="margin:12px 0 6px;align-items:center"><b style="flex:1;font-size:15px">📈 מגמה לפי '+(GRAN==='week'?'שבוע':'חודש')+'</b>'+granBtns()+'</div>';
+  h+='<div class="chartbox">'+barsHtml(rows,u)+'</div>';
+  var relf=isCust?function(r){return r.prod;}:function(r){return r.top;};
+  A_REL=Object.values(aggBy(rows,relf)); A_REL.forEach(function(o){o._u=primaryUnit(o);o._q=uq(o,o._u);});
+  A_REL.sort(function(a,b){return b._q-a._q;}); A_REL=A_REL.slice(0,8);
+  var rmax=A_REL.length?(Math.max.apply(null,A_REL.map(function(o){return o._q;}))||1):1;
+  h+='<h3 style="margin:16px 0 8px;font-size:15px;color:var(--green-dark)">'+(isCust?'🥇 המוצרים שהוא הכי מזמין':'🥇 הלקוחות שהכי מזמינים אותו')+'</h3><div class="rellist">';
+  A_REL.forEach(function(o,i){ h+='<div class="relrow" style="cursor:pointer" onclick="A_openRel('+i+')"><span class="rn">'+esc(o.key)+'</span>'
+    +'<span class="rbarw"><span class="rbar" style="width:'+Math.max(4,Math.round(o._q/rmax*100))+'%"></span></span>'
+    +'<span class="rq">'+fmtQ(o._q)+' '+esc(o._u)+'</span></div>'; });
+  document.getElementById('anaDetail').innerHTML=h+'</div>';
+}
 
 /* ---------- בורר יחידה ---------- */
 function setUnit(u){ UNIT=u; renderAll(); }
