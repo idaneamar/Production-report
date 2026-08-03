@@ -96,6 +96,8 @@
 .btn.sec.on,.btn.amode.on{background:var(--green);color:#fff;border-color:var(--green)}
 .amode{padding:9px 18px;font-size:15px}
 .board{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.usec{margin-bottom:18px}
+.usec-h{font-size:15px;font-weight:800;color:var(--green-dark);margin:0 0 8px;padding-bottom:4px;border-bottom:2px solid var(--green-light)}
 .ecard{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:.12s}
 .ecard:hover{box-shadow:0 3px 12px rgba(0,0,0,.12);transform:translateY(-1px)}
 .ecard .en{font-weight:700;font-size:14px;color:var(--green-dark);min-height:38px;line-height:1.25}
@@ -453,19 +455,23 @@ function A_gran(g){ GRAN=g; A_render(); }
 function A_open(i){ var o=A_LIST[i]; if(!o) return; if(MODE==='cust') SEL={cust:o.key,prod:null}; else SEL={cust:null,prod:o.key}; A_render(); }
 function A_openRel(i){ var o=A_REL[i]; if(!o) return; if(SEL.cust){ MODE='prod'; SEL={cust:null,prod:o.key}; } else { MODE='cust'; SEL={cust:o.key,prod:null}; } A_render(); }
 function A_back(){ SEL={cust:null,prod:null}; A_render(); }
+var UEMO={'ק"ג':'🟩',"יח'":'🟦','ארגז':'🟧','קרטון':'🟫','קרטון פרי':'🍐'};
 function A_board(){
   var keyf=MODE==='cust'?function(r){return r.top;}:function(r){return r.prod;};
   var agg=aggBy(RAW,keyf), prev=aggBy(PREV,keyf);
-  A_LIST=Object.values(agg); A_LIST.forEach(function(o){o._u=primaryUnit(o);o._q=uq(o,o._u);});
-  A_LIST.sort(function(a,b){return b._q-a._q;});
-  var el=document.getElementById('anaBoard');
-  if(!A_LIST.length){ el.innerHTML='<p class="muted">אין נתונים בטווח. בחר טווח למעלה ולחץ "הצג".</p>'; return; }
-  var h='<div class="board">';
-  A_LIST.forEach(function(o,i){ var p=prev[o.key], pq=p?uq(p,o._u):0;
-    h+='<div class="ecard" onclick="A_open('+i+')"><div class="en">'+esc(o.key)+'</div>'
-      +'<div class="eq">'+fmtQ(o._q)+' <span class="eu">'+esc(o._u)+'</span></div>'
-      +'<div class="et">'+trendHtml(o._q,pq)+'</div></div>'; });
-  el.innerHTML=h+'</div>';
+  var items=Object.values(agg); items.forEach(function(o){o._u=primaryUnit(o);o._q=uq(o,o._u);});
+  var byU={}; items.forEach(function(o){ (byU[o._u]=byU[o._u]||[]).push(o); });
+  var units=unitsIn(RAW).slice(); Object.keys(byU).forEach(function(u){ if(units.indexOf(u)<0) units.push(u); });
+  A_LIST=[]; var h='';
+  units.forEach(function(u){ var arr=byU[u]; if(!arr||!arr.length) return;
+    arr.sort(function(a,b){return b._q-a._q;});
+    h+='<div class="usec"><div class="usec-h">'+(UEMO[u]||'•')+' '+esc(u)+' <span class="muted">('+arr.length+')</span></div><div class="board">';
+    arr.forEach(function(o){ var idx=A_LIST.length; A_LIST.push(o); var p=prev[o.key], pq=p?uq(p,o._u):0;
+      h+='<div class="ecard" onclick="A_open('+idx+')"><div class="en">'+esc(o.key)+'</div>'
+        +'<div class="eq">'+fmtQ(o._q)+' <span class="eu">'+esc(o._u)+'</span></div>'
+        +'<div class="et">'+trendHtml(o._q,pq)+'</div></div>'; });
+    h+='</div></div>'; });
+  document.getElementById('anaBoard').innerHTML = A_LIST.length ? h : '<p class="muted">אין נתונים בטווח. בחר טווח למעלה ולחץ "הצג".</p>';
 }
 function A_card(){
   var isCust=!!SEL.cust, name=SEL.cust||SEL.prod;
