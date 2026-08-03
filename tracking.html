@@ -25,6 +25,8 @@
   th,td{border:1px solid var(--border);padding:7px 10px;text-align:right;vertical-align:top;}
   th{background:var(--green-light);position:sticky;top:0;}
   .muted{color:#8aa094;font-size:13px;}
+  .lnk{cursor:pointer;color:var(--green-dark);font-weight:700;text-decoration:underline;}
+  .lnk:hover{color:var(--green);}
   .banner{padding:12px 16px;border-radius:10px;font-weight:700;margin-bottom:14px;}
   .banner.ok{background:var(--green-light);color:var(--green-dark);}
   .banner.bad{background:var(--red-light);color:var(--red);}
@@ -372,11 +374,41 @@ async function renderSummary(){
   let h='<table><tr><th>נהג</th><th>ימי עבודה</th><th>סה"כ מקומות</th><th>קרוב</th><th>רחוק</th><th>לא מסווג</th><th>משטחים</th></tr>';
   if(!SUM_DATA.length) h+='<tr><td colspan="7" class="muted">אין רישומים בחודש זה</td></tr>';
   let T={days:0,stops:0,near:0,far:0,unk:0,pallets:0};
-  SUM_DATA.forEach(s=>{ T.days+=s.days;T.stops+=s.stops;T.near+=s.near;T.far+=s.far;T.unk+=s.unk;T.pallets+=s.pallets;
-    h+='<tr><td><b>'+esc(s.driver)+'</b></td><td>'+s.days+'</td><td>'+s.stops+'</td><td>'+s.near+'</td><td>'+s.far+'</td><td>'+(s.unk||'')+'</td><td>'+s.pallets+'</td></tr>'; });
+  SUM_DATA.forEach((s,i)=>{ T.days+=s.days;T.stops+=s.stops;T.near+=s.near;T.far+=s.far;T.unk+=s.unk;T.pallets+=s.pallets;
+    h+='<tr><td><b>'+esc(s.driver)+'</b></td><td>'+s.days+'</td><td class="lnk" title="לחץ לפירוט הנסיעות" onclick="openDriver('+i+')">'+s.stops+'</td><td>'+s.near+'</td><td>'+s.far+'</td><td>'+(s.unk||'')+'</td><td>'+s.pallets+'</td></tr>'; });
   if(SUM_DATA.length) h+='<tr style="background:var(--green-light)"><td><b>סה"כ</b></td><td><b>'+T.days+'</b></td><td><b>'+T.stops+'</b></td><td><b>'+T.near+'</b></td><td><b>'+T.far+'</b></td><td><b>'+(T.unk||'')+'</b></td><td><b>'+T.pallets+'</b></td></tr>';
   h+='</table>';
   document.getElementById('sumOut').innerHTML=h;
+}
+/* פירוט נסיעות לנהג — נפתח בלחיצה על "סה"כ מקומות" */
+var DD_DRIVER='', DD_ROWS=[];
+function ddDate(s){ var p=String(s).split('-'); return p.length>=3?(p[2]+'.'+p[1]+'.'+p[0].slice(2)):s; }
+function openDriver(i){ var s=SUM_DATA[i]; if(!s) return; DD_DRIVER=s.driver;
+  var mv=document.getElementById('sumMonth').value, y, m;
+  if(mv){ var p=mv.split('-'); y=+p[0]; m=+p[1]; } else { var n=new Date(); y=n.getFullYear(); m=n.getMonth()+1; }
+  loadDriverDetail(iso(new Date(y,m-1,1)), iso(new Date(y,m,0)));
+}
+async function loadDriverDetail(from,to){
+  var rows=await sb('/driver_log?select=*&driver=eq.'+encodeURIComponent(DD_DRIVER)+'&cancelled=is.false&log_date=gte.'+from+'&log_date=lte.'+to+'&order=log_date.asc');
+  DD_ROWS=rows;
+  var days=new Set(rows.map(function(r){return r.log_date;})).size;
+  var h='<div class="row" style="margin-bottom:8px"><button class="btn sec" onclick="renderSummary()">← חזרה לסיכום</button></div>';
+  h+='<h2 style="color:var(--green-dark);margin-bottom:4px">🚚 '+esc(DD_DRIVER)+'</h2>';
+  h+='<div class="row" style="margin:8px 0;align-items:center"><label>מ- <input type="date" id="ddFrom" value="'+from+'"></label> <label>עד <input type="date" id="ddTo" value="'+to+'"></label>'
+    +' <button class="btn" onclick="loadDriverDetail(document.getElementById(\'ddFrom\').value,document.getElementById(\'ddTo\').value)">רענן</button>'
+    +' <button class="btn sec" onclick="exportDriverDetail()">⬇ ייצוא לאקסל</button></div>';
+  h+='<div class="muted" style="margin-bottom:6px"><b>'+rows.length+'</b> נסיעות · <b>'+days+'</b> ימי עבודה בטווח</div>';
+  h+='<table><tr><th>תאריך</th><th>מקום</th><th>משמרת</th><th>משאית</th><th>משטחים</th><th>מרחק</th><th>הערה</th></tr>';
+  if(!rows.length) h+='<tr><td colspan="7" class="muted">אין נסיעות בטווח</td></tr>';
+  rows.forEach(function(r){ h+='<tr><td>'+ddDate(r.log_date)+'</td><td style="text-align:right">'+esc(r.place)+'</td><td>'+esc(r.shift||'')+'</td><td>'+esc(r.truck||'')+'</td><td>'+(r.pallets||0)+'</td><td>'+esc(PLACES[r.place]||'')+'</td><td style="text-align:right">'+esc(r.note||'')+'</td></tr>'; });
+  h+='</table>';
+  document.getElementById('sumOut').innerHTML=h;
+}
+function exportDriverDetail(){
+  var h='<table border="1"><tr><th colspan="7" style="background:#1a7a4a;color:#fff">נסיעות — '+esc(DD_DRIVER)+'</th></tr>'
+    +'<tr><th>תאריך</th><th>מקום</th><th>משמרת</th><th>משאית</th><th>משטחים</th><th>מרחק</th><th>הערה</th></tr>';
+  DD_ROWS.forEach(function(r){ h+='<tr><td>'+r.log_date+'</td><td>'+esc(r.place)+'</td><td>'+esc(r.shift||'')+'</td><td>'+esc(r.truck||'')+'</td><td>'+(r.pallets||0)+'</td><td>'+esc(PLACES[r.place]||'')+'</td><td>'+esc(r.note||'')+'</td></tr>'; });
+  dl(h+'</table>','נסיעות_'+DD_DRIVER+'.xls');
 }
 function exportSummary(){
   let h='<table border="1"><tr><th>נהג</th><th>ימי עבודה</th><th>סה"כ מקומות</th><th>קרוב</th><th>רחוק</th><th>לא מסווג</th><th>משטחים</th></tr>';
