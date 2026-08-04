@@ -66,12 +66,16 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 .pick .pitem{display:inline-block;background:#f7f9fb;border:1px solid var(--line);border-radius:12px;padding:1px 8px;margin:0 0 3px 4px;white-space:nowrap}
 .pick tr.pk{background:#fff7e6}
 .pick tr.totrow td{background:#eef3f7;font-weight:800}
+.prodsum{width:100%;border-collapse:collapse}
+.prodsum th,.prodsum td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+.prodsum tr.grp td{background:#e8f0e4;font-weight:800;text-align:right;border-top:2px solid #7fae6c}
 @page{size:A4 portrait;margin:10mm}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 .no-print{display:none!important}
 .tabs,.dropzone,.btn,header .sub{display:none!important}
 body{background:#fff}
 .rest-print{page-break-before:always;break-before:page}
+.prod-print{page-break-before:always;break-before:page}
 .pick thead{display:table-header-group}
 .pick th,.pick td{border:1.4px solid #111!important}
 .pick{border:2px solid #111!important}
@@ -457,7 +461,9 @@ function computeAndRender(items,warn,scope){
     ships.sort((a,b)=>a.label.localeCompare(b.label,'he'));
     const agg={boxes:0,pallets:0,kg:0,units:0,barrels:0,containers:0};
     ships.forEach(s=>{ for(const k in agg) agg[k]+=s.agg[k]||0; });
-    results.push({cust:v.cust,shipments:ships,agg:agg});
+    const comb={};
+    ships.forEach(s=>{ for(const k in (s.byType||{})){ const b=s.byType[k]; if(!comb[k]) comb[k]={type:b.type,boxes:0,kg:0,units:0,barrels:0,maxbox:b.maxbox,maxkg:b.maxkg}; comb[k].boxes+=b.boxes; comb[k].kg+=b.kg; comb[k].units+=b.units; comb[k].barrels+=b.barrels; } });
+    results.push({cust:v.cust,shipments:ships,agg:agg,aggAll:aggregate(comb)});
   });
   results.sort((a,b)=>a.cust.name.localeCompare(b.cust.name,'he'));
   LAST=results;
@@ -474,7 +480,7 @@ function computeShipment(cust,pqs){
     const k=t+'|'+(+ln.rule.max_kg||0)+'|'+(+ln.rule.max_boxes||0);
     if(!byType[k]) byType[k]={type:t,boxes:0,kg:0,units:0,barrels:0,maxbox:ln.rule.max_boxes,maxkg:ln.rule.max_kg};
     byType[k].boxes+=ln.boxes; byType[k].kg+=ln.kg; byType[k].units+=ln.units; byType[k].barrels+=ln.barrels; });
-  return {lines:lines.sort((a,b)=>a.product.localeCompare(b.product,'he')),agg:aggregate(byType)};
+  return {lines:lines.sort((a,b)=>a.product.localeCompare(b.product,'he')),agg:aggregate(byType),byType:byType};
 }
 
 function render(results,warnInfo,scope){
@@ -501,15 +507,7 @@ function render(results,warnInfo,scope){
     if(multi) r.shipments.forEach(s=>{ html+='<tr style="background:#fbfdff;color:#555"><td style="text-align:right;padding-right:26px">↳ '+shipLabel(s.label)+'</td><td>'+fmt(s.agg.kg)+'</td><td>'+(s.agg.boxes||'—')+'</td><td>'+s.agg.pallets+'</td><td>'+partsTxt(s.agg)+'</td></tr>'; });
   });
   html+='</tbody></table></div>';
-  // סיכום לפי מוצר
-  const prodMap=new Map();
-  results.forEach(r=>r.shipments.forEach(s=>s.lines.forEach(ln=>{
-    if(!prodMap.has(ln.product)) prodMap.set(ln.product,{kg:0,units:0,boxes:0,custs:new Set()});
-    const pm=prodMap.get(ln.product); if(ln.type==='UNITS') pm.units+=ln.units; else pm.kg+=ln.kg; pm.boxes+=ln.boxes; pm.custs.add(r.cust.name); })));
-  const prows=[...prodMap.entries()].sort((a,b)=>(b[1].kg+b[1].units)-(a[1].kg+a[1].units));
-  html+='<div class="card"><h2>סיכום לפי מוצר</h2><table><thead><tr><th>מוצר</th><th>סה"כ ק"ג</th><th>סה"כ יח׳ (מקדונלד\'ס)</th><th>ארגזים</th><th>מס\' לקוחות</th></tr></thead><tbody>';
-  prows.forEach(([name,v])=>{ html+='<tr><td style="text-align:right">'+name+'</td><td>'+(v.kg?fmt(v.kg):'—')+'</td><td>'+(v.units||'—')+'</td><td>'+(v.boxes||'—')+'</td><td>'+v.custs.size+'</td></tr>'; });
-  html+='</tbody></table></div>';
+  // (סיכום לפי מוצר עבר להיות שני בדוח — נבנה בנפרד למטה)
   // מפורט
   html+='<div class="card"><h2>פירוט מלא לפי לקוח <button class="btn sec" style="padding:4px 10px;font-size:13px" onclick="toggleAll(true)">פתח הכל</button> <button class="btn sec" style="padding:4px 10px;font-size:13px" onclick="toggleAll(false)">כווץ הכל</button></h2>';
   results.forEach(r=>{
@@ -519,7 +517,22 @@ function render(results,warnInfo,scope){
     html+='</div></details>';
   });
   html+='</div>';
-  out.innerHTML=pickerCheckHtml(results)+'<div class="rest-print">'+html+'</div>';
+  // סיכום לפי מוצר — מקובץ לפי משפחות (שני בדוח, עמוד נפרד בהדפסה)
+  const prodMap=new Map();
+  results.forEach(r=>r.shipments.forEach(s=>s.lines.forEach(ln=>{
+    if(!prodMap.has(ln.product)) prodMap.set(ln.product,{kg:0,units:0,boxes:0,custs:new Set()});
+    const pm=prodMap.get(ln.product); if(ln.type==='UNITS') pm.units+=ln.units; else pm.kg+=ln.kg; pm.boxes+=ln.boxes; pm.custs.add(r.cust.name); })));
+  const prows=[...prodMap.entries()].map(([name,v])=>{ const f=prodFamily(name); return {name:name,v:v,ord:f.ord,grp:f.grp}; })
+    .sort((a,b)=> a.ord-b.ord || a.name.localeCompare(b.name,'he'));
+  const famAgg={};
+  prows.forEach(pp=>{ if(!famAgg[pp.grp]) famAgg[pp.grp]={kg:0,units:0,boxes:0}; famAgg[pp.grp].kg+=pp.v.kg; famAgg[pp.grp].units+=pp.v.units; famAgg[pp.grp].boxes+=pp.v.boxes; });
+  let prodHtml='<div class="card"><h2>סיכום לפי מוצר</h2><table class="prodsum"><thead><tr><th>מוצר</th><th>סה"כ ק"ג</th><th>סה"כ יח׳ (מקדונלד\'ס)</th><th>ארגזים</th><th>מס\' לקוחות</th></tr></thead><tbody>';
+  let curGrp=null;
+  prows.forEach(pp=>{ if(pp.grp!==curGrp){ curGrp=pp.grp; const fa=famAgg[pp.grp];
+      prodHtml+='<tr class="grp"><td>'+esc(pp.grp)+'</td><td>'+(fa.kg?fmt(fa.kg):'—')+'</td><td>'+(fa.units||'—')+'</td><td>'+(fa.boxes||'—')+'</td><td></td></tr>'; }
+    prodHtml+='<tr><td style="text-align:right">'+esc(pp.name)+'</td><td>'+(pp.v.kg?fmt(pp.v.kg):'—')+'</td><td>'+(pp.v.units||'—')+'</td><td>'+(pp.v.boxes||'—')+'</td><td>'+pp.v.custs.size+'</td></tr>'; });
+  prodHtml+='</tbody></table></div>';
+  out.innerHTML=pickerCheckHtml(results)+'<div class="prod-print">'+prodHtml+'</div>'+'<div class="rest-print">'+html+'</div>';
 }
 function toggleAll(o){ document.querySelectorAll('#out details').forEach(d=>d.open=o); }
 
@@ -531,6 +544,13 @@ function packLabel(rule){ if(!rule) return '';
   if(rule.type==='CARTON'){ if(bag==1) return ''; return 'שקית '+bag+' ק"ג × '+(+rule.bpb||0)+' בקרטון'; }
   if((rule.type==='CAGE'||rule.type==='PALLET'||rule.type==='DOLEV') && bag!=1) return 'שקית '+bag+' ק"ג';
   return ''; }
+function prodFamily(name){
+  var n=name||'';
+  var fams=[[/חסה|אייסברג|סלט|לאליק|ביג מק|סלנובה|לבבות/,'חסה וסלטים'],
+    [/בצל/,'בצל'],[/כרוב|קולסלאו|לקט/,'כרוב'],[/גזר/,'גזר'],[/פלפל/,'פלפל'],
+    [/מלפפון/,'מלפפון'],[/עגבנ/,'עגבנייה'],[/עלי|תרד|מיקס|ירקות|נשנוש|רוקולה/,'עלים ומיקסים']];
+  for(var i=0;i<fams.length;i++){ if(fams[i][0].test(n)) return {ord:i,grp:fams[i][1]}; }
+  return {ord:99,grp:'אחר'}; }
 function pickerCheckHtml(results){
   if(!results || !results.length) return '';
   var tp=0, tb=0;
@@ -560,10 +580,10 @@ function pickerCheckHtml(results){
         var q = v.units ? fmt(v.units)+' יח׳'+(v.kg?' ('+fmt(v.kg)+' ק"ג)':'') : fmt(v.kg)+' ק"ג';
         var pk = (!v.isUnit && v.rule) ? packLabel(v.rule) : '';
         return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+(pk?' · <b style="color:#b45309">'+pk+'</b>':'')+'</span>'; }).join('');
-    tp+=r.agg.pallets||0; tb+=r.agg.boxes||0;
+    tp+=(r.aggAll||r.agg).pallets||0; tb+=r.agg.boxes||0;
     var dv=drvForCust(r.cust); var drvLine=(dv&&dv.driver)?'<div class="drv">🚚 '+esc(dv.driver)+' · '+shiftLbl(dv.shift)+'</div>':'';
     rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+'</td>'
-        +'<td class="big">'+(r.agg.pallets||0)+'</td>'
+        +'<td class="big">'+((r.aggAll||r.agg).pallets||0)+'</td>'
         +'<td>'+cont+'</td>'
         +'<td class="prods">'+(plist||'—')+'</td></tr>';
   });
