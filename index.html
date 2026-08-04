@@ -68,6 +68,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 .pick tr.totrow td{background:#eef3f7;font-weight:800}
 @page{size:A4 portrait;margin:10mm}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+.no-print{display:none!important}
 .tabs,.dropzone,.btn,header .sub{display:none!important}
 body{background:#fff}
 .rest-print{page-break-before:always;break-before:page}
@@ -95,7 +96,7 @@ ol li,ul li{margin:5px 0}
 
 <!-- ===== חישוב ===== -->
 <div id="calc">
-  <div class="card">
+  <div class="card no-print">
     <h2>ההזמנה היומית</h2>
     <p class="muted">גרור לכאן קובץ <b>Excel / CSV / PDF</b> של ההזמנה — או הדבק את הטבלה ידנית. שורות = מוצרים, עמודות = לקוחות, מספרים = ק"ג (מקדונלד'ס = יחידות).</p>
     <div id="drop" class="dropzone">
