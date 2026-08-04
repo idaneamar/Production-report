@@ -137,7 +137,7 @@ function renderLog(){
       +'<td>'+fmt(r.pulses,0)+'</td>'
       +'<td>'+ratioCell+'</td>'
       +'<td><b>'+fmt(L,1)+'</b></td>'
-      +'<td>'+(r.is_gap?'<span class="chip canc">תקופה לא מנוטרת</span> ':'')+esc(r.note||'')+noteBtn+'</td></tr>';
+      +'<td>'+(r.is_gap?'<span class="chip canc">תדלוקים בתקופה לא מנוטרת</span> ':'')+esc(r.note||'')+noteBtn+'</td></tr>';
   });
   h+='</tbody><tfoot><tr><td colspan="4">סה"כ ('+ROWS.length+' רשומות)</td><td>'+fmt(totP,0)+'</td><td>—</td><td>'+fmt(totL,1)+' ל׳</td><td></td></tr></tfoot></table>';
   document.getElementById('logTbl').innerHTML=h;
@@ -174,7 +174,7 @@ function exportXls(){
   h+='<tr><th>תאריך</th><th>התחלה</th><th>סיום</th><th>משך (שנ׳)</th><th>פולסים</th><th>יחס המרה</th><th>ליטרים</th><th>הערה</th></tr>';
   var totL=0;
   ROWS.forEach(function(r){ var L=liters(r.pulses); totL+=L;
-    h+='<tr><td>'+dmy(r.started_at)+'</td><td>'+hhmm(r.started_at)+'</td><td>'+hhmm(r.ended_at)+'</td><td>'+(+r.duration_seconds||'')+'</td><td>'+(+r.pulses||0)+'</td><td>'+fmt(rc,2)+'</td><td>'+fmt(L,1)+'</td><td>'+esc((r.is_gap?'[תקופה לא מנוטרת] ':'')+(r.note||''))+'</td></tr>'; });
+    h+='<tr><td>'+dmy(r.started_at)+'</td><td>'+hhmm(r.started_at)+'</td><td>'+hhmm(r.ended_at)+'</td><td>'+(+r.duration_seconds||'')+'</td><td>'+(+r.pulses||0)+'</td><td>'+fmt(rc,2)+'</td><td>'+fmt(L,1)+'</td><td>'+esc((r.is_gap?'[תדלוקים בתקופה לא מנוטרת] ':'')+(r.note||''))+'</td></tr>'; });
   h+='<tr><td colspan="6"><b>סה"כ</b></td><td><b>'+fmt(totL,1)+'</b></td><td></td></tr></table>';
   dl(h,'תדלוקים_'+(document.getElementById('fFrom').value||'')+'.xls');
 }
