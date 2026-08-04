@@ -48,6 +48,9 @@
   #v-ana tbody tr:nth-child(even){background:#f7faf8;}
   #v-ana tbody tr:hover{background:var(--green-light);}
   #v-ana td{padding:8px 10px;}
+  #v-ana .prodsum td{text-align:center;}
+  #v-ana .prodsum td.pn{text-align:right;}
+  #v-ana .prodsum tr.grp td{background:#e8f0e4;color:#14532d;font-weight:800;text-align:right;border-top:2px solid #7fae6c;}
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   @media (max-width:900px){.two-col{grid-template-columns:1fr;}}
   .plist{max-height:46vh;overflow:auto;}
@@ -165,6 +168,7 @@
   <div class="row" id="anaModeRow" style="margin:0 0 12px;gap:8px">
     <button class="btn amode on" id="modeCust" onclick="A_mode('cust')">👥 לקוחות</button>
     <button class="btn sec amode" id="modeProd" onclick="A_mode('prod')">📦 מוצרים</button>
+    <button class="btn sec amode" id="modeSum" onclick="A_mode('sum')">📋 סיכום לפי מוצר</button>
     <button class="btn sec amode" id="modeAll" onclick="A_mode('all')">📊 סה"כ הכל</button>
   </div>
   <div id="anaBoard"></div>
@@ -242,6 +246,7 @@ function showView(v,btn){
   document.getElementById('v-'+v).classList.remove('hidden');
   document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b===btn));
   if(v==='cover') renderCover();
+  if(v==='ana' && !document.getElementById('aFrom').value) quickRange(7);
 }
 
 /* ---------- coverage ---------- */
@@ -449,8 +454,9 @@ function granBtns(){ return '<span class="row" style="margin:0;gap:6px">'
   +[['week','שבועי'],['month','חודשי']].map(function(x){return '<button class="btn sec'+(GRAN===x[0]?' on':'')+'" onclick="A_gran(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</span>'; }
 function A_render(){
   var board=document.getElementById('anaBoard'), detail=document.getElementById('anaDetail'), moderow=document.getElementById('anaModeRow');
-  var btns={cust:'modeCust',prod:'modeProd',all:'modeAll'};
+  var btns={cust:'modeCust',prod:'modeProd',sum:'modeSum',all:'modeAll'};
   for(var m in btns){ var b=document.getElementById(btns[m]); if(b) b.className='btn amode'+(MODE===m?' on':' sec'); }
+  if(MODE==='sum'){ moderow.style.display='flex'; board.style.display='block'; detail.style.display='none'; A_sum(); return; }
   if(MODE==='all'){ moderow.style.display='flex'; board.style.display='none'; detail.style.display='block'; A_all(); return; }
   if(SEL.cust||SEL.prod){ moderow.style.display='none'; board.style.display='none'; detail.style.display='block'; A_card(); return; }
   detail.style.display='none'; board.style.display='block'; moderow.style.display='flex'; A_board();
@@ -460,6 +466,33 @@ function A_gran(g){ GRAN=g; A_render(); }
 function A_open(i){ var o=A_LIST[i]; if(!o) return; if(MODE==='cust') SEL={cust:o.key,prod:null}; else SEL={cust:null,prod:o.key}; A_render(); }
 function A_openRel(i){ var o=A_REL[i]; if(!o) return; if(SEL.cust){ MODE='prod'; SEL={cust:null,prod:o.key}; } else { MODE='cust'; SEL={cust:o.key,prod:null}; } A_render(); }
 function A_back(){ SEL={cust:null,prod:null}; A_render(); }
+function prodFamily(name){
+  var n=name||'';
+  var fams=[[/חסה|אייסברג|סלט|לאליק|ביג מק|סלנובה|לבבות/,'חסה וסלטים'],
+    [/בצל/,'בצל'],[/כרוב|קולסלאו|לקט/,'כרוב'],[/גזר/,'גזר'],[/פלפל/,'פלפל'],
+    [/מלפפון/,'מלפפון'],[/עגבנ/,'עגבנייה'],[/עלי|תרד|מיקס|ירקות|נשנוש|רוקולה/,'עלים ומיקסים']];
+  for(var i=0;i<fams.length;i++){ if(fams[i][0].test(n)) return {ord:i,grp:fams[i][1]}; }
+  return {ord:99,grp:'אחר'}; }
+function nf(n){ n=Math.round(n*10)/10; return n.toLocaleString('he-IL'); }
+function A_sum(){
+  var board=document.getElementById('anaBoard');
+  if(!RAW.length){ board.innerHTML='<p class="muted">אין נתונים בטווח. בחר טווח למעלה ולחץ "הצג".</p>'; return; }
+  var units=unitsIn(RAW);
+  var byP={};
+  RAW.forEach(function(r){ var o=byP[r.prod]; if(!o) o=byP[r.prod]={units:{},custs:{}}; o.units[r.unit]=(o.units[r.unit]||0)+r.qty; o.custs[r.cust]=1; });
+  var list=Object.keys(byP).map(function(name){ var f=prodFamily(name); return {name:name,o:byP[name],ord:f.ord,grp:f.grp}; })
+    .sort(function(a,b){ return a.ord-b.ord || a.name.localeCompare(b.name,'he'); });
+  var famAgg={};
+  list.forEach(function(pp){ var fa=famAgg[pp.grp]||(famAgg[pp.grp]={units:{}}); for(var u in pp.o.units) fa.units[u]=(fa.units[u]||0)+pp.o.units[u]; });
+  var h='<div class="card"><div class="ehname">📋 סיכום לפי מוצר</div>'
+    +'<table class="prodsum"><thead><tr><th>מוצר</th>'+units.map(function(u){return '<th>'+esc(u)+'</th>';}).join('')+'<th>לקוחות</th></tr></thead><tbody>';
+  var cur=null;
+  list.forEach(function(pp){ if(pp.grp!==cur){ cur=pp.grp; var fa=famAgg[pp.grp];
+      h+='<tr class="grp"><td>'+esc(pp.grp)+'</td>'+units.map(function(u){return '<td>'+(fa.units[u]?nf(fa.units[u]):'—')+'</td>';}).join('')+'<td></td></tr>'; }
+    h+='<tr><td class="pn">'+esc(pp.name)+'</td>'+units.map(function(u){return '<td>'+(pp.o.units[u]?nf(pp.o.units[u]):'—')+'</td>';}).join('')+'<td>'+Object.keys(pp.o.custs).length+'</td></tr>'; });
+  h+='</tbody></table></div>';
+  board.innerHTML=h;
+}
 var UEMO={'ק"ג':'🟩',"יח'":'🟦','ארגז':'🟧','קרטון':'🟫','קרטון פרי':'🍐'};
 function A_board(){
   var keyf=MODE==='cust'?function(r){return r.top;}:function(r){return r.prod;};
