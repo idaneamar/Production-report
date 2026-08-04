@@ -358,11 +358,16 @@ async function loadDriverMap(){
   if(Date.now()-DRV_LOADED<120000 && Object.keys(DRV_MAP).length) return;
   try{
     var s=ordSession(); if(!s) return;
+    var pad=function(n){return(n<10?'0':'')+n;}, fmtd=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());};
     var t0=new Date(), t1=new Date(); t1.setDate(t1.getDate()+1);
-    var r=await fetch(ORD_SB+'/rest/v1/driver_log?select=place,driver,shift,cancelled&log_date=in.('+iso(t0)+','+iso(t1)+')&order=log_date.desc&limit=600',{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
+    var today=fmtd(t0), tom=fmtd(t1);
+    var r=await fetch(ORD_SB+'/rest/v1/driver_log?select=place,driver,shift,cancelled,log_date&log_date=in.('+today+','+tom+')&order=log_date.desc&limit=600',{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
     if(!r.ok) return;
     var rows=await r.json(); var map={};
-    rows.forEach(function(x){ if(x.cancelled) return; var k=norm(x.place); if(!k||map[k]) return; map[k]={driver:x.driver||'',shift:x.shift||''}; });
+    rows.forEach(function(x){ if(x.cancelled) return;
+      var isMorning=/\u05d1\u05d5\u05e7\u05e8/.test(x.shift||'');   // "בוקר"
+      if(!((x.log_date===today && !isMorning) || (x.log_date===tom && isMorning))) return;
+      var k=norm(x.place); if(!k||map[k]) return; map[k]={driver:x.driver||'',shift:x.shift||''}; });
     DRV_MAP=map; DRV_LOADED=Date.now();
   }catch(e){}
 }
