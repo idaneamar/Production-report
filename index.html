@@ -70,7 +70,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 .tabs,.dropzone,.btn,header .sub{display:none!important}
 body{background:#fff}
-.pick-check{page-break-before:always;break-before:page}
+.rest-print{page-break-before:always;break-before:page}
 .pick thead{display:table-header-group}
 .pick th,.pick td{border:1.4px solid #111!important}
 .pick{border:2px solid #111!important}
@@ -358,7 +358,8 @@ async function loadDriverMap(){
   if(Date.now()-DRV_LOADED<120000 && Object.keys(DRV_MAP).length) return;
   try{
     var s=ordSession(); if(!s) return;
-    var r=await fetch(ORD_SB+'/rest/v1/driver_log?select=place,driver,shift,cancelled&order=log_date.desc&limit=600',{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
+    var t0=new Date(), t1=new Date(); t1.setDate(t1.getDate()+1);
+    var r=await fetch(ORD_SB+'/rest/v1/driver_log?select=place,driver,shift,cancelled&log_date=in.('+iso(t0)+','+iso(t1)+')&order=log_date.desc&limit=600',{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
     if(!r.ok) return;
     var rows=await r.json(); var map={};
     rows.forEach(function(x){ if(x.cancelled) return; var k=norm(x.place); if(!k||map[k]) return; map[k]={driver:x.driver||'',shift:x.shift||''}; });
@@ -512,8 +513,7 @@ function render(results,warnInfo,scope){
     html+='</div></details>';
   });
   html+='</div>';
-  html+=pickerCheckHtml(results);
-  out.innerHTML=html;
+  out.innerHTML=pickerCheckHtml(results)+'<div class="rest-print">'+html+'</div>';
 }
 function toggleAll(o){ document.querySelectorAll('#out details').forEach(d=>d.open=o); }
 
