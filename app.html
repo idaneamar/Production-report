@@ -636,7 +636,7 @@ async function manualBackup(){
   document.getElementById('backupInfo').textContent='מוריד…';
   try{
     const dump={exported_at:new Date().toISOString(), source:'manual'};
-    for(const t of ['driver_log','places','app_settings','report_inbox','fuelings','fuel_settings']){
+    for(const t of ['driver_log','places','app_settings','report_inbox','fuelings','fuel_settings','tank_refills']){
       let rows=[], from=0;
       while(true){
         const r=await fetch(SB+'/rest/v1/'+t+'?select=*',{headers:Object.assign({},authHdrs(),{'Range':from+'-'+(from+999)})});

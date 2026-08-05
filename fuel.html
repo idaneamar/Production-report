@@ -49,6 +49,7 @@
 
 <div class="tabs">
   <button data-v="log" class="active" onclick="showView('log',this)">📋 יומן תדלוקים</button>
+  <button data-v="fill" onclick="showView('fill',this)">🛢️ מילוי מיכל</button>
   <button data-v="set" onclick="showView('set',this)">⚙️ הגדרות וכיול</button>
 </div>
 
@@ -68,6 +69,21 @@
 <div id="v-set" class="hidden">
   <div class="card"><h2>הגדרות</h2><div id="setBox"></div></div>
   <div class="card"><h2>כלי כיול — פולסים לליטר</h2><div id="calBox"></div></div>
+</div>
+
+<div id="v-fill" class="hidden">
+  <div class="card" id="fillFormCard"></div>
+  <div class="row">
+    <label>מ־ <input type="date" id="rFrom"></label>
+    <label>עד <input type="date" id="rTo"></label>
+    <button class="btn sec" onclick="quickFill(30)">30 יום</button>
+    <button class="btn sec" onclick="quickFill(90)">רבעון</button>
+    <button class="btn sec" onclick="quickFill(365)">שנה</button>
+    <button class="btn" onclick="loadFills()">רענן</button>
+    <button class="btn sec" onclick="exportFills()">⬇ ייצוא לאקסל</button>
+  </div>
+  <div class="cards" id="fillCards"></div>
+  <div class="card" style="overflow:auto;padding:0"><div id="fillTbl" style="padding:2px"></div></div>
 </div>
 
 <script>
@@ -101,7 +117,9 @@ async function loadSettings(){ var rows=await sb('/fuel_settings?select=key,valu
 function showView(v,btn){ document.querySelectorAll('.tabs button').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
   document.getElementById('v-log').classList.toggle('hidden',v!=='log');
   document.getElementById('v-set').classList.toggle('hidden',v!=='set');
-  if(v==='set') renderSettings(); }
+  document.getElementById('v-fill').classList.toggle('hidden',v!=='fill');
+  if(v==='set') renderSettings();
+  if(v==='fill') openFills(); }
 
 function startOfWeek(){ var d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-d.getDay()); return d; }
 function startOfMonth(){ var d=new Date(); return new Date(d.getFullYear(),d.getMonth(),1); }
@@ -224,6 +242,87 @@ function calibCompute(){
 async function calibAdd(pulses,lit,ra){ var s=calibSamples(); s.push({ts:new Date().toISOString(),pulses:pulses,liters:lit,ratio:ra}); await patchSetting('calibrations',JSON.stringify(s)); document.getElementById('calLit').value=''; renderCalib(); }
 async function calibClear(){ if(!confirm('לאפס את כל מדידות הכיול?')) return; await patchSetting('calibrations','[]'); renderCalib(); }
 async function calibApply(v){ v=Math.round(v*100)/100; if(!confirm('לעדכן את פולסים-לליטר ל-'+v+'?\nזה משנה את חישוב הליטרים של כל ההיסטוריה (הגולמי נשמר).')) return; await patchSetting('pulses_per_liter',String(v)); alert('✔ עודכן ל-'+v); renderSettings(); loadLog(); }
+
+/* ---- מילוי מיכל (כניסת סולר) ---- */
+var FILLS=[];
+function openFills(){ renderFillForm(); if(!document.getElementById('rFrom').value){ quickFill(90); } else { loadFills(); } }
+function quickFill(days){ var to=new Date(), from=new Date(); from.setDate(from.getDate()-days+1);
+  document.getElementById('rFrom').value=iso(from); document.getElementById('rTo').value=iso(to); loadFills(); }
+function renderFillForm(){
+  var c=document.getElementById('fillFormCard');
+  if(!CAN_EDIT){ c.innerHTML='<h2>🛢️ מילוי מיכל</h2><p class="muted">להוספת מילוי צריך הרשאת עריכה. הרשומות הקיימות מוצגות למטה.</p>'; return; }
+  var now=new Date();
+  c.innerHTML='<h2>➕ מילוי מיכל (כניסת סולר)</h2>'
+    +'<div class="row">'
+    +'<label>תאריך <input type="date" id="nfDate" value="'+iso(now)+'"></label>'
+    +'<label>שעה <input type="time" id="nfTime" value="'+pad2(now.getHours())+':'+pad2(now.getMinutes())+'"></label>'
+    +'<label>ספק <input type="text" id="nfSup" placeholder="שם הספק" style="width:180px"></label>'
+    +'<label>ליטרים <input type="number" id="nfLit" step="1" min="0" placeholder="כמות שמולאה" style="width:130px"></label>'
+    +'<button class="btn" onclick="addFill()">💾 שמור מילוי</button>'
+    +'</div><div class="muted">כניסת סולר למיכל — נפרד מהתדלוקים שיוצאים לרכבים.</div>';
+}
+async function addFill(){
+  if(!CAN_EDIT){ alert('אין הרשאת עריכה'); return; }
+  var d=document.getElementById('nfDate').value, t=document.getElementById('nfTime').value||'00:00';
+  var sup=document.getElementById('nfSup').value.trim();
+  var lit=parseFloat(document.getElementById('nfLit').value);
+  if(!d){ alert('בחר תאריך'); return; }
+  if(!(lit>0)){ alert('הזן כמות ליטרים תקינה'); return; }
+  var when=new Date(d+'T'+t+':00'); var s=session();
+  try{
+    await sb('/tank_refills',{method:'POST',headers:Object.assign({},H(),{'Prefer':'return=minimal'}),
+      body:JSON.stringify({filled_at:when.toISOString(),supplier:sup,liters:lit,created_by:(s&&(s.username||s.email))||''})});
+    document.getElementById('nfSup').value=''; document.getElementById('nfLit').value='';
+    alert('✔ נשמר מילוי של '+fmt(lit,0)+' ל׳'); loadFills();
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+async function delFill(id){
+  if(!CAN_EDIT) return;
+  var r=FILLS.find(function(x){return x.id==id;});
+  if(!confirm('למחוק את המילוי'+(r?' של '+fmt(r.liters,0)+' ל׳ מ-'+dmy(r.filled_at):'')+'?')) return;
+  try{ await sb('/tank_refills?id=eq.'+id,{method:'DELETE',headers:Object.assign({},H(),{'Prefer':'return=minimal'})}); loadFills(); }
+  catch(e){ alert('שגיאה: '+e.message); }
+}
+async function loadFills(){
+  var from=document.getElementById('rFrom').value, to=document.getElementById('rTo').value;
+  var q='/tank_refills?select=*&order=filled_at.desc';
+  if(from) q+='&filled_at=gte.'+from+'T00:00:00';
+  if(to) q+='&filled_at=lte.'+to+'T23:59:59';
+  try{ FILLS=await sb(q); }catch(e){ document.getElementById('fillTbl').innerHTML='<p class="muted" style="padding:10px">'+esc(e.message)+'</p>'; return; }
+  renderFills(); renderFillSummary();
+}
+function renderFills(){
+  var canDel=CAN_EDIT;
+  var h='<table><thead><tr><th>תאריך</th><th>שעה</th><th>ספק</th><th>ליטרים</th><th>נרשם ע״י</th>'+(canDel?'<th></th>':'')+'</tr></thead><tbody>';
+  var tot=0;
+  FILLS.forEach(function(r){ tot+=(+r.liters||0);
+    h+='<tr><td>'+dmy(r.filled_at)+'</td><td>'+hhmm(r.filled_at)+'</td><td style="text-align:right">'+esc(r.supplier||'—')+'</td><td><b>'+fmt(r.liters,0)+'</b> ל׳</td><td>'+esc(r.created_by||'')+'</td>'
+      +(canDel?'<td><button class="lnk" title="מחק" onclick="delFill('+r.id+')">🗑</button></td>':'')+'</tr>'; });
+  if(!FILLS.length) h+='<tr><td colspan="'+(canDel?6:5)+'" class="muted" style="text-align:center">אין מילויים בטווח</td></tr>';
+  h+='</tbody><tfoot><tr><td colspan="3">סה"כ ('+FILLS.length+' מילויים)</td><td>'+fmt(tot,0)+' ל׳</td><td'+(canDel?' colspan="2"':'')+'></td></tr></tfoot></table>';
+  document.getElementById('fillTbl').innerHTML=h;
+}
+async function renderFillSummary(){
+  try{
+    var sm=iso(startOfMonth());
+    var mrows=await sb('/tank_refills?select=liters&filled_at=gte.'+sm+'T00:00:00');
+    var mL=0; mrows.forEach(function(r){mL+=(+r.liters||0);});
+    var all=await sb('/tank_refills?select=liters');
+    var aL=0; all.forEach(function(r){aL+=(+r.liters||0);});
+    document.getElementById('fillCards').innerHTML=
+        scard('החודש', fmt(mL,0)+' ל׳', mrows.length+' מילויים')
+      + scard('סה"כ אי־פעם', fmt(aL,0)+' ל׳', all.length+' מילויים');
+  }catch(e){}
+}
+function exportFills(){
+  if(!FILLS.length){ alert('אין מילויים בטווח'); return; }
+  var h='<table border="1"><tr><th colspan="5" style="background:#1a7a4a;color:#fff">מילויי מיכל · '+(document.getElementById('rFrom').value||'')+' — '+(document.getElementById('rTo').value||'')+'</th></tr>';
+  h+='<tr><th>תאריך</th><th>שעה</th><th>ספק</th><th>ליטרים</th><th>נרשם ע״י</th></tr>';
+  var tot=0;
+  FILLS.forEach(function(r){ tot+=(+r.liters||0); h+='<tr><td>'+dmy(r.filled_at)+'</td><td>'+hhmm(r.filled_at)+'</td><td>'+esc(r.supplier||'')+'</td><td>'+fmt(r.liters,0)+'</td><td>'+esc(r.created_by||'')+'</td></tr>'; });
+  h+='<tr><td colspan="3"><b>סה"כ</b></td><td><b>'+fmt(tot,0)+'</b></td><td></td></tr></table>';
+  dl(h,'מילויי_מיכל_'+(document.getElementById('rFrom').value||'')+'.xls');
+}
 
 /* ---- init ---- */
 (async function(){ try{ await loadMyPerms(); await loadSettings(); }catch(e){} quickRange(30); })();
