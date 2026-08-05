@@ -106,6 +106,7 @@ function fmt(n,d){ n=+n||0; return n.toLocaleString('he-IL',{maximumFractionDigi
 function dl(h,name){ var doc='<html dir="rtl"><head><meta charset="utf-8"></head><body>'+h+'</body></html>'; var b=new Blob(['﻿'+doc],{type:'application/vnd.ms-excel'}); var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }
 
 var CAN_EDIT=false, SET={}, ROWS=[];
+var NOISE_PULSES=20;   // מתחת לזה = רעש רקע חשמלי, לא תדלוק אמיתי
 var CFG_KEYS=['pulses_per_liter','shelly_ip','poll_interval_seconds','end_threshold_seconds','gap_threshold_seconds'];
 async function loadMyPerms(){ var s=session(); if(!s) return;
   try{ var r=await fetch(SB_URL+'/user_perms?select=is_admin,perms&user_id=eq.'+s.uid,{headers:H()}); var d=await r.json();
@@ -131,7 +132,7 @@ async function loadLog(){
   var q='/fuelings?select=*&order=started_at.desc';
   if(from) q+='&started_at=gte.'+from+'T00:00:00';
   if(to) q+='&started_at=lte.'+to+'T23:59:59';
-  ROWS=await sb(q);
+  ROWS=(await sb(q)).filter(function(r){ return r.is_gap || (+r.pulses||0) >= NOISE_PULSES; });
   renderLog(); renderSummary();
 }
 function hhmm(ts){ if(!ts) return '—'; var d=new Date(ts); return pad2(d.getHours())+':'+pad2(d.getMinutes()); }
@@ -167,7 +168,7 @@ async function renderSummary(){
     var rows=await sb('/fuelings?select=started_at,pulses,is_gap&started_at=gte.'+sm+'T00:00:00');
     var wkStart=startOfWeek().getTime();
     var mL=0,mN=0,mG=0,wL=0,wN=0;
-    rows.forEach(function(r){ var L=liters(r.pulses); mL+=L; if(r.is_gap)mG++; else mN++;
+    rows.forEach(function(r){ if(!r.is_gap && (+r.pulses||0) < NOISE_PULSES) return; var L=liters(r.pulses); mL+=L; if(r.is_gap)mG++; else mN++;
       if(new Date(r.started_at).getTime()>=wkStart){ wL+=L; if(!r.is_gap)wN++; } });
     document.getElementById('sumCards').innerHTML=
         scard('השבוע', fmt(wL,0)+' ל׳', wN+' תדלוקים')
