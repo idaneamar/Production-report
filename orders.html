@@ -408,6 +408,7 @@ async function loadAna(){
   const pFrom=new Date(pTo); pFrom.setDate(pFrom.getDate()-span+1);
   SEL={cust:null,prod:null};
   try{
+    await loadWeights();
     RAW  = await fetchLines(from,to);
     PREV = await fetchLines(iso(pFrom),iso(pTo));
     const us=unitsIn(RAW);
@@ -474,6 +475,17 @@ function prodFamily(name){
   for(var i=0;i<fams.length;i++){ if(fams[i][0].test(n)) return {ord:i,grp:fams[i][1]}; }
   return {ord:99,grp:'אחר'}; }
 function nf(n){ n=Math.round(n*10)/10; return n.toLocaleString('he-IL'); }
+var UKG={};
+async function loadWeights(){
+  try{
+    var r=await fetch(SB+'/rest/v1/app_settings?select=value&key=eq.'+encodeURIComponent('packing:trili_settings'),{headers:H()});
+    var d=await r.json(); if(!d.length) return;
+    var raw=d[0].value&&d[0].value.raw; if(!raw) return;
+    var cfg=JSON.parse(raw); UKG={};
+    (cfg.products||[]).forEach(function(pp){ var w=(+pp.unit_kg||0)||(+pp.pack_kg||0); if(w) UKG[pp.name]=w; });
+  }catch(e){}
+}
+function prodKgOf(pp){ var t=0,has=false; for(var u in pp.o.units){ if(u==='ק"ג'){t+=pp.o.units[u];has=true;} else if(u==="יח'"){ var w=UKG[pp.name]||0; if(w){t+=pp.o.units[u]*w;has=true;} } } return has?t:null; }
 function A_sum(){
   var board=document.getElementById('anaBoard');
   if(!RAW.length){ board.innerHTML='<p class="muted">אין נתונים בטווח. בחר טווח למעלה ולחץ "הצג".</p>'; return; }
@@ -482,14 +494,15 @@ function A_sum(){
   RAW.forEach(function(r){ var o=byP[r.prod]; if(!o) o=byP[r.prod]={units:{},custs:{}}; o.units[r.unit]=(o.units[r.unit]||0)+r.qty; o.custs[r.cust]=1; });
   var list=Object.keys(byP).map(function(name){ var f=prodFamily(name); return {name:name,o:byP[name],ord:f.ord,grp:f.grp}; })
     .sort(function(a,b){ return a.ord-b.ord || a.name.localeCompare(b.name,'he'); });
+  list.forEach(function(pp){ pp._kg=prodKgOf(pp); });
   var famAgg={};
-  list.forEach(function(pp){ var fa=famAgg[pp.grp]||(famAgg[pp.grp]={units:{}}); for(var u in pp.o.units) fa.units[u]=(fa.units[u]||0)+pp.o.units[u]; });
+  list.forEach(function(pp){ var fa=famAgg[pp.grp]||(famAgg[pp.grp]={units:{},kg:0}); for(var u in pp.o.units) fa.units[u]=(fa.units[u]||0)+pp.o.units[u]; fa.kg+=(pp._kg||0); });
   var h='<div class="card"><div class="ehname">📋 סיכום לפי מוצר</div>'
-    +'<table class="prodsum"><thead><tr><th>מוצר</th>'+units.map(function(u){return '<th>'+esc(u)+'</th>';}).join('')+'<th>לקוחות</th></tr></thead><tbody>';
+    +'<table class="prodsum"><thead><tr><th>מוצר</th><th>סה"כ ק"ג</th>'+units.map(function(u){return '<th>'+esc(u)+'</th>';}).join('')+'<th>לקוחות</th></tr></thead><tbody>';
   var cur=null;
   list.forEach(function(pp){ if(pp.grp!==cur){ cur=pp.grp; var fa=famAgg[pp.grp];
-      h+='<tr class="grp"><td>'+esc(pp.grp)+'</td>'+units.map(function(u){return '<td>'+(fa.units[u]?nf(fa.units[u]):'—')+'</td>';}).join('')+'<td></td></tr>'; }
-    h+='<tr><td class="pn">'+esc(pp.name)+'</td>'+units.map(function(u){return '<td>'+(pp.o.units[u]?nf(pp.o.units[u]):'—')+'</td>';}).join('')+'<td>'+Object.keys(pp.o.custs).length+'</td></tr>'; });
+      h+='<tr class="grp"><td>'+esc(pp.grp)+'</td><td>'+(fa.kg?nf(fa.kg):'—')+'</td>'+units.map(function(u){return '<td>'+(fa.units[u]?nf(fa.units[u]):'—')+'</td>';}).join('')+'<td></td></tr>'; }
+    h+='<tr><td class="pn">'+esc(pp.name)+'</td><td>'+(pp._kg?nf(pp._kg):'—')+'</td>'+units.map(function(u){return '<td>'+(pp.o.units[u]?nf(pp.o.units[u]):'—')+'</td>';}).join('')+'<td>'+Object.keys(pp.o.custs).length+'</td></tr>'; });
   h+='</tbody></table></div>';
   board.innerHTML=h;
 }

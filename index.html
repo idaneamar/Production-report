@@ -37,6 +37,7 @@ tbody tr:nth-child(even){background:#fafcfe}
 .muted{color:var(--muted);font-size:13px}
 .warn{background:var(--warnbg);border:1px solid #fed7aa;color:var(--warn);border-radius:8px;padding:10px;margin-top:10px;font-size:13px}
 .ok{background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:8px;padding:10px;margin-top:10px;font-size:13px}
+.note{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;border-radius:8px;padding:10px;margin-top:10px;font-size:13px}
 .scroll{overflow:auto;max-height:70vh;border:1px solid var(--line);border-radius:8px}
 .scroll table th{top:0}
 input,select{font-family:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;width:100%;background:#fff}
@@ -217,7 +218,7 @@ function resolve(c,p){
   const bpb = band==='small' ? (+c.bpb_small||+c.bpb_large||10) : (+c.bpb_large||10);
   let per_box=+p.per_box||0;                 // יח'/קרטון של המוצר
   if(c.prod_per_box){ const ov=c.prod_per_box[p.name]; if(ov!=null&&ov!=='') per_box=+ov||0; }  // עקיפה ללקוח ספציפי
-  return {type:t,bag_def:+c.bag_default||1,bpb:bpb,max_kg:max_kg,max_boxes:+c.max_boxes||55,upb:upb,per_box:per_box};
+  return {type:t,bag_def:+c.bag_default||1,bpb:bpb,max_kg:max_kg,max_boxes:+c.max_boxes||55,upb:upb,per_box:per_box,unit_kg:+p.unit_kg||0};
 }
 function calcLine(r,p,qty){
   const o={type:r.type,kg:0,bags:0,boxes:0,units:0,cont_kg:0,barrels:0};
@@ -226,8 +227,8 @@ function calcLine(r,p,qty){
   const hasW=(p.pack_kg!=null&&p.pack_kg!=='');
   const perBox=+r.per_box||0;              // יח' לקרטון (מוצר, או עקיפה ללקוח דרך resolve)
   const isUnit=hasW||perBox>0;             // נספר ביחידות אם יש משקל בשם או הגדרת יח'/קרטון
-  if(r.type==='UNITS'){ const upb=r.upb||perBox||10; o.units=qty; o.boxes=upb?ceil(qty/upb):0; if(hasW)o.kg=qty*(+p.pack_kg); return o; }
-  if(isUnit){ o.units=qty; o.kg=hasW?qty*(+p.pack_kg):0; } else { o.kg=qty; }
+  if(r.type==='UNITS'){ const upb=r.upb||perBox||10; o.units=qty; o.boxes=upb?ceil(qty/upb):0; o.kg=hasW?qty*(+p.pack_kg):(r.unit_kg?qty*r.unit_kg:0); return o; }
+  if(isUnit){ o.units=qty; o.kg=hasW?qty*(+p.pack_kg):(r.unit_kg?qty*r.unit_kg:0); } else { o.kg=qty; }
   if(r.type==='CARTON'){ const per=perBox||r.bpb||10;
     o.bags = isUnit ? qty : ceil(o.kg/(r.bag_def||1));   // יחידות: כל יחידה=שקית; תפזורת: לפי משקל שקית
     o.boxes = per?ceil(o.bags/per):0; }
@@ -327,17 +328,21 @@ function parseMatrix(text){
     const c=findCustomer(h);
     if(c){ custCols.push({i,c,header:h,deliv:sd.deliv}); DELIV_BY_COL[h]=sd; }
     else if(unmatchedHdr.indexOf(sd.clean)<0) unmatchedHdr.push(sd.clean); });
-  const items=[]; const unmatchedProd=new Set();
+  const items=[]; const unmatchedProd=new Set(); const notes=[];
   for(let r=hIdx+1;r<grid.length;r++){ const row=grid[r];
     const pname = nameCol>=0?row[nameCol]:''; const pcode = codeCol>=0?row[codeCol]:'';
     if(norm(pname)==='' && norm(pcode)==='') continue;
     if(/^עמודה\s*\d/.test(norm(pname))) continue; // שורת כותרות-טבלה אוטומטית
     const prod=findProduct(pname,pcode);
-    custCols.forEach(cc=>{ const raw=(row[cc.i]||'').toString().replace(/[, ]/g,''); const q=parseFloat(raw);
+    custCols.forEach(cc=>{ const rawTxt=(row[cc.i]||'').toString().trim(); if(!rawTxt) return;
+      const isNote=/ריק|כחול|החזר|הערה|ציוד|להחזיר|למסור/.test(rawTxt);
+      const isUnitTxt=/יח/.test(rawTxt);
+      if(isNote||isUnitTxt){ notes.push({cust:cc.c,col:cc.header,row:(prod?prod.name:(pname||pcode||'')),text:rawTxt,kind:isNote?'note':'verify'}); return; }
+      const raw=rawTxt.replace(/[, ]/g,''); const q=parseFloat(raw);
       if(!isNaN(q)&&q>0){ if(!prod){ unmatchedProd.add(pname||pcode); }
         else items.push({cust:cc.c,prod:prod,qty:q,col:cc.header}); } });
   }
-  return {items,custCols,unmatchedHdr,unmatchedProd:[...unmatchedProd],nameCol,codeCol};
+  return {items,custCols,unmatchedHdr,unmatchedProd:[...unmatchedProd],nameCol,codeCol,notes};
 }
 
 /* ---------- חישוב והצגה ---------- */
@@ -359,6 +364,7 @@ const ORD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
 function ordSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
 /* ---------- מיפוי נהג+משמרת לכל לקוח (ממעקב הנהגים) ---------- */
 var DRV_MAP={}, DRV_LOADED=0;
+var NOTES=[];
 async function loadDriverMap(){
   if(Date.now()-DRV_LOADED<120000 && Object.keys(DRV_MAP).length) return;
   try{
@@ -432,20 +438,21 @@ async function run(){
   if(pr.error){ msg.innerHTML='<div class="warn">'+pr.error+'</div>'; return; }
   if(pr.items.length===0){ msg.innerHTML='<div class="warn">לא נמצאו כמויות בגיליון זה.<br>'+(pr.unmatchedHdr.length?'עמודות שלא זוהו ככותרת לקוח: '+pr.unmatchedHdr.map(esc).join(', '):'ייתכן שזה גיליון ריק/תבנית ללא כותרות לקוחות — אם טענת קובץ עם כמה ימים, בחר יום אחר מהרשימה למעלה.')+'</div>'; return; }
   await loadDriverMap();
-  computeAndRender(pr.items,{unmatchedHdr:pr.unmatchedHdr,unmatchedProd:pr.unmatchedProd},'');
+  computeAndRender(pr.items,{unmatchedHdr:pr.unmatchedHdr,unmatchedProd:pr.unmatchedProd,notes:pr.notes},'');
 }
 function dayShort(s){ return (s||'').replace('יום ','').trim(); }
 async function runAllDays(){
   const msg=document.getElementById('msg'); const out=document.getElementById('out'); out.innerHTML=''; msg.innerHTML='';
   if(!WB){ msg.innerHTML='<div class="warn">כדי לראות סיכום כל הימים, טען קודם קובץ Excel עם גיליונות של ימים.</div>'; return; }
   const sheets=WB.SheetNames.filter(sheetHasData);
-  let items=[]; const uh=new Set(), up=new Set();
+  let items=[]; const uh=new Set(), up=new Set(); const allNotes=[];
   sheets.forEach(sn=>{ const g=sheetGrid(sn); const tsv=g.map(r=>r.map(c=>(c==null?'':(''+c).replace(/\t/g,' '))).join('\t')).join('\n');
     const pr=parseMatrix(tsv); if(pr.items) pr.items.forEach(it=>items.push(Object.assign({},it,{col:dayShort(sn)+' · '+(it.col||it.cust.name)})));
+    (pr.notes||[]).forEach(n=>allNotes.push(Object.assign({},n,{col:dayShort(sn)+' · '+(n.col||'')})));
     (pr.unmatchedHdr||[]).forEach(x=>uh.add(x)); (pr.unmatchedProd||[]).forEach(x=>up.add(x)); });
   if(items.length===0){ msg.innerHTML='<div class="warn">לא נמצאו נתונים בימים.</div>'; return; }
   await loadDriverMap();
-  computeAndRender(items,{unmatchedHdr:[...uh],unmatchedProd:[...up]},'כל הימים — סיכום שבועי ('+sheets.map(dayShort).join(', ')+')');
+  computeAndRender(items,{unmatchedHdr:[...uh],unmatchedProd:[...up],notes:allNotes},'כל הימים — סיכום שבועי ('+sheets.map(dayShort).join(', ')+')');
 }
 function computeAndRender(items,warn,scope){
   // קיבוץ לפי לקוח -> לפי עמודה (משלוח/יום). כל עמודה מחושבת בנפרד.
@@ -491,7 +498,9 @@ function render(results,warnInfo,scope){
   // לקוחות שסוג האריזה שלהם דורש מגבלת ק"ג אבל היא ריקה — עד כה הם קיבלו 0 משטחים בשקט
   const noLim=results.filter(r=>r.agg.noLimit&&r.agg.noLimit.length).map(r=>r.cust.name);
   if(noLim.length) warnHtml+=(warnHtml?'<br>':'')+'⚠ חסרה מגבלת ק"ג למשטח/כלוב (הוגדר 1 כברירת מחדל — עדכן בהגדרות): <b>'+noLim.map(esc).join(' · ')+'</b>';
-  msg.innerHTML = '<div class="ok">'+(scope?'<b>'+esc(scope)+'</b> · ':'')+'זוהו '+results.length+' לקוחות.</div>' + (warnHtml?'<div class="warn">'+warnHtml+'</div>':'');
+  NOTES=(warnInfo&&warnInfo.notes)||[];
+  var noteHtml = NOTES.length ? '🧺 <b>לתשומת לבך — בקשות והערות מהדוח</b> (לא נספרו כתוצרת, רק להתייחסות): '+NOTES.map(function(n){return '<b>'+esc(n.cust.name)+'</b> · '+esc(n.row)+': "'+esc(n.text)+'"';}).join(' · ') : '';
+  msg.innerHTML = '<div class="ok">'+(scope?'<b>'+esc(scope)+'</b> · ':'')+'זוהו '+results.length+' לקוחות.</div>' + (warnHtml?'<div class="warn">'+warnHtml+'</div>':'') + (noteHtml?'<div class="note">'+noteHtml+'</div>':'');
   // טוטלים כלליים
   let tBoxes=0,tPallets=0,tKg=0;
   results.forEach(r=>{tBoxes+=r.agg.boxes;tPallets+=r.agg.pallets;tKg+=r.agg.kg;});
@@ -521,7 +530,7 @@ function render(results,warnInfo,scope){
   const prodMap=new Map();
   results.forEach(r=>r.shipments.forEach(s=>s.lines.forEach(ln=>{
     if(!prodMap.has(ln.product)) prodMap.set(ln.product,{kg:0,units:0,boxes:0,custs:new Set()});
-    const pm=prodMap.get(ln.product); if(ln.type==='UNITS') pm.units+=ln.units; else pm.kg+=ln.kg; pm.boxes+=ln.boxes; pm.custs.add(r.cust.name); })));
+    const pm=prodMap.get(ln.product); pm.units+=(ln.type==='UNITS'?(ln.units||0):0); pm.kg+=(ln.kg||0); pm.boxes+=ln.boxes; pm.custs.add(r.cust.name); })));
   const prows=[...prodMap.entries()].map(([name,v])=>{ const f=prodFamily(name); return {name:name,v:v,ord:f.ord,grp:f.grp}; })
     .sort((a,b)=> a.ord-b.ord || a.name.localeCompare(b.name,'he'));
   const famAgg={};
@@ -582,7 +591,9 @@ function pickerCheckHtml(results){
         return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+(pk?' · <b style="color:#b45309">'+pk+'</b>':'')+'</span>'; }).join('');
     tp+=(r.aggAll||r.agg).pallets||0; tb+=r.agg.boxes||0;
     var dv=drvForCust(r.cust); var drvLine=(dv&&dv.driver)?'<div class="drv">🚚 '+esc(dv.driver)+' · '+shiftLbl(dv.shift)+'</div>':'';
-    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+'</td>'
+    var cnotes=NOTES.filter(function(n){return n.cust&&r.cust&&n.cust.name===r.cust.name;});
+    var noteLine=cnotes.length?'<div class="drv" style="color:#b45309">🧺 '+cnotes.map(function(n){return esc(n.text)+(n.row?' ('+esc(n.row)+')':'');}).join(' · ')+'</div>':'';
+    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+noteLine+'</td>'
         +'<td class="big">'+((r.aggAll||r.agg).pallets||0)+'</td>'
         +'<td>'+cont+'</td>'
         +'<td class="prods">'+(plist||'—')+'</td></tr>';
@@ -655,7 +666,7 @@ function renderCust(){
     h+='<td><button class="btn sec" style="padding:3px 8px" onclick="delCust('+ri+')">✕</button></td></tr>'; });
   h+='</tbody>'; document.getElementById('custTbl').innerHTML=h;
 }
-const PROD_COLS=[['code','מק"ט',80],['name','שם מוצר',220],['pack_kg','גודל אריזה (ק"ג)',110],['per_box','יח\' לקרטון',90],['category','קטגוריה',140]];
+const PROD_COLS=[['code','מק"ט',80],['name','שם מוצר',220],['pack_kg','גודל אריזה (ק"ג)',110],['per_box','יח\' לקרטון',90],['unit_kg','משקל ליחידה (ק"ג)',110],['category','קטגוריה',140]];
 function renderProd(){
   let h='<thead><tr>'; PROD_COLS.forEach(c=>h+='<th style="min-width:'+c[2]+'px">'+c[1]+'</th>'); h+='<th></th></tr></thead><tbody>';
   DB.products.forEach((p,ri)=>{ h+='<tr>'; PROD_COLS.forEach(col=>{ const k=col[0]; const v=p[k]==null?'':p[k];
@@ -670,7 +681,7 @@ function saveSettings(){
     if(k==='pickup') v=(v==='כן');
     DB.customers[r][k]=v; });
   document.querySelectorAll('#prodTbl [data-pr]').forEach(el=>{ const r=+el.dataset.pr,k=el.dataset.k; let v=el.value;
-    if(k==='pack_kg'||k==='per_box') v=(v===''?null:+v); DB.products[r][k]=v; });
+    if(k==='pack_kg'||k==='per_box'||k==='unit_kg') v=(v===''?null:+v); DB.products[r][k]=v; });
   persist(); flash('ההגדרות נשמרו ✓');
 }
 function flash(t){ const d=document.createElement('div'); d.textContent=t; d.style.cssText='position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#15663a;color:#fff;padding:10px 20px;border-radius:8px;z-index:99'; document.body.appendChild(d); setTimeout(()=>d.remove(),1500); }
