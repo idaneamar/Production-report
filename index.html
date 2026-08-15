@@ -364,22 +364,28 @@ const ORD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
 function ordSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
 /* ---------- מיפוי נהג+משמרת לכל לקוח (ממעקב הנהגים) ---------- */
 var DRV_MAP={}, DRV_LOADED=0;
+var REPORT_DOW=null, DRV_KEY='';
 var NOTES=[];
 async function loadDriverMap(){
-  if(Date.now()-DRV_LOADED<120000 && Object.keys(DRV_MAP).length) return;
+  if(Date.now()-DRV_LOADED<120000 && Object.keys(DRV_MAP).length && DRV_KEY===String(REPORT_DOW)) return;
   try{
     var s=ordSession(); if(!s) return;
     var pad=function(n){return(n<10?'0':'')+n;}, fmtd=function(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());};
-    var t0=new Date(), t1=new Date(); t1.setDate(t1.getDate()+1);
-    var today=fmtd(t0), tom=fmtd(t1);
-    var r=await fetch(ORD_SB+'/rest/v1/driver_log?select=place,driver,shift,cancelled,log_date&log_date=in.('+today+','+tom+')&order=log_date.desc&limit=600',{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
+    // תאריך הדוח: יום-השבוע של הגיליון (הקרוב להיום), אחרת היום. משם גוזרים את תאריכי המשלוח:
+    // בוקר = יום המשלוח הבא (מדלג על שישי/שבת), ערב = היום שלפניו (מוצאי שבת לדוח שישי).
+    var t=new Date(); t.setHours(0,0,0,0); var R=new Date(t);
+    if(REPORT_DOW!=null){ var diff=REPORT_DOW-t.getDay(); if(diff>3)diff-=7; if(diff<-3)diff+=7; R.setDate(R.getDate()+diff); }
+    var mo=new Date(R); do{ mo.setDate(mo.getDate()+1); }while(mo.getDay()===5||mo.getDay()===6);
+    var ev=new Date(mo); ev.setDate(ev.getDate()-1);
+    var evd=fmtd(ev), mod=fmtd(mo);
+    var r=await fetch(ORD_SB+'/rest/v1/driver_log?select=place,driver,shift,cancelled,log_date&log_date=in.('+evd+','+mod+')&order=log_date.desc&limit=600',{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
     if(!r.ok) return;
     var rows=await r.json(); var map={};
     rows.forEach(function(x){ if(x.cancelled) return;
       var isMorning=/\u05d1\u05d5\u05e7\u05e8/.test(x.shift||'');   // "בוקר"
-      if(!((x.log_date===today && !isMorning) || (x.log_date===tom && isMorning))) return;
+      if(!((x.log_date===evd && !isMorning) || (x.log_date===mod && isMorning))) return;
       var k=norm(x.place); if(!k||map[k]) return; map[k]={driver:x.driver||'',shift:x.shift||''}; });
-    DRV_MAP=map; DRV_LOADED=Date.now();
+    DRV_MAP=map; DRV_LOADED=Date.now(); DRV_KEY=String(REPORT_DOW);
   }catch(e){}
 }
 function drvForCust(c){ var names=[c.name].concat((c.alias||'').split('|')).map(norm).filter(Boolean);
@@ -773,7 +779,7 @@ async function loadXlsx(f){ ensureXlsx(); WB=XLSX.read(await f.arrayBuffer(),{ty
 }
 function sheetGrid(name){ return XLSX.utils.sheet_to_json(WB.Sheets[name],{header:1,raw:true,defval:''}); }
 function sheetHasData(name){ try{ const g=sheetGrid(name); const tsv=g.map(r=>r.map(c=>(c==null?'':(''+c).replace(/\t/g,' '))).join('\t')).join('\n'); const pr=parseMatrix(tsv); return pr.items && pr.items.length>0; }catch(e){ return false; } }
-function useSheet(name){ name=name.replace(' (ריק)',''); finishGrid(sheetGrid(name), WB_NAME+' / '+name); }
+function useSheet(name){ name=name.replace(' (ריק)',''); var D=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']; REPORT_DOW=null; for(var i=0;i<D.length;i++){ if(name.indexOf(D[i])>=0){ REPORT_DOW=i; break; } } finishGrid(sheetGrid(name), WB_NAME+' / '+name); }
 async function pdfToGrid(f){ ensurePdf(); const buf=await f.arrayBuffer();
   const pdf=await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise; let rows=[];
   for(let pn=1;pn<=pdf.numPages;pn++){ const page=await pdf.getPage(pn); const tc=await page.getTextContent();
