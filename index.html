@@ -322,12 +322,18 @@ function parseMatrix(text){
   // עמודות לקוחות = עמודות שממופות לכינוי, פרט לעמודות מטא/מוצר
   const custCols=[]; const unmatchedHdr=[];
   DELIV_BY_COL={};
-  header.forEach((h,i)=>{ if(i===nameCol||i===codeCol) return; const hn=norm(h); if(!hn) return;
-    if(META.some(m=>hn===norm(m))) return;
+  // כותרת לקוח יכולה לשבת כמה שורות מתחת לשורת הכותרת (תא ממוזג בגיליון). לכל עמודה:
+  // אם תא הכותרת אינו לקוח מזוהה — סורקים עד 5 שורות מתחת ומחפשים שם לקוח.
+  let hmaxc=0; for(let hr=hIdx;hr<Math.min(grid.length,hIdx+6);hr++){ if(grid[hr]) hmaxc=Math.max(hmaxc,grid[hr].length); }
+  for(let i=0;i<hmaxc;i++){ if(i===nameCol||i===codeCol) continue;
+    let h=(grid[hIdx]&&grid[hIdx][i])||'';
+    if(!findCustomer(h)){ for(let rr=hIdx+1;rr<Math.min(grid.length,hIdx+6);rr++){ const cv=(grid[rr]&&grid[rr][i])||''; if(!norm(cv)) continue; if(findCustomer(cv)){ h=cv; break; } } }
+    const hn=norm(h); if(!hn) continue;
+    if(META.some(m=>hn===norm(m))) continue;
     const sd=splitDelivery(h);
     const c=findCustomer(h);
     if(c){ custCols.push({i,c,header:h,deliv:sd.deliv}); DELIV_BY_COL[h]=sd; }
-    else if(unmatchedHdr.indexOf(sd.clean)<0) unmatchedHdr.push(sd.clean); });
+    else if(unmatchedHdr.indexOf(sd.clean)<0) unmatchedHdr.push(sd.clean); }
   const items=[]; const unmatchedProd=new Set(); const notes=[];
   for(let r=hIdx+1;r<grid.length;r++){ const row=grid[r];
     const pname = nameCol>=0?row[nameCol]:''; const pcode = codeCol>=0?row[codeCol]:'';
