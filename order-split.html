@@ -1027,14 +1027,14 @@ function abRender(){
   }
   // טבלת ימים + מאזן מצטבר
   var bal=AB_SET.start_balance||0;
-  var h='<table><thead><tr><th>תאריך</th><th>עלומים</th><th>טרי לי</th><th>הפרש</th><th>מאזן מצטבר</th><th>ראן (מאזן)</th><th>התאמה</th><th>קובץ</th></tr></thead><tbody>';
+  var h='<table><thead><tr><th>תאריך</th><th>עלומים</th><th>טרי לי</th><th>הפרש</th><th>מאזן מצטבר</th><th>ראן: עלומים/טרי לי</th><th>התאמה</th><th>קובץ</th></tr></thead><tbody>';
   AB_ROWS.forEach(function(row){
     var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2; bal+=diff;
-    var ranBal=row.ran_balance; var mism=(ranBal!=null)&&(Math.abs(ranBal-bal)>0.01);
+    var mism=((row.ran_alumim!=null&&Math.abs(al-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(tl-row.ran_treli)>0.01)); var hasRan=(row.ran_alumim!=null||row.ran_treli!=null);
     var who=bal>0?('עלומים חייבים '+abFmt(bal)):(bal<0?('טרי לי חייבים '+abFmt(-bal)):'מאוזן');
     h+='<tr'+(mism?' style="background:#fff3cd"':'')+'><td>'+heDate(row.report_date)+'</td><td>'+abFmt(al)+'</td><td>'+abFmt(tl)+'</td><td>'+(diff>=0?'+':'')+abFmt(diff)+'</td><td><b>'+who+'</b></td>'
-      +'<td>'+(ranBal!=null?abFmt(ranBal):'—')+'</td>'
-      +'<td>'+(ranBal==null?'—':(mism?'<b style="color:#b91c1c">⚠ לא תואם</b>':'<span style="color:#166534">✓</span>'))+'</td>'
+      +'<td>'+(hasRan?(abFmt(row.ran_alumim||0)+' / '+abFmt(row.ran_treli||0)):'—')+'</td>'
+      +'<td>'+(!hasRan?'—':(mism?'<b style="color:#b91c1c">⚠ לא תואם</b>':'<span style="color:#166534">✓</span>'))+'</td>'
       +'<td>'+(row.file_path?'<a href="#" onclick="abOpen(\''+row.file_path+'\');return false">📄 פתח</a>':'—')+'</td></tr>';
   });
   h+='</tbody></table>';
