@@ -66,6 +66,10 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 .pick td.prods{text-align:right;line-height:1.9}
 .pick .pitem{display:inline-block;background:#f7f9fb;border:1px solid var(--line);border-radius:12px;padding:1px 8px;margin:0 0 3px 4px;white-space:nowrap}
 .pick tr.pk{background:#fff7e6}
+.pick .cmeta{font-size:10px;color:#6b7280;font-weight:400;margin-top:1px;white-space:normal}
+.pick .cbe{font-size:9px;padding:0 4px;border-radius:6px;margin-right:4px;font-weight:700;display:inline-block}
+.pick .beb{background:#dcebff;color:#1e40af}.pick .bee{background:#fce9ce;color:#92400e}
+.pick .bemix{background:#efe3f7;color:#6b21a8}.pick .bep{background:#e5e7eb;color:#374151}.pick .ben{background:#fde2e2;color:#b91c1c}
 .pick tr.totrow td{background:#eef3f7;font-weight:800}
 .prodsum{width:100%;border-collapse:collapse}
 .prodsum th,.prodsum td{border:1px solid var(--line);padding:5px 8px;text-align:center}
@@ -572,6 +576,13 @@ function prodFamily(name){
     [/מלפפון/,'מלפפון'],[/עגבנ/,'עגבנייה'],[/עלי|תרד|מיקס|ירקות|נשנוש|רוקולה/,'עלים ומיקסים']];
   for(var i=0;i<fams.length;i++){ if(fams[i][0].test(n)) return {ord:i,grp:fams[i][1]}; }
   return {ord:99,grp:'אחר'}; }
+var CUSTMETA={"טבעול תעשיות מזון בע\"מ 557268760 (צבר)": {"l": "קרית גת", "b": "בוקר"}, "סלטי גן": {"l": "בית דגן", "b": "ערב"}, "חמים וטעים 511017097": {"l": "חולון", "b": "ערב"}, "חמים וטעים- לוי מירב (זמן קפה)": {"l": "חולון", "b": "ערב"}, "סלטי מונטה קרלו": {"l": "רמלה", "b": "ערב"}, "ל.ג גל סלט בע\"מ": {"l": "אלפי מנשה", "b": "בוקר"}, "מושיקו רחל מעדני עופר בע\"מ": {"l": "באר טוביה", "b": "בוקר"}, "עינת תעשיות מזון אגש\"ח בע\"מ": {"l": "קיבוץ עינת", "b": "ערב"}, "ביכורי שדה צפון 1994 ג.ד בע\"מ": {"l": "מזכרת בתיה", "b": "בוקר"}, "סלטי עמים ברדה בע\"מ": {"l": "אשדוד", "b": "בוקר"}, "מדי מעדני הים התיכון בע\"מ (סלטי מיקי)": {"l": "ראשון לציון", "b": "בוקר"}, "אלוניאל בע\"מ (מקדונלדס)": {"l": "קרית מלאכי", "b": "בוקר"}, "אייסמן מזון 2002 בע\"מ 513318501": {"l": "יבנה", "b": "בוקר"}, "רביבים עלי דשא בע\"מ (עגלת עלים)": {"l": "שדה ניצן", "b": "ערב (מעורב)"}, "תממ": {"l": "נתב\"ג", "b": "אין נתונים"}, "חמוצי הבית": {"l": "גבעת עדה", "b": "בוקר"}, "חטיפי אלקיים": {"l": "קרית מלאכי", "b": "ערב"}, "משה קילופים בע\"מ 513626069": {"l": "אבן יהודה", "b": "ערב"}, "ניר סלטים בע\"מ": {"l": "קרית מלאכי", "b": "ערב"}, "ברכת עץ השדה א.ב בע\"מ": {"l": "רחובות", "b": "ערב"}, "שלום שיווק פרי וירק נתניה": {"l": "נתניה", "b": "ערב"}, "טיב וטעים 2013 הסעדה בע\"מ": {"l": "טירת הכרמל", "b": "ערב"}, "טיב וטעים- חברת החשמל": {"l": "חיפה", "b": "ערב"}, "דגים מעושנים התקווה בע\"מ": {"l": "אשדוד", "b": "בוקר"}, "ביכורי שדה דרום 513234120": {"l": "תימורים", "b": "בוקר"}, "לורד סנדוויץ": {"l": "מודיעין", "b": "ערב"}, "תפוכן- שיווק תפו\"א ומזון (1999) בע\"מ": {"l": "כפר ביאליק", "b": "ערב"}, "תוצרת המושב בע\"מ": {"l": "מושב תדהר", "b": "בוקר"}, "ארד הרצל בע\"מ": {"l": "תל אביב", "b": "ערב"}, "מרינה פטריות הגליל בע\"מ": {"l": "", "b": "באים לקחת"}, "שטראוס גרופ בע\"מ 557268851": {"l": "", "b": "באים לקחת"}, "קבוצת בנדיקט בע\"מ": {"l": "", "b": "באים לקחת"}, "בוניטו בע\"מ 514302827": {"l": "", "b": "באים לקחת"}, "מ.מ. פרי טרי 2022 בע\"מ": {"l": "", "b": "באים לקחת"}, "רוני יצחק תעשיות מזון (שדות בעמק)": {"l": "", "b": "באים לקחת"}};
+function metaFor(c){ if(!c) return null; if(CUSTMETA[c.name]) return CUSTMETA[c.name];
+  var keys=[c.name].concat((c.alias||'').split('|')).map(norm).filter(function(x){return x.length>1;});
+  for(var mk in CUSTMETA){ var nm=norm(mk); for(var i=0;i<keys.length;i++){ if(nm===keys[i]||nm.indexOf(keys[i])>=0||keys[i].indexOf(nm)>=0) return CUSTMETA[mk]; } }
+  return null; }
+function beShort(b){ if(!b) return ''; if(b.indexOf('אין נתונים')>=0) return 'לא רשום'; if(b.indexOf('באים לקחת')>=0) return 'באים לקחת'; return b; }
+function beClass(b){ if(!b) return 'bep'; if(b.indexOf('מעורב')>=0) return 'bemix'; if(b.indexOf('בוקר')>=0) return 'beb'; if(b.indexOf('ערב')>=0) return 'bee'; if(b.indexOf('באים')>=0) return 'bep'; return 'ben'; }
 function pickerCheckHtml(results){
   if(!results || !results.length) return '';
   var tp=0, tb=0;
@@ -603,9 +614,10 @@ function pickerCheckHtml(results){
         return '<span class="pitem"><b>'+esc(n)+'</b> '+q+(v.boxes?' · '+v.boxes+' ארג׳':'')+(pk?' · <b style="color:#b45309">'+pk+'</b>':'')+'</span>'; }).join('');
     tp+=(r.aggAll||r.agg).pallets||0; tb+=r.agg.boxes||0;
     var dv=drvForCust(r.cust); var drvLine=(dv&&dv.driver)?'<div class="drv">🚚 '+esc(dv.driver)+' · '+shiftLbl(dv.shift)+'</div>':'';
+    var mt=metaFor(r.cust); var metaLine=mt?'<div class="cmeta">📍 '+esc(mt.l||'—')+' <span class="cbe '+beClass(mt.b)+'">'+esc(beShort(mt.b))+'</span></div>':'';
     var cnotes=NOTES.filter(function(n){return n.cust&&r.cust&&n.cust.name===r.cust.name;});
     var noteLine=cnotes.length?'<div class="drv" style="color:#b45309">🧺 '+cnotes.map(function(n){return esc(n.text)+(n.row?' ('+esc(n.row)+')':'');}).join(' · ')+'</div>':'';
-    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+noteLine+'</td>'
+    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+metaLine+noteLine+'</td>'
         +'<td class="big">'+((r.aggAll||r.agg).pallets||0)+'</td>'
         +'<td>'+cont+'</td>'
         +'<td class="prods">'+(plist||'—')+'</td></tr>';
