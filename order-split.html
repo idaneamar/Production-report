@@ -1172,6 +1172,37 @@ async function abRecalcAll(){
   if(noFile.length) head+='\nללא קובץ (לא חושבו): '+noFile.join(', ');
   alert(head+'\n\n'+log.join('\n'));
 }
+async function abDump(){
+  var box=document.getElementById('abSet');
+  function say(m){ if(box) box.insertAdjacentHTML('afterbegin','<div style="background:#eef;border:1px solid #99f;padding:8px;margin-bottom:8px;white-space:pre-wrap;direction:ltr;text-align:left;font-size:12px">'+m+'</div>'); }
+  try{
+    var s=ordSession(); if(!s){ say('NOT LOGGED IN'); return; }
+    var row=AB_ROWS.filter(function(r){return r.file_path;})[0];
+    if(!row){ say('NO FILE ROW (files='+AB_ROWS.length+')'); return; }
+    say('start: '+row.report_date+' path='+row.file_path);
+    ensureXL();
+    var resp=await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+encodeURIComponent(row.file_path),{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
+    say('download status='+resp.status);
+    if(!resp.ok){ return; }
+    var buf=await resp.arrayBuffer(); say('bytes='+buf.byteLength);
+    var wb=new ExcelJS.Workbook(); await wb.xlsx.load(buf);
+    var ws=row.sheet_name?wb.getWorksheet(row.sheet_name):null;
+    if(!ws){ for(var wi=0;wi<wb.worksheets.length;wi++){ if(abHasBalance(wb.worksheets[wi])){ ws=wb.worksheets[wi]; break; } } }
+    if(!ws) ws=wb.worksheets[0];
+    var hr=detectHeader(ws), maxc=ws.columnCount;
+    var merges=[]; try{ merges=(ws.model&&ws.model.merges)?ws.model.merges:(ws._merges?Object.keys(ws._merges):[]); }catch(e){}
+    var hdrs=[]; for(var c=1;c<=maxc;c++){ var h=abTxt(ws.getRow(hr).getCell(c)).trim(); if(h) hdrs.push(c+':'+h); }
+    var rows=[];
+    for(var rr=1;rr<=ws.rowCount;rr++){ var dr=ws.getRow(rr); var g=0,o=0,gc=0,oc=0;
+      for(var cc=9;cc<=maxc;cc++){ var cell=dr.getCell(cc); var v=abNum(cell); if(!v) continue; var pr=abProducer(fillARGB(cell)); if(pr==='alumim'){g+=v;gc++;} else if(pr==='us'){o+=v;oc++;} }
+      var c7=abTxt(dr.getCell(7)).trim(); var c1=abTxt(dr.getCell(1)).trim();
+      if(g||o||c7||c1) rows.push({r:rr,c1:c1.slice(0,18),c7:c7.slice(0,18),g:g,o:o,gc:gc,oc:oc});
+    }
+    var dump={sheet:ws.name,rowCount:ws.rowCount,colCount:maxc,hr:hr,merges:merges,hdrs:hdrs,rows:rows};
+    var wr=await fetch(ORD_SB+'/rest/v1/ab_debug',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify({report_date:row.report_date,dump:dump})});
+    say('POST ab_debug status='+wr.status+' rows='+rows.length+(wr.ok?'  OK sent':''));
+  }catch(e){ say('ERROR: '+(e&&e.message?e.message:e)); }
+}
 async function abSaveSettings(){
   try{ await fetch(ORD_SB+'/rest/v1/alumim_bal_settings?on_conflict=id',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:1,exclusions:AB_SET.exclusions,includes:AB_SET.includes,updated_at:new Date().toISOString()})}); }catch(e){}
   abRender();
