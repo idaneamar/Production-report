@@ -1074,15 +1074,30 @@ function abAllProducts(){ var set={}; AB_ROWS.forEach(function(row){ for(var k i
 function abFmt(n){ return (Math.round(n*100)/100).toLocaleString('he-IL'); }
 function heDate(iso){ if(!iso)return ''; var p=String(iso).split('-'); return p.length>=3?(p[2]+'.'+p[1]+'.'+p[0].slice(2)):iso; }
 function abBalTxt(b){ return b>0?('עלומים חייבים '+abFmt(b)):(b<0?('טרי לי חייבים '+abFmt(-b)):'מאוזן'); }
+async function abSetManualClose(iso){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var el=document.getElementById('abMC'); var v=el?String(el.value).trim():'';
+  var body = (v==='') ? {manual_close:null} : {manual_close:+v};
+  if(v!=='' && isNaN(+v)){ alert('הזן מספר'); return; }
+  try{
+    var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,{method:'PATCH',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify(body)});
+    if(!r.ok) throw new Error(r.status+' '+await r.text());
+    await abLoad(); abDayDetail(iso);
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+function abClearManualClose(iso){ var el=document.getElementById('abMC'); if(el) el.value=''; abSetManualClose(iso); }
 function abRaw(obj){ var s=0; for(var k in obj) s+=obj[k]; return s; }
 function abCompute(){
   var sorted=AB_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:(a.report_date>b.report_date?1:0);});
   var bal=AB_START; AB_SEQ={};
   sorted.forEach(function(row){
-    var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2, open=bal; bal+=diff;
+    var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2, open=bal;
+    var computed=open+diff;
+    var mc=(row.manual_close!=null&&row.manual_close!=='')?(+row.manual_close):null;
+    var close=(mc!=null)?mc:computed; bal=close;   // אם נקבע ידנית — ממשיכים ממנו
     var rA=abRaw(row.green), rT=abRaw(row.orange);   // ספירה גולמית (כל הצבעים) — להשוואה מול ראן
     var mism=((row.ran_alumim!=null&&Math.abs(rA-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(rT-row.ran_treli)>0.01));
-    AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:bal,row:row,mism:mism,rawA:rA,rawT:rT};
+    AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:close,computed:computed,manual:mc,row:row,mism:mism,rawA:rA,rawT:rT};
   });
 }
 function abRender(){
@@ -1149,6 +1164,12 @@ function abDayDetail(iso){
   var h='<div class="card" style="margin-top:12px"><h3>'+heDate(iso)+(row.sheet_name?' · '+row.sheet_name:'')+'</h3>'
     +'<div class="row" style="gap:22px;flex-wrap:wrap"><div>מאזן פתיחה: <b>'+abBalTxt(e.open)+'</b></div><div>עלומים: <b>'+abFmt(e.alum)+'</b></div><div>טרי לי: <b>'+abFmt(e.treli)+'</b></div><div>הפרש: <b>'+(e.diff>=0?'+':'')+abFmt(e.diff)+'</b></div><div>מאזן סגירה: <b>'+abBalTxt(e.close)+'</b></div></div>'
     +gap
+    +(function(){
+       var info=''; 
+       if(e.manual!=null && Math.abs(e.manual-e.computed)>0.001){ var d=e.computed-e.manual; var favor=d>0?'לטובת עלומים':'לטובת טרי לי'; info='<div class="muted" style="margin-top:4px;font-size:12px">🔒 מאזן זה נקבע ידנית. לפי החישוב שלנו היה אמור להיות <b>'+abBalTxt(e.computed)+'</b> (פער '+abFmt(Math.abs(d))+' '+favor+').</div>'; }
+       var ctrl='<div class="row" style="gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><span class="muted">קיבוע מאזן סגירה ידני (המשך הספירה ימשיך ממנו):</span><input type="number" step="0.5" id="abMC" value="'+(e.manual!=null?e.manual:'')+'" placeholder="'+abFmt(e.computed)+'" style="width:120px"><button class="btn sec" onclick="abSetManualClose(\''+iso+'\')">שמור</button>'+(e.manual!=null?'<button class="btn sec" onclick="abClearManualClose(\''+iso+'\')">בטל קיבוע</button>':'')+'</div>';
+       return info+ctrl;
+     })()
     +'<div class="row" style="margin:8px 0;gap:8px">'+(row.file_path?'<button class="btn sec" onclick="abOpen(\''+row.file_path+'\')">📄 פתח את הדוח המקורי</button>':'<span class="muted">הדוח המקורי לא נשמר (נתונים הוזנו ידנית)</span>')+'<button class="btn" style="background:#fee2e2;color:#b91c1c" onclick="abDeleteDay(\''+iso+'\')">🗑️ נקה יום (מחק והעלה מחדש)</button></div>'
     +'<details style="margin-top:6px"><summary>פירוט מוצרים נספרים</summary><div class="row" style="gap:30px;align-items:flex-start"><div><b>עלומים (ירוק):</b><br>'+(gl.join('<br>')||'—')+'</div><div><b>טרי לי (כתום):</b><br>'+(ol.join('<br>')||'—')+'</div></div>'+(exl.length?'<div style="margin-top:6px;color:#8aa094"><b>מוחרגים (לא נספרו):</b> '+exl.join(' · ')+'</div>':'')+'</details></div>';
   document.getElementById('abDetail').innerHTML=h;
