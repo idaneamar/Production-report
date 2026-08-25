@@ -152,6 +152,17 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
  <div class="card"><h2>🤝 מאזן עם עלומים</h2>
   <p class="muted">חישוב עצמאי של המאזן (עלומים מול טרי לי) מהדוח היומי, והשוואה למספרים של ראן. ירוק=עלומים, כתום=טרי לי; מוצרים מוחרגים לא נספרים.</p>
   <div class="row"><button class="btn" onclick="abSaveCurrent()">💾 שמור את היום הטעון למאזן</button> <button class="btn sec" onclick="abLoad()">🔄 רענן</button></div>
+  <div style="margin-top:10px;padding:10px;background:#eef6ff;border:1px solid #cfe3fb;border-radius:8px">
+   <div style="font-weight:700;margin-bottom:4px">📅 העלאת דוח בדיעבד ליום מסוים</div>
+   <div class="muted" style="margin-bottom:8px">בוחרים כאן קובץ הזמנות של יום קודם — הוא נשמר <b>רק למאזן</b> ולא משנה את הדוח הטעון בעיבוד יומי.</div>
+   <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">
+    <input type="file" id="abBackFile" accept=".xlsx,.xls" onchange="abPickFile(this)">
+    <select id="abBackSheet" class="hidden" onchange="abBackDate()"></select>
+    <label>תאריך: <input type="date" id="abBackDate"></label>
+    <button class="btn" onclick="abSavePicked()">💾 שמור ליום שנבחר</button>
+   </div>
+   <div id="abBackMsg" class="muted" style="margin-top:6px"></div>
+  </div>
   <div id="abSet" style="margin-top:10px;padding:10px;background:#f7f9fb;border-radius:8px"></div>
  </div>
  <div class="card" style="overflow:auto"><div id="abTbl"></div></div>
@@ -994,6 +1005,48 @@ async function abSaveCurrent(){
     var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
     if(!r.ok) throw new Error(r.status+' '+await r.text());
     alert('✔ נשמר למאזן: '+p.date); AB_MONTH=p.date.slice(0,7); abLoad();
+  }catch(e){ alert('שגיאה: '+e.message); }
+}
+var AB_WB=null;
+function abHasBalance(ws){ if(!ws)return false; for(var r=1;r<=ws.rowCount;r++){ if(abTxt(ws.getRow(r).getCell(7)).indexOf('סה"כ עלומים')>=0) return true; } return false; }
+async function abPickFile(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return;
+  var msg=document.getElementById('abBackMsg'); msg.textContent='קורא: '+f.name+' ...';
+  try{
+    ensureXL(); AB_WB=new ExcelJS.Workbook(); await AB_WB.xlsx.load(await f.arrayBuffer());
+    AB_WB._fileName=f.name; AB_WB._fileRef=f;
+    var names=AB_WB.worksheets.map(function(w){return w.name;});
+    var sel=document.getElementById('abBackSheet'); sel.innerHTML=names.map(function(n){return '<option>'+esc(n)+'</option>';}).join(''); sel.classList.remove('hidden');
+    var pick=names[0]; for(var i=0;i<names.length;i++){ if(abHasBalance(AB_WB.getWorksheet(names[i]))){ pick=names[i]; break; } }
+    sel.value=pick; abBackDate();
+  }catch(e){ msg.textContent='שגיאה בקריאה: '+(e.message||e); AB_WB=null; }
+}
+function abBackDate(){
+  if(!AB_WB) return; var sel=document.getElementById('abBackSheet'); var ws=AB_WB.getWorksheet(sel.value); if(!ws) return;
+  var p=abParse(ws); var di=document.getElementById('abBackDate'); var msg=document.getElementById('abBackMsg');
+  if(p&&p.date){ di.value=p.date; msg.textContent='זוהה תאריך בדוח: '+p.date+' · עלומים='+abFmt(abSum(p.green))+' · טרי לי='+abFmt(abSum(p.orange))+(p.ran&&p.ran.balance!=null?' · מאזן ראן='+p.ran.balance:''); }
+  else if(p){ msg.textContent='לא זוהה תאריך בדוח — בחר תאריך ידנית. עלומים='+abFmt(abSum(p.green))+' · טרי לי='+abFmt(abSum(p.orange)); }
+  else { msg.textContent='⚠ לא נמצא בלוק מאזן בגיליון הזה (סה"כ עלומים / סה"כ טרי לי) — בחר גיליון אחר.'; }
+}
+async function abSavePicked(){
+  if(!AB_WB){ alert('קודם בחר קובץ'); return; }
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var sel=document.getElementById('abBackSheet'); var ws=AB_WB.getWorksheet(sel.value);
+  var p=abParse(ws);
+  if(!p){ alert('לא נמצא בלוק מאזן בגיליון (סה"כ עלומים / סה"כ טרי לי)'); return; }
+  var iso=document.getElementById('abBackDate').value || p.date;
+  if(!iso){ alert('בחר תאריך'); return; }
+  var alum=0,tl=0; for(var k in p.green) if(!abExcluded(k)) alum+=p.green[k]; for(var k2 in p.orange) if(!abExcluded(k2)) tl+=p.orange[k2];
+  if(!confirm('לשמור מאזן ל-'+iso+'?\nעלומים='+alum+' · טרי לי='+tl+'\n(לא משנה את הדוח הטעון בעיבוד יומי)')) return;
+  try{
+    var fpath=iso+'.xlsx';
+    if(AB_WB._fileRef){ await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+fpath,{method:'POST',headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token,'Content-Type':'application/octet-stream','x-upsert':'true'},body:await AB_WB._fileRef.arrayBuffer()}); }
+    var body={report_date:iso,green:p.green,orange:p.orange,ran_alumim:p.ran.alumim,ran_treli:p.ran.treli,ran_diff:p.ran.diff,ran_balance:p.ran.balance,sheet_name:p.sheet,file_path:fpath,file_name:AB_WB._fileName,uploaded_by:s.username||s.email||''};
+    var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
+    if(!r.ok) throw new Error(r.status+' '+await r.text());
+    alert('✔ נשמר למאזן: '+iso); AB_MONTH=iso.slice(0,7);
+    document.getElementById('abBackFile').value=''; document.getElementById('abBackSheet').classList.add('hidden'); document.getElementById('abBackDate').value=''; document.getElementById('abBackMsg').textContent=''; AB_WB=null;
+    abLoad();
   }catch(e){ alert('שגיאה: '+e.message); }
 }
 async function abLoad(){
