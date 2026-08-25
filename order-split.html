@@ -1093,7 +1093,6 @@ function abRender(){
     h+='<div style="margin-top:10px"><b style="font-size:13px">✋ החרגות ידניות:</b><div style="margin-top:4px">'+((AB_SET.exclusions||[]).map(function(e,i){return '<span style="display:inline-block;background:#fde2e2;border-radius:8px;padding:2px 8px;margin:2px">'+esc(e)+' <a href="#" onclick="abRmExcl('+i+');return false" style="color:#b91c1c" title="בטל החרגה">✕</a></span>';}).join('')||'<span class="muted">אין</span>')+'</div></div>';
     h+='<div style="margin-top:10px"><b style="font-size:13px">🤖 מוחרג אוטומטית (פירות / גזרונים / 80 גר\' בד"ץ):</b><div style="margin-top:4px">'+(AB_AUTOEX.length?AB_AUTOEX.map(function(e,i){return '<span style="display:inline-block;background:#fef3c7;border-radius:8px;padding:2px 8px;margin:2px">'+esc(e)+' <a href="#" onclick="abInclude('+i+');return false" style="color:#047857" title="החזר לחישוב">↩ כלול</a></span>';}).join(''):'<span class="muted">אין כאלה בנתונים</span>')+'</div></div>';
     if((AB_SET.includes||[]).length){ h+='<div style="margin-top:10px"><b style="font-size:13px">✅ הוחזרו ידנית לחישוב:</b><div style="margin-top:4px">'+(AB_SET.includes||[]).map(function(e,i){return '<span style="display:inline-block;background:#d1fae5;border-radius:8px;padding:2px 8px;margin:2px">'+esc(e)+' <a href="#" onclick="abUninclude('+i+');return false" style="color:#b91c1c" title="החרג בחזרה">✕</a></span>';}).join('')+'</div></div>'; }
-    h+='<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px"><button class="btn" onclick="abRecalcAll()">🔁 חשב מחדש את כל הימים מהקבצים השמורים</button> <button class="btn sec" onclick="abDump()">🐞 שלח מבנה לבדיקה</button> <span class="muted">בודק את כל האקסלים שכבר הועלו לפי הספירה החדשה ומעדכן במידת הצורך.</span></div>';
     setBox.innerHTML=h;
   }
   var box=document.getElementById('abTbl'); if(!box) return;
@@ -1120,6 +1119,19 @@ function abCalHtml(ym){
   return h+'</div>';
 }
 function abMonthNav(delta){ var y=+AB_MONTH.slice(0,4),m=+AB_MONTH.slice(5,7)+delta; if(m<1){m=12;y--;} if(m>12){m=1;y++;} AB_MONTH=y+'-'+('0'+m).slice(-2); abRender(); }
+async function abDeleteDay(iso){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var e=AB_SEQ[iso]; if(!e) return; var row=e.row;
+  if(!confirm('לנקות את היום '+iso+'?\nזה ימחק את הנתונים ואת הקובץ מהמאזן, ותוכל להעלות מחדש דרך "העלאת דוח בדיעבד".')) return;
+  try{
+    if(row.file_path){ await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+encodeURIComponent(row.file_path),{method:'DELETE',headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}}); }
+    var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,{method:'DELETE',headers:Object.assign({},abH(),{'Prefer':'return=minimal'})});
+    if(!r.ok) throw new Error(r.status+' '+await r.text());
+    var d=document.getElementById('abDetail'); if(d) d.innerHTML='';
+    alert('✔ היום '+iso+' נוקה. אפשר להעלות אותו מחדש.');
+    abLoad();
+  }catch(err){ alert('שגיאה במחיקה: '+err.message); }
+}
 function abDayDetail(iso){
   var e=AB_SEQ[iso]; if(!e) return; var row=e.row;
   var gl=Object.keys(row.green||{}).filter(function(k){return row.green[k]&&!abExcluded(k);}).map(function(k){return k+': '+row.green[k];});
@@ -1129,7 +1141,7 @@ function abDayDetail(iso){
   var h='<div class="card" style="margin-top:12px"><h3>'+heDate(iso)+(row.sheet_name?' · '+row.sheet_name:'')+'</h3>'
     +'<div class="row" style="gap:22px;flex-wrap:wrap"><div>מאזן פתיחה: <b>'+abBalTxt(e.open)+'</b></div><div>עלומים: <b>'+abFmt(e.alum)+'</b></div><div>טרי לי: <b>'+abFmt(e.treli)+'</b></div><div>הפרש: <b>'+(e.diff>=0?'+':'')+abFmt(e.diff)+'</b></div><div>מאזן סגירה: <b>'+abBalTxt(e.close)+'</b></div></div>'
     +gap
-    +(row.file_path?'<div style="margin:8px 0"><button class="btn sec" onclick="abOpen(\''+row.file_path+'\')">📄 פתח את הדוח המקורי</button></div>':'<div class="muted" style="margin:8px 0">הדוח המקורי לא נשמר (נתונים הוזנו ידנית)</div>')
+    +'<div class="row" style="margin:8px 0;gap:8px">'+(row.file_path?'<button class="btn sec" onclick="abOpen(\''+row.file_path+'\')">📄 פתח את הדוח המקורי</button>':'<span class="muted">הדוח המקורי לא נשמר (נתונים הוזנו ידנית)</span>')+'<button class="btn" style="background:#fee2e2;color:#b91c1c" onclick="abDeleteDay(\''+iso+'\')">🗑️ נקה יום (מחק והעלה מחדש)</button></div>'
     +'<details style="margin-top:6px"><summary>פירוט מוצרים נספרים</summary><div class="row" style="gap:30px;align-items:flex-start"><div><b>עלומים (ירוק):</b><br>'+(gl.join('<br>')||'—')+'</div><div><b>טרי לי (כתום):</b><br>'+(ol.join('<br>')||'—')+'</div></div>'+(exl.length?'<div style="margin-top:6px;color:#8aa094"><b>מוחרגים (לא נספרו):</b> '+exl.join(' · ')+'</div>':'')+'</details></div>';
   document.getElementById('abDetail').innerHTML=h;
   document.getElementById('abDetail').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -1138,71 +1150,6 @@ function abAddExcl(){ var el=document.getElementById('abProdSearch'), v=el?el.va
 function abRmExcl(i){ (AB_SET.exclusions||[]).splice(i,1); abSaveSettings(); }
 function abInclude(i){ var p=AB_AUTOEX[i]; if(p&&(AB_SET.includes||[]).indexOf(p)<0)AB_SET.includes.push(p); abSaveSettings(); }
 function abUninclude(i){ (AB_SET.includes||[]).splice(i,1); abSaveSettings(); }
-async function abRecalcAll(){
-  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
-  var rows=AB_ROWS.filter(function(r){return r.file_path;});
-  var noFile=AB_ROWS.filter(function(r){return !r.file_path;}).map(function(r){return r.report_date;});
-  if(!rows.length){ alert('אין ימים עם קובץ מקורי שמור. ימים שהוזנו ידנית ('+(noFile.join(', ')||'—')+') לא ניתנים לחישוב מחדש — יש להעלות אותם מחדש.'); return; }
-  if(!confirm('לחשב מחדש '+rows.length+' ימים מהקבצים השמורים, לפי הספירה החדשה (כל תא צבוע)?')) return;
-  try{ ensureXL(); }catch(e){ alert('שגיאה בטעינת מנוע אקסל: '+e.message); return; }
-  var setBox=document.getElementById('abSet'); if(setBox) setBox.innerHTML='<div style="padding:10px">⏳ מחשב מחדש... <span id="abRcProg"></span></div>';
-  var log=[], changed=0, errs=0;
-  for(var i=0;i<rows.length;i++){
-    var row=rows[i];
-    var pr=document.getElementById('abRcProg'); if(pr) pr.textContent=(i+1)+' / '+rows.length;
-    try{
-      var resp=await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+encodeURIComponent(row.file_path),{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
-      if(!resp.ok){ log.push('❌ '+row.report_date+': הורדה נכשלה ('+resp.status+')'); errs++; continue; }
-      var wb=new ExcelJS.Workbook(); await wb.xlsx.load(await resp.arrayBuffer());
-      var ws=null; if(row.sheet_name) ws=wb.getWorksheet(row.sheet_name);
-      if(!ws){ for(var wi=0;wi<wb.worksheets.length;wi++){ if(abHasBalance(wb.worksheets[wi])){ ws=wb.worksheets[wi]; break; } } }
-      if(!ws) ws=wb.worksheets[0];
-      var pp=abParse(ws);
-      if(!pp){ log.push('❌ '+row.report_date+': לא נמצא בלוק מאזן'); errs++; continue; }
-      var oldA=abSum(row.green||{}), oldT=abSum(row.orange||{}), newA=abSum(pp.green), newT=abSum(pp.orange);
-      var body={report_date:row.report_date,green:pp.green,orange:pp.orange,ran_alumim:pp.ran.alumim,ran_treli:pp.ran.treli,ran_diff:pp.ran.diff,ran_balance:pp.ran.balance,sheet_name:pp.sheet,file_path:row.file_path,file_name:row.file_name};
-      var wr=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
-      if(!wr.ok){ log.push('❌ '+row.report_date+': שמירה נכשלה ('+wr.status+')'); errs++; continue; }
-      if(Math.abs(oldA-newA)>0.01||Math.abs(oldT-newT)>0.01){ changed++; log.push('⚠ '+row.report_date+': עלומים '+abFmt(oldA)+'→'+abFmt(newA)+' · טרי לי '+abFmt(oldT)+'→'+abFmt(newT)); }
-      else { log.push('✓ '+row.report_date+': ללא שינוי ('+abFmt(newA)+' / '+abFmt(newT)+')'); }
-    }catch(e){ log.push('❌ '+row.report_date+': '+(e.message||e)); errs++; }
-  }
-  await abLoad();
-  var head='חישוב מחדש הושלם.\n'+rows.length+' ימים נבדקו · '+changed+' השתנו · '+errs+' שגיאות.';
-  if(noFile.length) head+='\nללא קובץ (לא חושבו): '+noFile.join(', ');
-  alert(head+'\n\n'+log.join('\n'));
-}
-async function abDump(){
-  var box=document.getElementById('abSet');
-  function say(m){ if(box) box.insertAdjacentHTML('afterbegin','<div style="background:#eef;border:1px solid #99f;padding:8px;margin-bottom:8px;white-space:pre-wrap;direction:ltr;text-align:left;font-size:12px">'+m+'</div>'); }
-  try{
-    var s=ordSession(); if(!s){ say('NOT LOGGED IN'); return; }
-    var row=AB_ROWS.filter(function(r){return r.file_path;})[0];
-    if(!row){ say('NO FILE ROW (files='+AB_ROWS.length+')'); return; }
-    say('start: '+row.report_date+' path='+row.file_path);
-    ensureXL();
-    var resp=await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+encodeURIComponent(row.file_path),{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
-    say('download status='+resp.status);
-    if(!resp.ok){ return; }
-    var buf=await resp.arrayBuffer(); say('bytes='+buf.byteLength);
-    var wb=new ExcelJS.Workbook(); await wb.xlsx.load(buf);
-    var ws=row.sheet_name?wb.getWorksheet(row.sheet_name):null;
-    if(!ws){ for(var wi=0;wi<wb.worksheets.length;wi++){ if(abHasBalance(wb.worksheets[wi])){ ws=wb.worksheets[wi]; break; } } }
-    if(!ws) ws=wb.worksheets[0];
-    var hr=detectHeader(ws), maxc=ws.columnCount;
-    var merges=[]; try{ merges=(ws.model&&ws.model.merges)?ws.model.merges:(ws._merges?Object.keys(ws._merges):[]); }catch(e){}
-    var hdrs=[]; for(var c=1;c<=maxc;c++){ var h=abTxt(ws.getRow(hr).getCell(c)).trim(); if(h) hdrs.push(c+':'+h); }
-    var rows=[];
-    for(var rr=1;rr<=ws.rowCount;rr++){ var dr=ws.getRow(rr); var g=0,o=0,gc=0,oc=0;
-      for(var cc=9;cc<=maxc;cc++){ var cell=dr.getCell(cc); var v=abNum(cell); if(!v) continue; var pr=abProducer(fillARGB(cell)); if(pr==='alumim'){g+=v;gc++;} else if(pr==='us'){o+=v;oc++;} }
-      var c7=abTxt(dr.getCell(7)).trim(); var c1=abTxt(dr.getCell(1)).trim();
-      if(g||o||c7||c1) rows.push({r:rr,c1:c1.slice(0,18),c7:c7.slice(0,18),g:g,o:o,gc:gc,oc:oc});
-    }
-    var dump={sheet:ws.name,rowCount:ws.rowCount,colCount:maxc,hr:hr,merges:merges,hdrs:hdrs,rows:rows};
-    var wr=await fetch(ORD_SB+'/rest/v1/ab_debug',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify({report_date:row.report_date,dump:dump})});
-    say('POST ab_debug status='+wr.status+' rows='+rows.length+(wr.ok?'  OK sent':''));
-  }catch(e){ say('ERROR: '+(e&&e.message?e.message:e)); }
-}
 async function abSaveSettings(){
   try{ await fetch(ORD_SB+'/rest/v1/alumim_bal_settings?on_conflict=id',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:1,exclusions:AB_SET.exclusions,includes:AB_SET.includes,updated_at:new Date().toISOString()})}); }catch(e){}
   abRender();
