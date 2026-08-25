@@ -1093,6 +1093,7 @@ function abRender(){
     h+='<div style="margin-top:10px"><b style="font-size:13px">✋ החרגות ידניות:</b><div style="margin-top:4px">'+((AB_SET.exclusions||[]).map(function(e,i){return '<span style="display:inline-block;background:#fde2e2;border-radius:8px;padding:2px 8px;margin:2px">'+esc(e)+' <a href="#" onclick="abRmExcl('+i+');return false" style="color:#b91c1c" title="בטל החרגה">✕</a></span>';}).join('')||'<span class="muted">אין</span>')+'</div></div>';
     h+='<div style="margin-top:10px"><b style="font-size:13px">🤖 מוחרג אוטומטית (פירות / גזרונים / 80 גר\' בד"ץ):</b><div style="margin-top:4px">'+(AB_AUTOEX.length?AB_AUTOEX.map(function(e,i){return '<span style="display:inline-block;background:#fef3c7;border-radius:8px;padding:2px 8px;margin:2px">'+esc(e)+' <a href="#" onclick="abInclude('+i+');return false" style="color:#047857" title="החזר לחישוב">↩ כלול</a></span>';}).join(''):'<span class="muted">אין כאלה בנתונים</span>')+'</div></div>';
     if((AB_SET.includes||[]).length){ h+='<div style="margin-top:10px"><b style="font-size:13px">✅ הוחזרו ידנית לחישוב:</b><div style="margin-top:4px">'+(AB_SET.includes||[]).map(function(e,i){return '<span style="display:inline-block;background:#d1fae5;border-radius:8px;padding:2px 8px;margin:2px">'+esc(e)+' <a href="#" onclick="abUninclude('+i+');return false" style="color:#b91c1c" title="החרג בחזרה">✕</a></span>';}).join('')+'</div></div>'; }
+    h+='<div style="margin-top:12px;border-top:1px solid #e2e8f0;padding-top:10px"><button class="btn" onclick="abRecalcAll()">🔁 חשב מחדש את כל הימים מהקבצים השמורים</button> <span class="muted">בודק את כל האקסלים שכבר הועלו לפי הספירה החדשה ומעדכן במידת הצורך.</span></div>';
     setBox.innerHTML=h;
   }
   var box=document.getElementById('abTbl'); if(!box) return;
@@ -1137,6 +1138,40 @@ function abAddExcl(){ var el=document.getElementById('abProdSearch'), v=el?el.va
 function abRmExcl(i){ (AB_SET.exclusions||[]).splice(i,1); abSaveSettings(); }
 function abInclude(i){ var p=AB_AUTOEX[i]; if(p&&(AB_SET.includes||[]).indexOf(p)<0)AB_SET.includes.push(p); abSaveSettings(); }
 function abUninclude(i){ (AB_SET.includes||[]).splice(i,1); abSaveSettings(); }
+async function abRecalcAll(){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var rows=AB_ROWS.filter(function(r){return r.file_path;});
+  var noFile=AB_ROWS.filter(function(r){return !r.file_path;}).map(function(r){return r.report_date;});
+  if(!rows.length){ alert('אין ימים עם קובץ מקורי שמור. ימים שהוזנו ידנית ('+(noFile.join(', ')||'—')+') לא ניתנים לחישוב מחדש — יש להעלות אותם מחדש.'); return; }
+  if(!confirm('לחשב מחדש '+rows.length+' ימים מהקבצים השמורים, לפי הספירה החדשה (כל תא צבוע)?')) return;
+  try{ ensureXL(); }catch(e){ alert('שגיאה בטעינת מנוע אקסל: '+e.message); return; }
+  var setBox=document.getElementById('abSet'); if(setBox) setBox.innerHTML='<div style="padding:10px">⏳ מחשב מחדש... <span id="abRcProg"></span></div>';
+  var log=[], changed=0, errs=0;
+  for(var i=0;i<rows.length;i++){
+    var row=rows[i];
+    var pr=document.getElementById('abRcProg'); if(pr) pr.textContent=(i+1)+' / '+rows.length;
+    try{
+      var resp=await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+encodeURIComponent(row.file_path),{headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token}});
+      if(!resp.ok){ log.push('❌ '+row.report_date+': הורדה נכשלה ('+resp.status+')'); errs++; continue; }
+      var wb=new ExcelJS.Workbook(); await wb.xlsx.load(await resp.arrayBuffer());
+      var ws=null; if(row.sheet_name) ws=wb.getWorksheet(row.sheet_name);
+      if(!ws){ for(var wi=0;wi<wb.worksheets.length;wi++){ if(abHasBalance(wb.worksheets[wi])){ ws=wb.worksheets[wi]; break; } } }
+      if(!ws) ws=wb.worksheets[0];
+      var pp=abParse(ws);
+      if(!pp){ log.push('❌ '+row.report_date+': לא נמצא בלוק מאזן'); errs++; continue; }
+      var oldA=abSum(row.green||{}), oldT=abSum(row.orange||{}), newA=abSum(pp.green), newT=abSum(pp.orange);
+      var body={report_date:row.report_date,green:pp.green,orange:pp.orange,ran_alumim:pp.ran.alumim,ran_treli:pp.ran.treli,ran_diff:pp.ran.diff,ran_balance:pp.ran.balance,sheet_name:pp.sheet,file_path:row.file_path,file_name:row.file_name};
+      var wr=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
+      if(!wr.ok){ log.push('❌ '+row.report_date+': שמירה נכשלה ('+wr.status+')'); errs++; continue; }
+      if(Math.abs(oldA-newA)>0.01||Math.abs(oldT-newT)>0.01){ changed++; log.push('⚠ '+row.report_date+': עלומים '+abFmt(oldA)+'→'+abFmt(newA)+' · טרי לי '+abFmt(oldT)+'→'+abFmt(newT)); }
+      else { log.push('✓ '+row.report_date+': ללא שינוי ('+abFmt(newA)+' / '+abFmt(newT)+')'); }
+    }catch(e){ log.push('❌ '+row.report_date+': '+(e.message||e)); errs++; }
+  }
+  await abLoad();
+  var head='חישוב מחדש הושלם.\n'+rows.length+' ימים נבדקו · '+changed+' השתנו · '+errs+' שגיאות.';
+  if(noFile.length) head+='\nללא קובץ (לא חושבו): '+noFile.join(', ');
+  alert(head+'\n\n'+log.join('\n'));
+}
 async function abSaveSettings(){
   try{ await fetch(ORD_SB+'/rest/v1/alumim_bal_settings?on_conflict=id',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:1,exclusions:AB_SET.exclusions,includes:AB_SET.includes,updated_at:new Date().toISOString()})}); }catch(e){}
   abRender();
