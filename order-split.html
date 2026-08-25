@@ -135,7 +135,20 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
  </div>
 </div>
 
-<div id="albal" class="hidden">
+<div id="albal" class="hidden"><style>
+#albal .abhead{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;font-weight:700;text-align:center;color:#4a5a51;margin-bottom:5px}
+#albal .abgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+#albal .abcell{min-height:84px;border:1px solid #d8e2dc;border-radius:8px;padding:4px 5px;font-size:11px;line-height:1.35;background:#fff}
+#albal .abcell.abempty{border:none;background:transparent}
+#albal .abcell.aboff{background:#f7f9fb;color:#c3c3c3}
+#albal .abcell.abmiss{background:#fff7ed;border-color:#f0c36d}
+#albal .abcell.abok{background:#f0fbf4;cursor:pointer}
+#albal .abcell.abmism{background:#fff3cd;border-color:#e0a800;cursor:pointer}
+#albal .abcell .abd{font-weight:800;font-size:14px;color:#14603a}
+#albal .abcell .abbal{font-weight:700;margin-top:2px;color:#14603a}
+#albal .abcell .abwarn{color:#b91c1c;font-weight:700;margin-top:2px}
+#albal .abcell .abmisstxt{color:#b45309;margin-top:10px;text-align:center;font-weight:600}
+</style>
  <div class="card"><h2>🤝 מאזן עם עלומים</h2>
   <p class="muted">חישוב עצמאי של המאזן (עלומים מול טרי לי) מהדוח היומי, והשוואה למספרים של ראן. ירוק=עלומים, כתום=טרי לי; מוצרים מוחרגים לא נספרים.</p>
   <div class="row"><button class="btn" onclick="abSaveCurrent()">💾 שמור את היום הטעון למאזן</button> <button class="btn sec" onclick="abLoad()">🔄 רענן</button></div>
@@ -920,7 +933,9 @@ function tab(id,btn){ ['proc','ledger','fruit','albal','settings','help'].forEac
   if(id==='ledger')renderLedger(); if(id==='fruit')renderFruit(); if(id==='settings')renderSet(); if(id==='albal')abLoad(); }
 renderSet(); renderLedger(); renderFruit();
 /* ===================== מאזן עם עלומים ===================== */
-var AB_FILE=null, AB_SET={exclusions:[],start_balance:0,start_date:null}, AB_ROWS=[];
+var AB_FILE=null, AB_SET={exclusions:[]}, AB_ROWS=[], AB_MONTH=null, AB_SEQ={};
+var AB_START=48;                 // מאזן פתיחה קבוע (עלומים חייבים לטרי לי) — מ-2.8
+var AB_MN=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 function abH(){ var s=ordSession(); return {'apikey':ORD_KEY,'Authorization':'Bearer '+(s?s.access_token:ORD_KEY),'Content-Type':'application/json'}; }
 function abProducer(argb){
   if(!argb||argb==='00000000') return null;
@@ -935,7 +950,6 @@ function abProducer(argb){
 }
 function abTxt(cell){ var v=cell&&cell.value; if(v==null)return ''; if(typeof v==='object'){ if(v.result!=null)return String(v.result); if(v.richText)return v.richText.map(function(t){return t.text;}).join(''); if(v.text!=null)return String(v.text);} return String(v); }
 function abNum(cell){ var v=cell&&cell.value; if(v&&typeof v==='object'&&v.result!=null)v=v.result; return typeof v==='number'?v:null; }
-// מוצר מוחרג מהחישוב
 function abExcluded(h){
   if((AB_SET.exclusions||[]).indexOf(h)>=0) return true;
   if(h.indexOf('80 גר')>=0 && h.indexOf('בד')>=0) return true;   // 80 גר' בד"ץ
@@ -943,7 +957,6 @@ function abExcluded(h){
   if(h.indexOf('גזרונ')>=0) return true;                          // גזרונים
   return false;
 }
-// פרסור מאזן מגיליון (ExcelJS worksheet)
 function abParse(ws){
   var hr=detectHeader(ws), rAl=0,rTl=0;
   for(var r=1;r<=ws.rowCount;r++){ var t=abTxt(ws.getRow(r).getCell(7));
@@ -954,47 +967,39 @@ function abParse(ws){
   for(var c=9;c<=maxc;c++){
     var h=abTxt(hrow.getCell(c)).trim(); if(!h) continue;
     if(has(h,meta)) continue; if(h.indexOf('משטח')>=0||h.indexOf('תעודת')>=0||h.indexOf('סה"כ')>=0) continue;
-    var ga=fillARGB(ws.getRow(rAl).getCell(c)); if(abProducer(ga)==='alumim'){ var gv=abNum(ws.getRow(rAl).getCell(c)); if(gv!=null) green[h]=(green[h]||0)+gv; }
-    var oa=fillARGB(ws.getRow(rTl).getCell(c)); if(abProducer(oa)==='us'){ var ov=abNum(ws.getRow(rTl).getCell(c)); if(ov!=null) orange[h]=(orange[h]||0)+ov; }
+    var ga=fillARGB(ws.getRow(rAl).getCell(c)); if(abProducer(ga)==='alumim'){ var gv=abNum(ws.getRow(rAl).getCell(c)); if(gv){ green[h]=(green[h]||0)+gv; } }
+    var oa=fillARGB(ws.getRow(rTl).getCell(c)); if(abProducer(oa)==='us'){ var ov=abNum(ws.getRow(rTl).getCell(c)); if(ov){ orange[h]=(orange[h]||0)+ov; } }
   }
-  // בלוק ראן (מספרים מוצהרים להשוואה) — חיפוש תוויות
-  var ran={alumim:null,treli:null,diff:null,balance:null};
-  for(var r2=1;r2<=ws.rowCount;r2++){ var row=ws.getRow(r2);
-    for(var c2=1;c2<=maxc;c2++){ var t2=abTxt(row.getCell(c2)).trim(); if(!t2) continue;
-      var val=null; for(var cc=c2+1;cc<=Math.min(c2+4,maxc);cc++){ var n=abNum(row.getCell(cc)); if(n!=null){val=n;break;} }
-      if(val==null) continue;
-      if(t2==='עלומים' && ran.alumim==null) ran.alumim=val;
-      else if(t2==='טרי לי' && ran.treli==null) ran.treli=val;
-      else if(t2.indexOf('הפרש')===0 && ran.diff==null) ran.diff=val;
-      else if(t2.indexOf('עד היום')>=0 && ran.balance==null) ran.balance=val;
-    }
-  }
+  var ran={alumim:null,treli:null,diff:null,balance:null}, r0=0,c0=0;
+  for(var r2=1;r2<=ws.rowCount;r2++){ var row=ws.getRow(r2); for(var c2=1;c2<=maxc;c2++){ if(abTxt(row.getCell(c2)).indexOf('אחרי העברת')>=0){ r0=r2;c0=c2; } } }
+  if(r0){ for(var r3=r0;r3<Math.min(r0+8,ws.rowCount+1);r3++){ var lab=abTxt(ws.getRow(r3).getCell(c0)).trim(); var val=null;
+    for(var cc=c0+1;cc<Math.min(c0+5,maxc+1);cc++){ var n=abNum(ws.getRow(r3).getCell(cc)); if(n!=null){val=n;break;} }
+    if(val==null) continue;
+    if(lab==='עלומים'&&ran.alumim==null)ran.alumim=val; else if(lab==='טרי לי'&&ran.treli==null)ran.treli=val;
+    else if(lab.indexOf('הפרש')===0&&ran.diff==null)ran.diff=val; else if(lab.indexOf('עד היום')>=0&&ran.balance==null)ran.balance=val; } }
   var d=getReportDate(ws), iso='', m=d.match(/(\d\d)\/(\d\d)\/(\d{4})/); if(m) iso=m[3]+'-'+m[2]+'-'+m[1];
   return {date:iso, green:green, orange:orange, ran:ran, sheet:ws.name};
 }
-// שמירת היום הנוכחי למאזן (כולל העלאת האקסל ל-Storage)
 async function abSaveCurrent(){
   if(!WB||!LAST||!LAST.sheet){ alert('קודם טען קובץ הזמנות'); return; }
   var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
-  var ws=WB.getWorksheet(LAST.sheet); var p=abParse(ws);
+  var p=abParse(WB.getWorksheet(LAST.sheet));
   if(!p||!p.date){ alert('לא נמצא בלוק מאזן בגיליון (סה"כ עלומים / סה"כ טרי לי)'); return; }
   var alum=0,tl=0; for(var k in p.green) if(!abExcluded(k)) alum+=p.green[k]; for(var k2 in p.orange) if(!abExcluded(k2)) tl+=p.orange[k2];
   if(!confirm('לשמור מאזן ל-'+p.date+'?\nעלומים='+alum+' · טרי לי='+tl)) return;
   try{
-    // העלאת האקסל
     var fpath=p.date+'.xlsx';
     if(AB_FILE){ await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+fpath,{method:'POST',headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token,'Content-Type':'application/octet-stream','x-upsert':'true'},body:await AB_FILE.arrayBuffer()}); }
     var body={report_date:p.date,green:p.green,orange:p.orange,ran_alumim:p.ran.alumim,ran_treli:p.ran.treli,ran_diff:p.ran.diff,ran_balance:p.ran.balance,sheet_name:p.sheet,file_path:AB_FILE?fpath:null,file_name:AB_FILE?AB_FILE.name:null,uploaded_by:s.username||s.email||''};
     var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
     if(!r.ok) throw new Error(r.status+' '+await r.text());
-    alert('✔ נשמר למאזן: '+p.date); abLoad();
+    alert('✔ נשמר למאזן: '+p.date); AB_MONTH=p.date.slice(0,7); abLoad();
   }catch(e){ alert('שגיאה: '+e.message); }
 }
-// טעינת נתוני המאזן + הגדרות
 async function abLoad(){
   try{
-    var st=await (await fetch(ORD_SB+'/rest/v1/alumim_bal_settings?id=eq.1&select=*',{headers:abH()})).json();
-    if(st&&st.length) AB_SET={exclusions:st[0].exclusions||[],start_balance:+st[0].start_balance||0,start_date:st[0].start_date};
+    var st=await (await fetch(ORD_SB+'/rest/v1/alumim_bal_settings?id=eq.1&select=exclusions',{headers:abH()})).json();
+    if(st&&st.length) AB_SET={exclusions:st[0].exclusions||[]};
     AB_ROWS=await (await fetch(ORD_SB+'/rest/v1/alumim_balance?select=*&order=report_date.asc',{headers:abH()})).json();
     if(!Array.isArray(AB_ROWS)) AB_ROWS=[];
   }catch(e){ AB_ROWS=[]; }
@@ -1002,53 +1007,70 @@ async function abLoad(){
 }
 function abSum(obj){ var s=0; for(var k in obj) if(!abExcluded(k)) s+=obj[k]; return s; }
 function abAllProducts(){ var set={}; AB_ROWS.forEach(function(row){ for(var k in (row.green||{}))set[k]=1; for(var k2 in (row.orange||{}))set[k2]=1; }); return Object.keys(set).sort(function(a,b){return a.localeCompare(b,'he');}); }
-function abMissingDays(){ // ימי חול (א-ה) בין start_date להיום שאין להם רשומה
-  var have={}; AB_ROWS.forEach(function(r){ have[r.report_date]=1; });
-  var out=[], d=AB_SET.start_date?new Date(AB_SET.start_date+'T00:00:00'):null, today=new Date(); today.setHours(0,0,0,0);
-  if(!d) return out;
-  for(; d<=today; d.setDate(d.getDate()+1)){ var dw=d.getDay(); if(dw===5||dw===6) continue; var iso=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); if(!have[iso]) out.push(iso); }
-  return out;
-}
 function abFmt(n){ return (Math.round(n*100)/100).toLocaleString('he-IL'); }
+function heDate(iso){ if(!iso)return ''; var p=String(iso).split('-'); return p.length>=3?(p[2]+'.'+p[1]+'.'+p[0].slice(2)):iso; }
+function abBalTxt(b){ return b>0?('עלומים חייבים '+abFmt(b)):(b<0?('טרי לי חייבים '+abFmt(-b)):'מאוזן'); }
+function abCompute(){
+  var sorted=AB_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:(a.report_date>b.report_date?1:0);});
+  var bal=AB_START; AB_SEQ={};
+  sorted.forEach(function(row){
+    var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2, open=bal; bal+=diff;
+    var mism=((row.ran_alumim!=null&&Math.abs(al-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(tl-row.ran_treli)>0.01));
+    AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:bal,row:row,mism:mism};
+  });
+}
 function abRender(){
-  var box=document.getElementById('abTbl'); if(!box) return;
-  // הגדרות
+  abCompute();
   var setBox=document.getElementById('abSet');
   if(setBox){
     var prods=abAllProducts();
-    var h='<div class="row"><label>מאזן פתיחה (עלומים חייבים לטרי לי): <input id="abStart" type="number" value="'+(AB_SET.start_balance||0)+'" style="width:100px"></label>'
-      +'<label>מתאריך: <input id="abStartDate" type="date" value="'+(AB_SET.start_date||'')+'"></label>'
-      +'<button class="btn sec" onclick="abSaveSettings()">💾 שמור הגדרות</button></div>';
-    h+='<div class="muted" style="margin:6px 0">מוצרים שלא נספרים במאזן. ברירת מחדל כבר מחריגה: 80 גר\' בד"ץ, פירות, גזרונים. אפשר להוסיף מוצרים נוספים:</div>';
-    h+='<div class="row"><input id="abProdSearch" list="abProdList" placeholder="חפש מוצר..." style="width:320px"><datalist id="abProdList">'+prods.map(function(p){return '<option value="'+p.replace(/"/g,'&quot;')+'">';}).join('')+'</datalist>'
-      +'<button class="btn sec" onclick="abAddExcl()">➕ החרג</button></div>';
+    var h='<div class="muted" style="margin-bottom:6px">מוצרים שלא נספרים במאזן. ברירת מחדל כבר מחריגה: 80 גר\' בד"ץ, פירות, גזרונים. אפשר להוסיף עוד:</div>';
+    h+='<div class="row"><input id="abProdSearch" list="abProdList" placeholder="חפש מוצר..." style="width:320px"><datalist id="abProdList">'+prods.map(function(p){return '<option value="'+p.replace(/"/g,'&quot;')+'">';}).join('')+'</datalist><button class="btn sec" onclick="abAddExcl()">➕ החרג</button></div>';
     h+='<div style="margin-top:6px">'+((AB_SET.exclusions||[]).map(function(e,i){return '<span style="display:inline-block;background:#fde2e2;border-radius:8px;padding:2px 8px;margin:2px">'+e+' <a href="#" onclick="abRmExcl('+i+');return false" style="color:#b91c1c">✕</a></span>';}).join('')||'<span class="muted">אין החרגות ידניות</span>')+'</div>';
     setBox.innerHTML=h;
   }
-  // טבלת ימים + מאזן מצטבר
-  var bal=AB_SET.start_balance||0;
-  var h='<table><thead><tr><th>תאריך</th><th>עלומים</th><th>טרי לי</th><th>הפרש</th><th>מאזן מצטבר</th><th>ראן: עלומים/טרי לי</th><th>התאמה</th><th>קובץ</th></tr></thead><tbody>';
-  AB_ROWS.forEach(function(row){
-    var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2; bal+=diff;
-    var mism=((row.ran_alumim!=null&&Math.abs(al-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(tl-row.ran_treli)>0.01)); var hasRan=(row.ran_alumim!=null||row.ran_treli!=null);
-    var who=bal>0?('עלומים חייבים '+abFmt(bal)):(bal<0?('טרי לי חייבים '+abFmt(-bal)):'מאוזן');
-    h+='<tr'+(mism?' style="background:#fff3cd"':'')+'><td>'+heDate(row.report_date)+'</td><td>'+abFmt(al)+'</td><td>'+abFmt(tl)+'</td><td>'+(diff>=0?'+':'')+abFmt(diff)+'</td><td><b>'+who+'</b></td>'
-      +'<td>'+(hasRan?(abFmt(row.ran_alumim||0)+' / '+abFmt(row.ran_treli||0)):'—')+'</td>'
-      +'<td>'+(!hasRan?'—':(mism?'<b style="color:#b91c1c">⚠ לא תואם</b>':'<span style="color:#166534">✓</span>'))+'</td>'
-      +'<td>'+(row.file_path?'<a href="#" onclick="abOpen(\''+row.file_path+'\');return false">📄 פתח</a>':'—')+'</td></tr>';
-  });
-  h+='</tbody></table>';
-  var miss=abMissingDays();
-  if(miss.length) h+='<div class="warn" style="margin-top:10px">⚠ ימים שלא הועלו: '+miss.map(heDate).join(' · ')+'</div>';
-  box.innerHTML=h;
+  var box=document.getElementById('abTbl'); if(!box) return;
+  if(!AB_MONTH){ var ds=Object.keys(AB_SEQ).sort(); AB_MONTH=ds.length?ds[ds.length-1].slice(0,7):(new Date().getFullYear()+'-'+('0'+(new Date().getMonth()+1)).slice(-2)); }
+  box.innerHTML=abCalHtml(AB_MONTH)+'<div id="abDetail"></div>';
 }
-function heDate(iso){ if(!iso)return ''; var p=String(iso).split('-'); return p.length>=3?(p[2]+'.'+p[1]+'.'+p[0].slice(2)):iso; }
-function abAddExcl(){ var v=document.getElementById('abProdSearch').value.trim(); if(!v)return; if((AB_SET.exclusions||[]).indexOf(v)<0)AB_SET.exclusions.push(v); document.getElementById('abProdSearch').value=''; abSaveSettings(); }
+function abCalHtml(ym){
+  var y=+ym.slice(0,4), m=+ym.slice(5,7), first=new Date(y,m-1,1), startDow=first.getDay(), days=new Date(y,m,0).getDate();
+  var today=new Date(); today.setHours(0,0,0,0);
+  var h='<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:8px"><button class="btn sec" onclick="abMonthNav(-1)">‹ חודש קודם</button><b style="font-size:17px">'+AB_MN[m-1]+' '+y+'</b><button class="btn sec" onclick="abMonthNav(1)">חודש הבא ›</button></div>';
+  h+='<div class="abhead">'+['א','ב','ג','ד','ה','ו','ש'].map(function(d){return '<div>'+d+'</div>';}).join('')+'</div><div class="abgrid">';
+  for(var i=0;i<startDow;i++) h+='<div class="abcell abempty"></div>';
+  for(var d=1;d<=days;d++){
+    var iso=y+'-'+('0'+m).slice(-2)+'-'+('0'+d).slice(-2), cell=new Date(y,m-1,d), dow=cell.getDay(), e=AB_SEQ[iso];
+    var cls='abcell', inner='<div class="abd">'+d+'</div>';
+    if(e){
+      cls+=e.mism?' abmism':' abok';
+      inner+='<div class="abx">עלו\' '+abFmt(e.alum)+' · טרי\' '+abFmt(e.treli)+'</div><div class="abx">הפרש '+(e.diff>=0?'+':'')+abFmt(e.diff)+'</div><div class="abbal">'+(e.close>0?'עלו\' חייבים '+abFmt(e.close):(e.close<0?'טרי\' חייבים '+abFmt(-e.close):'מאוזן'))+'</div>'+(e.mism?'<div class="abwarn">⚠ לא תואם</div>':'');
+      inner='<a href="#" onclick="abDayDetail(\''+iso+'\');return false" style="text-decoration:none;color:inherit;display:block;height:100%">'+inner+'</a>';
+    } else if(dow!==5&&dow!==6 && cell<=today){ cls+=' abmiss'; inner+='<div class="abmisstxt">לא הועלה</div>'; }
+    else { cls+=' aboff'; }
+    h+='<div class="'+cls+'">'+inner+'</div>';
+  }
+  return h+'</div>';
+}
+function abMonthNav(delta){ var y=+AB_MONTH.slice(0,4),m=+AB_MONTH.slice(5,7)+delta; if(m<1){m=12;y--;} if(m>12){m=1;y++;} AB_MONTH=y+'-'+('0'+m).slice(-2); abRender(); }
+function abDayDetail(iso){
+  var e=AB_SEQ[iso]; if(!e) return; var row=e.row;
+  var gl=Object.keys(row.green||{}).filter(function(k){return row.green[k]&&!abExcluded(k);}).map(function(k){return k+': '+row.green[k];});
+  var ol=Object.keys(row.orange||{}).filter(function(k){return row.orange[k]&&!abExcluded(k);}).map(function(k){return k+': '+row.orange[k];});
+  var exl=[]; var seen={}; Object.keys(row.green||{}).concat(Object.keys(row.orange||{})).forEach(function(k){ if(seen[k])return; seen[k]=1; if(abExcluded(k)&&((row.green&&row.green[k])||(row.orange&&row.orange[k]))) exl.push(k); });
+  var gap= e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ פער מול ראן:</b><br>עלומים: שלנו '+abFmt(e.alum)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(e.alum-(row.ran_alumim||0))+')<br>טרי לי: שלנו '+abFmt(e.treli)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(e.treli-(row.ran_treli||0))+')</div>') : '<div style="color:#166534;margin-top:6px">✓ תואם לחישוב של ראן</div>';
+  var h='<div class="card" style="margin-top:12px"><h3>'+heDate(iso)+(row.sheet_name?' · '+row.sheet_name:'')+'</h3>'
+    +'<div class="row" style="gap:22px;flex-wrap:wrap"><div>מאזן פתיחה: <b>'+abBalTxt(e.open)+'</b></div><div>עלומים: <b>'+abFmt(e.alum)+'</b></div><div>טרי לי: <b>'+abFmt(e.treli)+'</b></div><div>הפרש: <b>'+(e.diff>=0?'+':'')+abFmt(e.diff)+'</b></div><div>מאזן סגירה: <b>'+abBalTxt(e.close)+'</b></div></div>'
+    +gap
+    +(row.file_path?'<div style="margin:8px 0"><button class="btn sec" onclick="abOpen(\''+row.file_path+'\')">📄 פתח את הדוח המקורי</button></div>':'<div class="muted" style="margin:8px 0">הדוח המקורי לא נשמר (נתונים הוזנו ידנית)</div>')
+    +'<details style="margin-top:6px"><summary>פירוט מוצרים נספרים</summary><div class="row" style="gap:30px;align-items:flex-start"><div><b>עלומים (ירוק):</b><br>'+(gl.join('<br>')||'—')+'</div><div><b>טרי לי (כתום):</b><br>'+(ol.join('<br>')||'—')+'</div></div>'+(exl.length?'<div style="margin-top:6px;color:#8aa094"><b>מוחרגים (לא נספרו):</b> '+exl.join(' · ')+'</div>':'')+'</details></div>';
+  document.getElementById('abDetail').innerHTML=h;
+  document.getElementById('abDetail').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function abAddExcl(){ var el=document.getElementById('abProdSearch'), v=el?el.value.trim():''; if(!v)return; if((AB_SET.exclusions||[]).indexOf(v)<0)AB_SET.exclusions.push(v); if(el)el.value=''; abSaveSettings(); }
 function abRmExcl(i){ (AB_SET.exclusions||[]).splice(i,1); abSaveSettings(); }
 async function abSaveSettings(){
-  var st=document.getElementById('abStart'), sd=document.getElementById('abStartDate');
-  if(st) AB_SET.start_balance=parseFloat(st.value)||0; if(sd&&sd.value) AB_SET.start_date=sd.value;
-  try{ await fetch(ORD_SB+'/rest/v1/alumim_bal_settings?on_conflict=id',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:1,exclusions:AB_SET.exclusions,start_balance:AB_SET.start_balance,start_date:AB_SET.start_date,updated_at:new Date().toISOString()})}); }catch(e){}
+  try{ await fetch(ORD_SB+'/rest/v1/alumim_bal_settings?on_conflict=id',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify({id:1,exclusions:AB_SET.exclusions,updated_at:new Date().toISOString()})}); }catch(e){}
   abRender();
 }
 async function abOpen(path){
