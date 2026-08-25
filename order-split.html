@@ -1089,7 +1089,7 @@ function abClearManualClose(iso){ var el=document.getElementById('abMC'); if(el)
 function abRaw(obj){ var s=0; for(var k in obj) s+=obj[k]; return s; }
 function abCompute(){
   var sorted=AB_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:(a.report_date>b.report_date?1:0);});
-  var bal=AB_START; AB_SEQ={}; var prevRan=null;
+  var bal=AB_START, ranBal=AB_START; AB_SEQ={};
   sorted.forEach(function(row){
     var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2, open=bal;
     var computed=open+diff;
@@ -1098,9 +1098,13 @@ function abCompute(){
     var rA=abRaw(row.green), rT=abRaw(row.orange);   // ספירה גולמית (כל הצבעים) — להשוואה מול ראן
     // התראה רק על אי-התאמה בספירה היומית (לא על נקודות פתיחה/סגירה) — כדי שטעות של יום לא תיגרר
     var mism=(!!row.file_path)&&((row.ran_alumim!=null&&Math.abs(al-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(tl-row.ran_treli)>0.01));
-    var ranClose=(row.ran_balance!=null?row.ran_balance:null), ranOpen=prevRan;
+    // מאזן ראן: משורשר מאותה נקודת התחלה, לפי הספירה היומית של ראן (עקבי ובר-השוואה)
+    var ranOpen=ranBal, ranClose;
+    if(mc!=null) ranClose=mc;                                   // ביום בסיס/קיבוע ידני — שני המאזנים מתעגנים
+    else if(row.ran_alumim!=null&&row.ran_treli!=null) ranClose=ranOpen+((row.ran_alumim-row.ran_treli)/2);
+    else ranClose=ranOpen;
+    ranBal=ranClose;
     AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:close,computed:computed,manual:mc,row:row,mism:mism,rawA:rA,rawT:rT,ranOpen:ranOpen,ranClose:ranClose};
-    if(row.ran_balance!=null) prevRan=row.ran_balance;
   });
 }
 function abRender(){
@@ -1169,7 +1173,7 @@ function abDayDetail(iso){
     ranCalc='<div style="margin-top:8px;padding:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px"><b>📋 החישוב של ראן (מתוך הדוח):</b><br>'
       +'ספירה יומית — עלומים: <b>'+abFmt(rAl)+'</b> · טרי לי: <b>'+abFmt(rTl)+'</b>'
       +((e.ranOpen!=null||e.ranClose!=null)?('<br>מאזן ראן: פתיחה <b>'+(e.ranOpen!=null?abBalTxt(e.ranOpen):'—')+'</b> · סגירה <b>'+(e.ranClose!=null?abBalTxt(e.ranClose):'—')+'</b>'):'')
-      +'<br><span class="muted" style="font-size:12px">המאזן של ראן הוא בוקיפינג נפרד (נקודת פתיחה שונה משלנו) — מוצג לידיעה בלבד. ההתראה נקבעת רק לפי הספירה היומית.</span>'
+      +'<br><span class="muted" style="font-size:12px">מאזן ראן משורשר מאותה נקודת התחלה לפי הספירה היומית שלהם (הפער מול המאזן שלנו = הצטברות טעויות הספירה של ראן). ההתראה נקבעת רק לפי הספירה היומית.</span>'
       +'</div>';
   }
   // סיכום ההחרגות (כולל פירוט), גם אם אין
