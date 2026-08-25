@@ -1163,11 +1163,9 @@ function abDayDetail(iso){
   var ranCalc='';
   if(row.file_path && (row.ran_alumim!=null||row.ran_treli!=null)){
     var rAl=(row.ran_alumim==null?0:row.ran_alumim), rTl=(row.ran_treli==null?0:row.ran_treli);
-    var rDiff=(rAl-rTl)/2, rClose=e.open+rDiff;
     ranCalc='<div style="margin-top:8px;padding:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px"><b>📋 החישוב של ראן (מתוך הדוח):</b><br>'
-      +'עלומים: <b>'+abFmt(rAl)+'</b> · טרי לי: <b>'+abFmt(rTl)+'</b> · הפרש: <b>'+(rDiff>=0?'+':'')+abFmt(rDiff)+'</b><br>'
-      +'מאזן סגירה לפי ראן: <b>'+abBalTxt(rClose)+'</b>'
-      +(Math.abs(rClose-e.close)>0.001?(' <span class="muted">(לפי החישוב שלנו: '+abBalTxt(e.close)+')</span>'):' <span class="muted">(זהה לחישוב שלנו)</span>')
+      +'ספירה יומית — עלומים: <b>'+abFmt(rAl)+'</b> · טרי לי: <b>'+abFmt(rTl)+'</b>'
+      +(row.ran_balance!=null?('<br><span class="muted" style="font-size:12px">המאזן המצטבר שראן רשמו בדוח: '+abFmt(row.ran_balance)+' — בוקיפינג נפרד שלהם (נקודת פתיחה שונה משלנו), לא להשוואה ישירה למאזן שלנו.</span>'):'')
       +'</div>';
   }
   // סיכום ההחרגות (כולל פירוט), גם אם אין
