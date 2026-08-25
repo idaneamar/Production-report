@@ -979,7 +979,7 @@ function abParse(ws){
   if(!rAl) return null;
   // מאתרים את בלוק המאזן של ראן ("אחרי העברת") — עד אליו נסכם שורות לקוחות
   var ran={alumim:null,treli:null,diff:null,balance:null}, r0=0,c0=0;
-  for(var r2=1;r2<=ws.rowCount;r2++){ var row=ws.getRow(r2); for(var c2=1;c2<=maxc;c2++){ if(abTxt(row.getCell(c2)).indexOf('אחרי העברת')>=0){ r0=r2;c0=c2; } } }
+  for(var r2=1;r2<=ws.rowCount && !r0;r2++){ var row=ws.getRow(r2); for(var c2=1;c2<=maxc;c2++){ if(abTxt(row.getCell(c2)).indexOf('אחרי העברת')>=0){ r0=r2;c0=c2; break; } } }
   if(r0){ for(var r3=r0;r3<Math.min(r0+8,ws.rowCount+1);r3++){ var lab=abTxt(ws.getRow(r3).getCell(c0)).trim(); var val=null;
     for(var cc=c0+1;cc<Math.min(c0+5,maxc+1);cc++){ var n=abNum(ws.getRow(r3).getCell(cc)); if(n!=null){val=n;break;} }
     if(val==null) continue;
@@ -990,7 +990,8 @@ function abParse(ws){
   for(var c=9;c<=maxc;c++){ var h=abTxt(hrow.getCell(c)).trim(); if(!h) continue;
     if(has(h,meta)) continue; if(h.indexOf('משטח')>=0||h.indexOf('תעודת')>=0||h.indexOf('סה"כ')>=0) continue; hdr[c]=h; }
   // סכימה עצמאית: כל תא צבוע ירוק => עלומים, כל תא צבוע כתום => טרי לי, לאורך כל שורות הלקוחות
-  var green={}, orange={}, lastRow=r0?r0-1:ws.rowCount;
+  var firstTot=0; for(var ft=hr+1;ft<=ws.rowCount;ft++){ if(abTxt(ws.getRow(ft).getCell(7)).indexOf('סה"כ')>=0){ firstTot=ft; break; } }
+  var green={}, orange={}, lastRow=firstTot?firstTot-1:(r0?r0-1:ws.rowCount);
   for(var rr=hr+1;rr<=lastRow;rr++){ var drow=ws.getRow(rr);
     if(abTxt(drow.getCell(7)).indexOf('סה"כ')>=0) continue;   // דלג על שורות סיכום של ראן
     for(var cc2 in hdr){ var cell=drow.getCell(+cc2); var v=abNum(cell); if(!v) continue;
