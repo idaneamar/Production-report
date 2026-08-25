@@ -984,7 +984,12 @@ function abParse(ws){
     for(var cc=c0+1;cc<Math.min(c0+5,maxc+1);cc++){ var n=abNum(ws.getRow(r3).getCell(cc)); if(n!=null){val=n;break;} }
     if(val==null) continue;
     if(lab==='עלומים'&&ran.alumim==null)ran.alumim=val; else if(lab==='טרי לי'&&ran.treli==null)ran.treli=val;
-    else if(lab.indexOf('הפרש')===0&&ran.diff==null)ran.diff=val; else if(lab.indexOf('עד היום')>=0&&ran.balance==null){ ran.balance=((lab.indexOf('טרילי חייבים')>=0||lab.indexOf('טרי לי חייבים')>=0)?-val:val); } } }
+    else if(lab.indexOf('הפרש')===0&&ran.diff==null)ran.diff=val; }
+    // מאזן הסגירה שראן רשמו = השורה האחרונה בבלוק עם "חייב" (הניסוח משתנה מיום ליום)
+    for(var rb=Math.min(r0+7,ws.rowCount); rb>r0; rb--){ var lb=abTxt(ws.getRow(rb).getCell(c0)).trim(); if(lb.indexOf('חייב')<0) continue;
+      var vb=null; for(var cb=c0+1;cb<Math.min(c0+6,maxc+1);cb++){ var nb=abNum(ws.getRow(rb).getCell(cb)); if(nb!=null){vb=nb;break;} }
+      if(vb==null) continue; ran.balance=((lb.indexOf('טרילי חייבים')>=0||lb.indexOf('טרי לי חייבים')>=0)?-vb:vb); break; }
+  }
   // כותרות המוצרים (עמודות 9+), מדלגים על עמודות מטא/משטח/תעודת/סה"כ
   var meta=S.meta_headers||[], hrow=ws.getRow(hr), hdr={};
   for(var c=9;c<=maxc;c++){ var h=abTxt(hrow.getCell(c)).trim(); if(!h) continue;
@@ -1172,8 +1177,9 @@ function abDayDetail(iso){
     var rAl=(row.ran_alumim==null?0:row.ran_alumim), rTl=(row.ran_treli==null?0:row.ran_treli);
     ranCalc='<div style="margin-top:8px;padding:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px"><b>📋 החישוב של ראן (מתוך הדוח):</b><br>'
       +'ספירה יומית — עלומים: <b>'+abFmt(rAl)+'</b> · טרי לי: <b>'+abFmt(rTl)+'</b>'
-      +((e.ranOpen!=null||e.ranClose!=null)?('<br>מאזן ראן: פתיחה <b>'+(e.ranOpen!=null?abBalTxt(e.ranOpen):'—')+'</b> · סגירה <b>'+(e.ranClose!=null?abBalTxt(e.ranClose):'—')+'</b>'):'')
-      +'<br><span class="muted" style="font-size:12px">מאזן ראן משורשר מאותה נקודת התחלה לפי הספירה היומית שלהם (הפער מול המאזן שלנו = הצטברות טעויות הספירה של ראן). ההתראה נקבעת רק לפי הספירה היומית.</span>'
+      +(row.ran_balance!=null?('<br>מאזן סגירה כפי שראן רשמו בדוח: <b>'+abBalTxt(row.ran_balance)+'</b>'):'')
+      +((e.ranOpen!=null||e.ranClose!=null)?('<br>מאזן ראן מחושב (משורשר מ-48): פתיחה <b>'+(e.ranOpen!=null?abBalTxt(e.ranOpen):'—')+'</b> · סגירה <b>'+(e.ranClose!=null?abBalTxt(e.ranClose):'—')+'</b>'):'')
+      +'<br><span class="muted" style="font-size:12px">"כפי שראן רשמו" = המספר מהדוח שלהם (לפעמים מתקנים ידנית). "מחושב" = שרשור הספירה היומית של ראן מ-48. ההתראה נקבעת רק לפי הספירה היומית.</span>'
       +'</div>';
   }
   // סיכום ההחרגות (כולל פירוט), גם אם אין
