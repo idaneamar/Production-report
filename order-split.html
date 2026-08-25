@@ -1096,7 +1096,7 @@ function abCompute(){
     var mc=(row.manual_close!=null&&row.manual_close!=='')?(+row.manual_close):null;
     var close=(mc!=null)?mc:computed; bal=close;   // אם נקבע ידנית — ממשיכים ממנו
     var rA=abRaw(row.green), rT=abRaw(row.orange);   // ספירה גולמית (כל הצבעים) — להשוואה מול ראן
-    var mism=(!!row.file_path)&&((row.ran_alumim!=null&&Math.abs(rA-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(rT-row.ran_treli)>0.01));
+    var mism=(!!row.file_path)&&((row.ran_alumim!=null&&Math.abs(al-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(tl-row.ran_treli)>0.01));
     AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:close,computed:computed,manual:mc,row:row,mism:mism,rawA:rA,rawT:rT};
   });
 }
@@ -1157,8 +1157,8 @@ function abDayDetail(iso){
   var exl=[]; var seen={}; Object.keys(row.green||{}).concat(Object.keys(row.orange||{})).forEach(function(k){ if(seen[k])return; seen[k]=1; if(abExcluded(k)&&((row.green&&row.green[k])||(row.orange&&row.orange[k]))) exl.push(k); });
   var exclA=0,exclT=0; for(var ek in (row.green||{})) if(abExcluded(ek)) exclA+=row.green[ek]; for(var ek2 in (row.orange||{})) if(abExcluded(ek2)) exclT+=row.orange[ek2];
   var ranTxt = (!row.file_path) ? '<div class="muted" style="margin-top:6px">יום בסיס שהוזן ידנית — אין השוואה לראן.</div>' : (row.ran_alumim==null&&row.ran_treli==null) ? '<div class="muted" style="margin-top:6px">אין נתוני מאזן מראן בדוח הזה — לא בוצעה השוואה.</div>'
-    : ( e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ לא תואם לספירת ראן:</b><br>עלומים: הספירה שלנו '+abFmt(e.rawA)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(e.rawA-(row.ran_alumim||0))+')<br>טרי לי: הספירה שלנו '+abFmt(e.rawT)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(e.rawT-(row.ran_treli||0))+')</div>')
-    : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(e.rawA)+' / '+abFmt(e.rawT)+') תואמת לספירת ראן</div>' );
+    : ( e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ לא תואם לראן — ייתכן שראן טעו:</b><br>עלומים: הספירה שלנו '+abFmt(e.alum)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(e.alum-(row.ran_alumim||0))+')<br>טרי לי: הספירה שלנו '+abFmt(e.treli)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(e.treli-(row.ran_treli||0))+')</div>')
+    : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(e.alum)+' / '+abFmt(e.treli)+') תואמת לראן</div>' );
   var exclLine = (exclA||exclT) ? ('<div class="muted" style="margin-top:6px">מתוך זה הוחרג (לא נכנס למאזן): עלומים '+abFmt(exclA)+' · טרי לי '+abFmt(exclT)+'. <b>נספר למאזן: עלומים '+abFmt(e.alum)+' · טרי לי '+abFmt(e.treli)+'</b>.</div>') : '';
   var gap = ranTxt + exclLine;
   var h='<div class="card" style="margin-top:12px"><h3>'+heDate(iso)+(row.sheet_name?' · '+row.sheet_name:'')+'</h3>'
@@ -1166,7 +1166,7 @@ function abDayDetail(iso){
     +gap
     +(function(){
        var info=''; 
-       if(e.manual!=null && Math.abs(e.manual-e.computed)>0.001){ var d=e.computed-e.manual; var favor=d>0?'לטובת עלומים':'לטובת טרי לי'; info='<div class="muted" style="margin-top:4px;font-size:12px">🔒 מאזן זה נקבע ידנית. לפי החישוב שלנו היה אמור להיות <b>'+abBalTxt(e.computed)+'</b> (פער '+abFmt(Math.abs(d))+' '+favor+').</div>'; }
+       if(row.file_path && e.manual!=null && Math.abs(e.manual-e.computed)>0.001){ var d=e.computed-e.manual; var favor=d>0?'לטובת עלומים':'לטובת טרי לי'; info='<div class="muted" style="margin-top:4px;font-size:12px">🔒 מאזן זה נקבע ידנית. לפי החישוב שלנו היה אמור להיות <b>'+abBalTxt(e.computed)+'</b> (פער '+abFmt(Math.abs(d))+' '+favor+').</div>'; }
        var ctrl='<div class="row" style="gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><span class="muted">קיבוע מאזן סגירה ידני (המשך הספירה ימשיך ממנו):</span><input type="number" step="0.5" id="abMC" value="'+(e.manual!=null?e.manual:'')+'" placeholder="'+abFmt(e.computed)+'" style="width:120px"><button class="btn sec" onclick="abSetManualClose(\''+iso+'\')">שמור</button>'+(e.manual!=null?'<button class="btn sec" onclick="abClearManualClose(\''+iso+'\')">בטל קיבוע</button>':'')+'</div>';
        return info+ctrl;
      })()
