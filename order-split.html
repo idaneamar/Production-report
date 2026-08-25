@@ -1089,15 +1089,18 @@ function abClearManualClose(iso){ var el=document.getElementById('abMC'); if(el)
 function abRaw(obj){ var s=0; for(var k in obj) s+=obj[k]; return s; }
 function abCompute(){
   var sorted=AB_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:(a.report_date>b.report_date?1:0);});
-  var bal=AB_START; AB_SEQ={};
+  var bal=AB_START; AB_SEQ={}; var prevRan=null;
   sorted.forEach(function(row){
     var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2, open=bal;
     var computed=open+diff;
     var mc=(row.manual_close!=null&&row.manual_close!=='')?(+row.manual_close):null;
     var close=(mc!=null)?mc:computed; bal=close;   // אם נקבע ידנית — ממשיכים ממנו
     var rA=abRaw(row.green), rT=abRaw(row.orange);   // ספירה גולמית (כל הצבעים) — להשוואה מול ראן
+    // התראה רק על אי-התאמה בספירה היומית (לא על נקודות פתיחה/סגירה) — כדי שטעות של יום לא תיגרר
     var mism=(!!row.file_path)&&((row.ran_alumim!=null&&Math.abs(al-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(tl-row.ran_treli)>0.01));
-    AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:close,computed:computed,manual:mc,row:row,mism:mism,rawA:rA,rawT:rT};
+    var ranClose=(row.ran_balance!=null?row.ran_balance:null), ranOpen=prevRan;
+    AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:close,computed:computed,manual:mc,row:row,mism:mism,rawA:rA,rawT:rT,ranOpen:ranOpen,ranClose:ranClose};
+    if(row.ran_balance!=null) prevRan=row.ran_balance;
   });
 }
 function abRender(){
@@ -1165,7 +1168,8 @@ function abDayDetail(iso){
     var rAl=(row.ran_alumim==null?0:row.ran_alumim), rTl=(row.ran_treli==null?0:row.ran_treli);
     ranCalc='<div style="margin-top:8px;padding:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px"><b>📋 החישוב של ראן (מתוך הדוח):</b><br>'
       +'ספירה יומית — עלומים: <b>'+abFmt(rAl)+'</b> · טרי לי: <b>'+abFmt(rTl)+'</b>'
-      +(row.ran_balance!=null?('<br><span class="muted" style="font-size:12px">המאזן המצטבר שראן רשמו בדוח: '+abFmt(row.ran_balance)+' — בוקיפינג נפרד שלהם (נקודת פתיחה שונה משלנו), לא להשוואה ישירה למאזן שלנו.</span>'):'')
+      +((e.ranOpen!=null||e.ranClose!=null)?('<br>מאזן ראן: פתיחה <b>'+(e.ranOpen!=null?abFmt(e.ranOpen):'—')+'</b> · סגירה <b>'+(e.ranClose!=null?abFmt(e.ranClose):'—')+'</b>'):'')
+      +'<br><span class="muted" style="font-size:12px">המאזן של ראן הוא בוקיפינג נפרד (נקודת פתיחה שונה משלנו) — מוצג לידיעה בלבד. ההתראה נקבעת רק לפי הספירה היומית.</span>'
       +'</div>';
   }
   // סיכום ההחרגות (כולל פירוט), גם אם אין
