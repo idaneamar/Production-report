@@ -1160,7 +1160,16 @@ function abDayDetail(iso){
     : ( e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ לא תואם לראן — ייתכן שראן טעו:</b><br>עלומים: הספירה שלנו '+abFmt(e.alum)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(e.alum-(row.ran_alumim||0))+')<br>טרי לי: הספירה שלנו '+abFmt(e.treli)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(e.treli-(row.ran_treli||0))+')</div>')
     : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(e.alum)+' / '+abFmt(e.treli)+') תואמת לראן</div>' );
   // החישוב של ראן כפי שמופיע בדוח
-  var ranCalc = (row.file_path && (row.ran_alumim!=null||row.ran_treli!=null)) ? ('<div style="margin-top:8px;padding:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px"><b>📋 החישוב של ראן (מתוך הדוח):</b><br>עלומים: <b>'+abFmt(row.ran_alumim==null?0:row.ran_alumim)+'</b> · טרי לי: <b>'+abFmt(row.ran_treli==null?0:row.ran_treli)+'</b>'+(row.ran_diff!=null?' · הפרש: <b>'+(row.ran_diff>=0?'+':'')+abFmt(row.ran_diff)+'</b>':'')+(row.ran_balance!=null?' · מאזן שראן חישבו: <b>'+abFmt(row.ran_balance)+'</b>':'')+'</div>') : '';
+  var ranCalc='';
+  if(row.file_path && (row.ran_alumim!=null||row.ran_treli!=null)){
+    var rAl=(row.ran_alumim==null?0:row.ran_alumim), rTl=(row.ran_treli==null?0:row.ran_treli);
+    var rDiff=(rAl-rTl)/2, rClose=e.open+rDiff;
+    ranCalc='<div style="margin-top:8px;padding:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:6px"><b>📋 החישוב של ראן (מתוך הדוח):</b><br>'
+      +'עלומים: <b>'+abFmt(rAl)+'</b> · טרי לי: <b>'+abFmt(rTl)+'</b> · הפרש: <b>'+(rDiff>=0?'+':'')+abFmt(rDiff)+'</b><br>'
+      +'מאזן סגירה לפי ראן: <b>'+abBalTxt(rClose)+'</b>'
+      +(Math.abs(rClose-e.close)>0.001?(' <span class="muted">(לפי החישוב שלנו: '+abBalTxt(e.close)+')</span>'):' <span class="muted">(זהה לחישוב שלנו)</span>')
+      +'</div>';
+  }
   // סיכום ההחרגות (כולל פירוט), גם אם אין
   var exList=[]; Object.keys(row.green||{}).forEach(function(k){ if(abExcluded(k)&&row.green[k]) exList.push(k+' — עלומים '+abFmt(row.green[k])); }); Object.keys(row.orange||{}).forEach(function(k){ if(abExcluded(k)&&row.orange[k]) exList.push(k+' — טרי לי '+abFmt(row.orange[k])); });
   var exclBlock = row.file_path ? ('<div style="margin-top:8px;padding:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px"><b>🚫 סה"כ הוחרג מהחישוב:</b> עלומים '+abFmt(exclA)+' · טרי לי '+abFmt(exclT)+(exList.length?'<br><span class="muted" style="font-size:12px">'+exList.join(' · ')+'</span>':' <span class="muted">(אין פריטים מוחרגים ביום זה)</span>')+'</div>') : '';
