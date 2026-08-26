@@ -296,18 +296,20 @@ async function submitTracking(){
   var _ev=new Date(_mo); _ev.setDate(_ev.getDate()-1);
   var f2=function(x){ return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0'); };
   var evd=f2(_ev), mod=f2(_mo);
-  if(!confirm('לרשום '+rows.length+' נסיעות?\nערב/לילה → '+evd+' · בוקר למחרת → '+mod+'\n(רישום חוזר מחליף את הקודם)')) return;
+  if(!confirm('לרשום '+rows.length+' נסיעות?\nלילה → '+evd+' · בוקר+צהריים למחרת → '+mod+'\n(רישום חוזר מחליף את הקודם)')) return;
   let _s=null; try{_s=JSON.parse(localStorage.getItem('trelee_session'));}catch(e){}
   if(!_s){ alert('צריך להיות מחובר למערכת כדי לרשום למעקב'); return; }
   const H={'apikey':TRK_KEY,'Authorization':'Bearer '+_s.access_token,'Content-Type':'application/json'};
   try{
-    var MORN=encodeURIComponent('*בוקר*');
-    /* מוחקים רק את טביעת-הרגל של הסידור הזה */
-    let r=await fetch(TRK_URL+'?log_date=eq.'+evd+'&shift=not.ilike.'+MORN, {method:'DELETE', headers:H});
+    var MORN=encodeURIComponent('*בוקר*'), NOON=encodeURIComponent('*צהריים*');
+    /* מוחקים רק את טביעת-הרגל של הסידור הזה. בוקר+צהריים = יום המחרת (mod); לילה = evd */
+    let r=await fetch(TRK_URL+'?log_date=eq.'+evd+'&shift=not.ilike.'+MORN+'&shift=not.ilike.'+NOON, {method:'DELETE', headers:H});
     if(!r.ok) throw new Error('DELETE '+r.status);
     r=await fetch(TRK_URL+'?log_date=eq.'+mod+'&shift=ilike.'+MORN, {method:'DELETE', headers:H});
     if(!r.ok) throw new Error('DELETE2 '+r.status);
-    var out=rows.map(function(x){ var mo=/בוקר/.test(x.shift||''); return Object.assign({},x,{log_date: mo?mod:evd, shift: mo?'בוקר למחרת':x.shift}); });
+    r=await fetch(TRK_URL+'?log_date=eq.'+mod+'&shift=ilike.'+NOON, {method:'DELETE', headers:H});
+    if(!r.ok) throw new Error('DELETE3 '+r.status);
+    var out=rows.map(function(x){ var sh=x.shift||''; var nd=/בוקר/.test(sh)||/צהריים/.test(sh); return Object.assign({},x,{log_date: nd?mod:evd, shift: /בוקר/.test(sh)?'בוקר למחרת':sh}); });
     r=await fetch(TRK_URL, {method:'POST', headers:Object.assign({},H,{'Prefer':'return=minimal'}), body:JSON.stringify(out)});
     if(!r.ok) throw new Error('POST '+r.status);
     alert('✔ נרשם למעקב נהגים: '+rows.length+' נסיעות בתאריך '+date);

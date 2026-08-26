@@ -576,14 +576,15 @@ async function savePdf(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכ�
     const dr=document.getElementById('pr_dr_'+i).value.trim(), pl=document.getElementById('pr_pl_'+i).value.trim();
     if(!dr||!pl) return;
     var _sh=document.getElementById('pr_sh_'+i).value;
-    rows.push({log_date:(/בוקר/.test(_sh)?mod:evd), driver:dr, place:pl, shift:_sh,
+    rows.push({log_date:((/בוקר/.test(_sh)||/צהריים/.test(_sh))?mod:evd), driver:dr, place:pl, shift:_sh,
       truck:document.getElementById('pr_tr_'+i).value.trim(), pallets:parseFloat(document.getElementById('pr_pa_'+i).value)||0,
       note:document.getElementById('pr_no_'+i).value.trim(), source:'pdf'});
   });
   if(!rows.length){ alert('לא נבחרו נסיעות'); return; }
-  if(!confirm('לשמור '+rows.length+' נסיעות?\nערב/לילה → '+evd+' · בוקר למחרת → '+mod+'\n(רישום קודם יוחלף)')) return;
-  await sb('/driver_log?log_date=eq.'+evd+'&cancelled=is.false&shift=not.ilike.'+encodeURIComponent('*בוקר*'),{method:'DELETE'});
+  if(!confirm('לשמור '+rows.length+' נסיעות?\nלילה → '+evd+' · בוקר+צהריים למחרת → '+mod+'\n(רישום קודם יוחלף)')) return;
+  await sb('/driver_log?log_date=eq.'+evd+'&cancelled=is.false&shift=not.ilike.'+encodeURIComponent('*בוקר*')+'&shift=not.ilike.'+encodeURIComponent('*צהריים*'),{method:'DELETE'});
   await sb('/driver_log?log_date=eq.'+mod+'&cancelled=is.false&shift=ilike.'+encodeURIComponent('*בוקר*'),{method:'DELETE'});
+  await sb('/driver_log?log_date=eq.'+mod+'&cancelled=is.false&shift=ilike.'+encodeURIComponent('*צהריים*'),{method:'DELETE'});
   await sb('/driver_log',{method:'POST',body:JSON.stringify(rows)});
   if(LAST_PDF_FILE){
     try{
