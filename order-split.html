@@ -95,7 +95,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
    <div id="fileinfo" class="muted"></div></div>
   <div id="sheetbar" class="hidden" style="margin-top:10px;font-weight:600;color:var(--brand2)">יום / גיליון: <select id="sheetSel" style="width:auto"></select><span id="datewrap" class="hidden"> · תאריך: <select id="dateSel" style="width:auto"></select></span></div>
   <div id="msg"></div>
-  <div class="row"><label style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer"><input type="checkbox" id="summerChk" onchange="toggleSummer(this.checked)"> 🌞 מצב קיץ — אין מעבר סחורה</label> <button class="btn sec" id="ledgerBtn" onclick="addToLedger()">➕ הוסף מאזן ארגזים ליומן</button>
+  <div class="row"><button class="btn sec" id="ledgerBtn" onclick="addToLedger()">➕ הוסף מאזן ארגזים ליומן</button>
    <button class="btn sec" id="fruitBtn" onclick="addFruitFromDay()">🍐 הוסף משטחי פירות ליומן</button> <button class="btn sec" onclick="submitOrdersAl()">📊 רשום למעקב הזמנות</button>
    <button class="btn sec" onclick="exportXls()">⬇ ייצוא לאקסל</button>
    <button class="btn sec" onclick="exportForDrivers()">🚚 ייצוא לסידור נהגים</button>
@@ -548,7 +548,8 @@ function applySummerUI(v){
   if(lb) lb.style.display=v?'none':''; if(fb) fb.style.display=v?'none':'';
 }
 function toggleSummer(v){ S.summer_mode=!!v; saveSetLS(); applySummerUI(v); if(LAST&&LAST.sheet) runSheet(LAST.sheet); }
-setTimeout(function(){ try{ var c=document.getElementById('summerChk'); c.checked=!!S.summer_mode; applySummerUI(!!S.summer_mode); }catch(e){} },0);
+if(S.summer_mode){ S.summer_mode=false; try{saveSetLS();}catch(e){} }   // מצב קיץ הוסר — תמיד כבוי
+setTimeout(function(){ try{ applySummerUI(false); }catch(e){} },0);
 /* ---------- טעינה אוטומטית של הראן האחרון מהמייל ---------- */
 (async function autoLoadFromInbox(){
   try{
@@ -1013,7 +1014,60 @@ function abExcluded(h){
   if((AB_SET.exclusions||[]).indexOf(h)>=0) return true;         // הוחרג ידנית
   return abAutoExcluded(h);
 }
+function abIsNewFmt(ws){
+  var reg=false,nm=false;
+  try{ ws.getRow(1).eachCell({includeEmpty:false},function(c){var t=abTxt(c).trim(); if(t==='קו חלוקה')reg=true; if(t.indexOf('שם לקוח')>=0)nm=true;}); }catch(e){}
+  return reg&&nm;
+}
+function abParseNew(ws){
+  var wb=ws.workbook, maxc=ws.columnCount, regionCol=-1,nameCol=-1,supCol=-1, hdr={};
+  for(var c=1;c<=maxc;c++){ var h=abTxt(ws.getRow(1).getCell(c)).trim(); if(!h) continue;
+    if(h==='קו חלוקה'){regionCol=c;continue;} if(h.indexOf('שם לקוח')>=0){nameCol=c;continue;}
+    if(h.indexOf('מס. ספק')>=0||h==='מס ספק'||h==="מס' ספק"){supCol=c;continue;}
+    if(h.indexOf('קוד קו חלוקה')>=0||h.indexOf('מס. הזמנה')>=0||h==='הערה'||h==='כתובת'||h==='תאריך'||h==='אריזות'||h==='משטחים') continue;
+    hdr[c]=h; }
+  var ALU=(S.alumim_suppliers||['43181','43185']), USS=(S.us_suppliers||['44601']);
+  var green={}, orange={};
+  for(var r=2;r<=ws.rowCount;r++){ var row=ws.getRow(r);
+    var c1=abTxt(row.getCell(1)); if(c1.indexOf('Subtotal')>=0||c1.indexOf('Grand')>=0) continue;
+    var sup=supCol>0?abTxt(row.getCell(supCol)).trim():'';
+    for(var cc in hdr){ var cell=row.getCell(+cc); var v=abNum(cell); if(!v) continue;
+      var pr=abProducer(fillARGB(cell)); if(!pr){ pr=(ALU.indexOf(sup)>=0)?'alumim':((USS.indexOf(sup)>=0)?'us':null); }
+      if(pr==='alumim') green[hdr[cc]]=(green[hdr[cc]]||0)+v;
+      else if(pr==='us') orange[hdr[cc]]=(orange[hdr[cc]]||0)+v; }
+  }
+  // ספירת ראן (גולמי) מגיליון "ריכוז נתוני ספק" — סכום לפי מס' ספק
+  var ran={alumim:null,treli:null,diff:null,balance:null};
+  try{ var sup=wb.getWorksheet('ריכוז נתוני ספק');
+    if(sup){ var hcols={}; var hrow=sup.getRow(1);
+      for(var sc=2;sc<=sup.columnCount;sc++){ var hv=abTxt(hrow.getCell(sc)).trim(); if(hv&&hv!=='Total') hcols[sc]=hv; }
+      // שורת Total אחרונה
+      var totR=0; for(var sr=sup.rowCount;sr>=2;sr--){ if(abTxt(sup.getRow(sr).getCell(1)).indexOf('Total')>=0){ totR=sr; break; } }
+      if(totR){ var av=0,uv=0,any=false;
+        for(var sc2 in hcols){ var val=abNum(sup.getRow(totR).getCell(+sc2)); if(val==null) continue; any=true;
+          if(ALU.indexOf(hcols[sc2])>=0) av+=val; else if(USS.indexOf(hcols[sc2])>=0) uv+=val; }
+        if(any){ ran.alumim=av; ran.treli=uv; }
+      }
+    }
+  }catch(e){}
+  var grp=null;
+  try{ grp=wb.getWorksheet('ריכוז נתוני ספק לפי קבוצה'); }catch(e){}
+  if(grp){ var lr=0,lc=0;
+    for(var gr=1;gr<=grp.rowCount&&!lr;gr++){ for(var gc=1;gc<=grp.columnCount;gc++){ if(abTxt(grp.getRow(gr).getCell(gc)).indexOf('התחשבנות')>=0){lr=gr;lc=gc;break;} } }
+    if(lr){ for(var gr2=lr;gr2<Math.min(lr+8,grp.rowCount+1);gr2++){ var lab=abTxt(grp.getRow(gr2).getCell(lc)).trim(); var val=null;
+      for(var gcc=lc+1;gcc<Math.min(lc+5,grp.columnCount+1);gcc++){ var nn=abNum(grp.getRow(gr2).getCell(gcc)); if(nn!=null){val=nn;break;} }
+      if(val==null) continue;
+      if(lab.indexOf('הפרש')===0&&ran.diff==null)ran.diff=val; }
+      for(var gb=Math.min(lr+7,grp.rowCount);gb>lr;gb--){ var lbb=abTxt(grp.getRow(gb).getCell(lc)).trim(); if(lbb.indexOf('חייב')<0) continue;
+        var vb=null; for(var gcb=lc+1;gcb<Math.min(lc+5,grp.columnCount+1);gcb++){ var nb=abNum(grp.getRow(gb).getCell(gcb)); if(nb!=null){vb=nb;break;} }
+        if(vb==null) continue; ran.balance=((lbb.indexOf('טרילי חייבים')>=0||lbb.indexOf('טרי לי חייבים')>=0)?-vb:vb); break; }
+    }
+  }
+  var d=getReportDate(ws), iso='', m=d.match(/(\d\d)\/(\d\d)\/(\d{4})/); if(m) iso=m[3]+'-'+m[2]+'-'+m[1];
+  return {date:iso, green:green, orange:orange, ran:ran, sheet:ws.name, newFmt:true};
+}
 function abParse(ws){
+  if(abIsNewFmt(ws)) return abParseNew(ws);
   var hr=detectHeader(ws), maxc=ws.columnCount;
   // אימות שזה דוח ראן: חייבת להיות שורת "סה"כ עלומים"
   var rAl=0; for(var r=1;r<=ws.rowCount;r++){ if(abTxt(ws.getRow(r).getCell(7)).indexOf('סה"כ עלומים')>=0){ rAl=r; break; } }
@@ -1058,14 +1112,14 @@ async function abSaveCurrent(){
   try{
     var fpath=p.date+'.xlsx';
     if(AB_FILE){ await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+fpath,{method:'POST',headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token,'Content-Type':'application/octet-stream','x-upsert':'true'},body:await AB_FILE.arrayBuffer()}); }
-    var body={report_date:p.date,green:p.green,orange:p.orange,ran_alumim:p.ran.alumim,ran_treli:p.ran.treli,ran_diff:p.ran.diff,ran_balance:p.ran.balance,sheet_name:p.sheet,file_path:AB_FILE?fpath:null,file_name:AB_FILE?AB_FILE.name:null,uploaded_by:s.username||s.email||''};
+    var body={report_date:p.date,green:p.green,orange:p.orange,ran_alumim:p.ran.alumim,ran_treli:p.ran.treli,ran_diff:p.ran.diff,ran_balance:p.ran.balance,sheet_name:p.sheet,file_path:AB_FILE?fpath:null,file_name:AB_FILE?AB_FILE.name:null,uploaded_by:s.username||s.email||'',new_fmt:!!p.newFmt};
     var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
     if(!r.ok) throw new Error(r.status+' '+await r.text());
     alert('✔ נשמר למאזן: '+p.date); AB_MONTH=p.date.slice(0,7); abLoad();
   }catch(e){ alert('שגיאה: '+e.message); }
 }
 var AB_WB=null;
-function abHasBalance(ws){ if(!ws)return false; for(var r=1;r<=ws.rowCount;r++){ if(abTxt(ws.getRow(r).getCell(7)).indexOf('סה"כ עלומים')>=0) return true; } return false; }
+function abHasBalance(ws){ if(!ws)return false; if(abIsNewFmt(ws)) return true; for(var r=1;r<=ws.rowCount;r++){ if(abTxt(ws.getRow(r).getCell(7)).indexOf('סה"כ עלומים')>=0) return true; } return false; }
 async function abPickFile(inp){
   var f=inp.files&&inp.files[0]; if(!f) return;
   var msg=document.getElementById('abBackMsg'); msg.textContent='קורא: '+f.name+' ...';
@@ -1098,7 +1152,7 @@ async function abSavePicked(){
   try{
     var fpath=iso+'.xlsx';
     if(AB_WB._fileRef){ await fetch(ORD_SB+'/storage/v1/object/alumim-files/'+fpath,{method:'POST',headers:{'apikey':ORD_KEY,'Authorization':'Bearer '+s.access_token,'Content-Type':'application/octet-stream','x-upsert':'true'},body:await AB_WB._fileRef.arrayBuffer()}); }
-    var body={report_date:iso,green:p.green,orange:p.orange,ran_alumim:p.ran.alumim,ran_treli:p.ran.treli,ran_diff:p.ran.diff,ran_balance:p.ran.balance,sheet_name:p.sheet,file_path:fpath,file_name:AB_WB._fileName,uploaded_by:s.username||s.email||''};
+    var body={report_date:iso,green:p.green,orange:p.orange,ran_alumim:p.ran.alumim,ran_treli:p.ran.treli,ran_diff:p.ran.diff,ran_balance:p.ran.balance,sheet_name:p.sheet,file_path:fpath,file_name:AB_WB._fileName,uploaded_by:s.username||s.email||'',new_fmt:!!p.newFmt};
     var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)});
     if(!r.ok) throw new Error(r.status+' '+await r.text());
     alert('✔ נשמר למאזן: '+iso); AB_MONTH=iso.slice(0,7);
@@ -1143,7 +1197,8 @@ function abCompute(){
     var close=(mc!=null)?mc:computed; bal=close;   // אם נקבע ידנית — ממשיכים ממנו
     var rA=abRaw(row.green), rT=abRaw(row.orange);   // ספירה גולמית (כל הצבעים) — להשוואה מול ראן
     // התראה רק על אי-התאמה בספירה היומית (לא על נקודות פתיחה/סגירה) — כדי שטעות של יום לא תיגרר
-    var mism=(!!row.file_path)&&((row.ran_alumim!=null&&Math.abs(al-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(tl-row.ran_treli)>0.01));
+    var cmpA=row.new_fmt?rA:al, cmpT=row.new_fmt?rT:tl;   // פורמט חדש: השוואה גולמית מול ריכוז ראן
+    var mism=(!!row.file_path)&&((row.ran_alumim!=null&&Math.abs(cmpA-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(cmpT-row.ran_treli)>0.01));
     // מאזן ראן: משורשר מאותה נקודת התחלה, לפי הספירה היומית של ראן (עקבי ובר-השוואה)
     var ranOpen=ranBal, ranClose;
     if(mc!=null) ranClose=mc;                                   // ביום בסיס/קיבוע ידני — שני המאזנים מתעגנים
@@ -1210,8 +1265,9 @@ function abDayDetail(iso){
   var exl=[]; var seen={}; Object.keys(row.green||{}).concat(Object.keys(row.orange||{})).forEach(function(k){ if(seen[k])return; seen[k]=1; if(abExcluded(k)&&((row.green&&row.green[k])||(row.orange&&row.orange[k]))) exl.push(k); });
   var exclA=0,exclT=0; for(var ek in (row.green||{})) if(abExcluded(ek)) exclA+=row.green[ek]; for(var ek2 in (row.orange||{})) if(abExcluded(ek2)) exclT+=row.orange[ek2];
   var ranTxt = (!row.file_path) ? '<div class="muted" style="margin-top:6px">יום בסיס שהוזן ידנית — אין השוואה לראן.</div>' : (row.ran_alumim==null&&row.ran_treli==null) ? '<div class="muted" style="margin-top:6px">אין נתוני מאזן מראן בדוח הזה — לא בוצעה השוואה.</div>'
-    : ( e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ לא תואם לראן — ייתכן שראן טעו:</b><br>עלומים: הספירה שלנו '+abFmt(e.alum)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(e.alum-(row.ran_alumim||0))+')<br>טרי לי: הספירה שלנו '+abFmt(e.treli)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(e.treli-(row.ran_treli||0))+')</div>')
-    : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(e.alum)+' / '+abFmt(e.treli)+') תואמת לראן</div>' );
+    : (function(){ var cA=row.new_fmt?e.rawA:e.alum, cT=row.new_fmt?e.rawT:e.treli;
+        return e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ לא תואם לראן — ייתכן שראן טעו:</b><br>עלומים: הספירה שלנו '+abFmt(cA)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(cA-(row.ran_alumim||0))+')<br>טרי לי: הספירה שלנו '+abFmt(cT)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(cT-(row.ran_treli||0))+')</div>')
+        : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(cA)+' / '+abFmt(cT)+') תואמת לראן</div>'; })() );
   // החישוב של ראן כפי שמופיע בדוח
   var ranCalc='';
   if(row.file_path && (row.ran_alumim!=null||row.ran_treli!=null)){
