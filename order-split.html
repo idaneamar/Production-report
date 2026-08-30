@@ -718,29 +718,38 @@ function pickerCheckHtml(R){
   var m=combinedOurs(R);
   var regs=Object.keys(m).filter(function(rg){return (S.our_regions||[]).some(function(k){return rg.indexOf(k)>=0;});}).sort(function(a,b){return a.localeCompare(b,'he');});
   if(!regs.length) return '';
-  var gUs=0,gAl=0,gPal=0, body='', alt=0;
+  function RED(n){ return '<span style="color:#c0392b;font-weight:700">'+n+'</span>'; }
+  function BC(box,cart,white){ // ארגזים + קרטונים(אדום) = סה"כ
+    if(!box && !cart) return '—';
+    var rc = white ? ('<span style="color:#ffd7d0;font-weight:700">'+cart+'</span>') : RED(cart);
+    if(box && cart) return box+'+'+rc+'='+(box+cart);
+    if(cart) return rc;
+    return String(box);
+  }
+  var gUB=0,gUC=0,gAB=0,gAC=0,gPal=0, body='', alt=0;
   regs.forEach(function(reg){
     var custs=Object.keys(m[reg]).map(function(k){return m[reg][k];}).sort(function(a,b){return a.name.localeCompare(b.name,'he');});
-    var rUs=0,rAl=0,rPal=0,rows='';
+    var rUB=0,rUC=0,rAB=0,rAC=0,rPal=0,rows='';
     custs.forEach(function(c){
-      var usBox=0,alBox=0,units=0;
+      var usBox=0,usCart=0,alBox=0,alCart=0,units=0;
       for(var pk in c.prods){ var v=c.prods[pk];
-        if(!v.isCarton){ usBox+=v.us; alBox+=v.al; }
+        if(v.isCarton){ if(!v.isFruit){ usCart+=v.us; alCart+=v.al; } }
+        else { usBox+=v.us; alBox+=v.al; }
         if(!v.isFruit){ units+=v.us+v.al; }
       }
       var lim=palletLimitFor(c.name, S.pallet_limits||[], S.boxes_per_pallet||60);
       var pal=lim>0?Math.ceil(units/lim):0;
-      rUs+=usBox; rAl+=alBox; rPal+=pal;
-      rows+='<tr'+((alt++%2)?' style="background:#e9f1fa"':'')+'><td style="text-align:right">'+custDisp(c.name)+'</td><td>'+(usBox||'—')+'</td><td class="alcell">'+(alBox||'—')+'</td><td><b>'+(usBox+alBox)+'</b></td><td>'+(pal||'—')+'</td></tr>';
+      rUB+=usBox;rUC+=usCart;rAB+=alBox;rAC+=alCart;rPal+=pal;
+      rows+='<tr'+((alt++%2)?' style="background:#e9f1fa"':'')+'><td style="text-align:right">'+custDisp(c.name)+'</td><td>'+BC(usBox,usCart)+'</td><td class="alcell">'+BC(alBox,alCart)+'</td><td><b>'+BC(usBox+alBox,usCart+alCart)+'</b></td><td>'+(pal||'—')+'</td></tr>';
     });
-    gUs+=rUs; gAl+=rAl; gPal+=rPal;
-    body+='<tr style="background:#eef3f7;font-weight:700"><td style="text-align:right">'+esc(reg)+'</td><td>'+rUs+'</td><td>'+rAl+'</td><td>'+(rUs+rAl)+'</td><td>~'+rPal+'</td></tr>'+rows;
+    gUB+=rUB;gUC+=rUC;gAB+=rAB;gAC+=rAC;gPal+=rPal;
+    body+='<tr style="background:#eef3f7;font-weight:700"><td style="text-align:right">'+esc(reg)+'</td><td>'+BC(rUB,rUC)+'</td><td>'+BC(rAB,rAC)+'</td><td>'+BC(rUB+rAB,rUC+rAC)+'</td><td>~'+rPal+'</td></tr>'+rows;
   });
   return '<div class="card sec-prepare pgbreak"><h2>🧺 בדיקת מלקט — כמה ארגזים לכל לקוח (מאצלנו · מעלומים · סה"כ · משטחים)</h2>'
-    +'<p class="muted">לכל לקוח באזורים שלנו: כמה ארגזים ללקט מאצלנו, כמה מגיעים מעלומים, סה"כ ארגזים וסה"כ משטחים. שורת אזור מודגשת = סיכום האזור.</p>'
-    +'<table class="mini picktbl" style="min-width:70%"><thead><tr><th>לקוח / אזור</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ ארגזים</th><th>משטחים</th></tr></thead><tbody>'
+    +'<p class="muted">לכל לקוח באזורים שלנו: ארגזים ללקט מאצלנו, מעלומים, וסה"כ. <b style="color:#c0392b">קרטונים מסומנים באדום</b> ומחוברים לסה"כ (למשל 50+<span style="color:#c0392b">20</span>=70). אם אין קרטונים — מוצג רק מספר הארגזים. שורת אזור מודגשת = סיכום האזור.</p>'
+    +'<table class="mini picktbl" style="min-width:70%"><thead><tr><th>לקוח / אזור</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ (ארגזים+<span style="color:#ffd7d0">קרטונים</span>)</th><th>משטחים</th></tr></thead><tbody>'
     +body
-    +'<tr style="font-weight:800;background:var(--brand);color:#fff"><td style="text-align:right">סה"כ הכל</td><td>'+gUs+'</td><td>'+gAl+'</td><td>'+(gUs+gAl)+'</td><td>~'+gPal+'</td></tr>'
+    +'<tr style="font-weight:800;background:var(--brand);color:#fff"><td style="text-align:right">סה"כ הכל</td><td>'+BC(gUB,gUC,true)+'</td><td>'+BC(gAB,gAC,true)+'</td><td>'+BC(gUB+gAB,gUC+gAC,true)+'</td><td>~'+gPal+'</td></tr>'
     +'</tbody></table></div>';
 }
 /* טבלת מוצר × לקוח: לאילו לקוחות הולך כל מוצר וכמה ארגזים. חלק עליון=מלקטים אצלנו, תחתון=מעלומים */
