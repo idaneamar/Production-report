@@ -1063,7 +1063,12 @@ function abParseNew(ws){
         if(vb==null) continue; ran.balance=((lbb.indexOf('טרילי חייבים')>=0||lbb.indexOf('טרי לי חייבים')>=0)?-vb:vb); break; }
     }
   }
-  var d=getReportDate(ws), iso='', m=d.match(/(\d\d)\/(\d\d)\/(\d{4})/); if(m) iso=m[3]+'-'+m[2]+'-'+m[1];
+  // תאריך: התאריך האמיתי האחרון בעמודת התאריך (מדלגים על 01/01/88)
+  var iso='', dCol=-1;
+  for(var dc=1;dc<=maxc;dc++){ if(abTxt(ws.getRow(1).getCell(dc)).trim()==='תאריך'){ dCol=dc; break; } }
+  if(dCol>0){ var best='';
+    for(var dr=2;dr<=ws.rowCount;dr++){ var dv=abTxt(ws.getRow(dr).getCell(dCol)).trim(); var mm=dv.match(/(\d\d)\/(\d\d)\/(\d{2,4})/); if(!mm) continue; var y=mm[3].length===2?'20'+mm[3]:mm[3]; if(y==='2088'||y==='1988'||dv.indexOf('01/01/88')>=0) continue; var cand=y+'-'+mm[2]+'-'+mm[1]; if(cand>best) best=cand; }
+    iso=best; }
   return {date:iso, green:green, orange:orange, ran:ran, sheet:ws.name, newFmt:true};
 }
 function abParse(ws){
