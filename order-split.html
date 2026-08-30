@@ -820,12 +820,13 @@ function esc(s){ return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&l
 /* ---------- יומן מאזן ---------- */
 function addToLedger(){ if(!LAST){alert('קודם טען דוח');return;}
   const date=new Date().toLocaleDateString('he-IL');
-  const dup=LEDGER.entries.filter(e=>e.date===date&&e.sheet===LAST.sheet);
+  const skey=(LAST.newFmt&&LAST.reportDate)?(LAST.sheet+' · '+LAST.reportDate):LAST.sheet;   // פורמט חדש: להבחין לפי תאריך משלוח
+  const dup=LEDGER.entries.filter(e=>e.date===date&&e.sheet===skey);
   if(dup.length){
-    if(!confirm('כבר קיים רישום מאזן להיום ('+LAST.sheet+') — להחליף אותו בנתוני הדוח המעודכן?\n(כדי לא ליצור כפילות אחרי קובץ מתוקן)')) return;
-    LEDGER.entries=LEDGER.entries.filter(e=>!(e.date===date&&e.sheet===LAST.sheet));
+    if(!confirm('כבר קיים רישום מאזן ל'+skey+' — להחליף אותו בנתוני הדוח המעודכן?\n(כדי לא ליצור כפילות אחרי קובץ מתוקן)')) return;
+    LEDGER.entries=LEDGER.entries.filter(e=>!(e.date===date&&e.sheet===skey));
   }
-  LEDGER.entries.push({date:date,sheet:LAST.sheet,out:LAST.boxesOut,in:LAST.boxesIn,net:LAST.dailyNet});
+  LEDGER.entries.push({date:date,sheet:skey,out:LAST.boxesOut,in:LAST.boxesIn,net:LAST.dailyNet});
   saveLedger(); flash(dup.length?'המאזן של היום הוחלף ✓':'נוסף ליומן ✓ (מאזן ארגזים)'); renderLedger();
 }
 function addManual(){ const d=prompt('תאריך:',new Date().toLocaleDateString('he-IL')); if(d===null)return;
@@ -853,7 +854,7 @@ function exportLedger(){ let h='<html dir="rtl"><head><meta charset="utf-8"></he
 
 /* ---------- מעקב משטחי פירות ---------- */
 function addFruitFromDay(){ if(!LAST){alert('קודם טען דוח');return;}
-  const date=new Date().toLocaleDateString('he-IL');
+  const date=(LAST.newFmt&&LAST.reportDate)?LAST.reportDate:new Date().toLocaleDateString('he-IL');
   const p=prompt('כמות משטחי פירות לתאריך '+date+':', LAST.fruitPallets); if(p===null)return;
   const notes=prompt('הערות (לא חובה):','')||'';
   const dup=FRUIT.entries.filter(e=>e.date===date);
