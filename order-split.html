@@ -222,11 +222,31 @@ function cellText(cell) {
   if (typeof v === "object") { if ("result" in v) v = v.result; else if ("text" in v) v = v.text; else if ("richText" in v) v = v.richText.map(t => t.text).join(""); }
   return (v == null ? "" : String(v)).trim();
 }
+var THEME_PALETTE = null;
+function parseThemePalette(wb) {
+  try {
+    var xml = wb && wb.model && wb.model.themes && wb.model.themes.theme1;
+    if (!xml) return null; xml = String(xml);
+    var order = ['dk1','lt1','dk2','lt2','accent1','accent2','accent3','accent4','accent5','accent6'];
+    var pal = order.map(function (name) {
+      var m = xml.match(new RegExp('<a:' + name + '>([\\s\\S]*?)<\\/a:' + name + '>'));
+      if (!m) return null;
+      var sr = m[1].match(/srgbClr val="([0-9A-Fa-f]{6})"/);
+      var sy = m[1].match(/lastClr="([0-9A-Fa-f]{6})"/);
+      return (sr ? sr[1] : (sy ? sy[1] : null));
+    });
+    return pal.some(function (x) { return x; }) ? pal.map(function (x) { return x ? x.toUpperCase() : null; }) : null;
+  } catch (e) { return null; }
+}
 function fillARGB(cell) {
   const f = cell && cell.fill;
   if (!f || !f.fgColor) return null;
   if (f.fgColor.argb) return f.fgColor.argb.toUpperCase();
-  if (f.fgColor.theme != null) return 'THEME' + f.fgColor.theme; // צבע ערכת-נושא
+  if (f.fgColor.theme != null) {
+    // פענוח צבע ערכת-נושא ל-RGB אמיתי מהקובץ → זיהוי לפי גוון (כל גוון כתום/ירוק)
+    if (THEME_PALETTE && THEME_PALETTE[f.fgColor.theme]) return 'FF' + THEME_PALETTE[f.fgColor.theme];
+    return 'THEME' + f.fgColor.theme; // גיבוי אם לא הצלחנו לפענח
+  }
   return null;
 }
 function has(hay, needles) { hay = hay || ""; return needles.some(n => hay.indexOf(n) >= 0); }
@@ -284,6 +304,7 @@ function getColumns(ws, hr, S) {
 
 function process(ws, S, opts) {
   S = Object.assign({}, DEFAULT_SETTINGS, S || {});
+  try { var _tp = parseThemePalette(ws.workbook); if (_tp) THEME_PALETTE = _tp; } catch (e) {}
   opts = opts || {};
   const hr = detectHeader(ws);
   const { regionCol, nameCol, addrCol, supplierCol, dateCol, products, newFmt } = getColumns(ws, hr, S);
@@ -1020,7 +1041,9 @@ function abIsNewFmt(ws){
   return reg&&nm;
 }
 function abParseNew(ws){
-  var wb=ws.workbook, maxc=ws.columnCount, regionCol=-1,nameCol=-1,supCol=-1, hdr={};
+  var wb=ws.workbook;
+  try{ var _tp=parseThemePalette(wb); if(_tp) THEME_PALETTE=_tp; }catch(e){}
+  var maxc=ws.columnCount, regionCol=-1,nameCol=-1,supCol=-1, hdr={};
   for(var c=1;c<=maxc;c++){ var h=abTxt(ws.getRow(1).getCell(c)).trim(); if(!h) continue;
     if(h==='קו חלוקה'){regionCol=c;continue;} if(h.indexOf('שם לקוח')>=0){nameCol=c;continue;}
     if(h.indexOf('מס. ספק')>=0||h==='מס ספק'||h==="מס' ספק"){supCol=c;continue;}
@@ -1072,6 +1095,7 @@ function abParseNew(ws){
   return {date:iso, green:green, orange:orange, ran:ran, sheet:ws.name, newFmt:true};
 }
 function abParse(ws){
+  try{ var _tp=parseThemePalette(ws.workbook); if(_tp) THEME_PALETTE=_tp; }catch(e){}
   if(abIsNewFmt(ws)) return abParseNew(ws);
   var hr=detectHeader(ws), maxc=ws.columnCount;
   // אימות שזה דוח ראן: חייבת להיות שורת "סה"כ עלומים"
