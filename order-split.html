@@ -51,6 +51,7 @@ input,select{font-family:inherit;font-size:14px;padding:5px 7px;border:1px solid
 .sum2 td:first-child,.sum2 th:first-child{text-align:right;font-weight:600}
 .mini th{background:#eef3f7;font-size:12px;padding:4px 8px} .mini td{font-size:13px;padding:3px 8px}
 .picktbl th,.picktbl td,.matrix th,.matrix td{border:1.6px solid #64748b!important} .picktbl,.matrix{border:2px solid #334155!important}
+.picktbl tr.zeb>td{background:#bcd6f2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .alcell{background:var(--greenbg);font-weight:600}
 .it{display:flex;gap:8px;align-items:center;padding:2px 0 2px 0;font-size:13px}
 .it .q{font-weight:700;min-width:64px;display:inline-block}
@@ -740,7 +741,7 @@ function pickerCheckHtml(R){
       var lim=palletLimitFor(c.name, S.pallet_limits||[], S.boxes_per_pallet||60);
       var pal=lim>0?Math.ceil(units/lim):0;
       rUB+=usBox;rUC+=usCart;rAB+=alBox;rAC+=alCart;rPal+=pal;
-      rows+='<tr'+((alt++%2)?' style="background:#e9f1fa"':'')+'><td style="text-align:right">'+custDisp(c.name)+'</td><td>'+BC(usBox,usCart)+'</td><td class="alcell">'+BC(alBox,alCart)+'</td><td><b>'+BC(usBox+alBox,usCart+alCart)+'</b></td><td>'+(pal||'—')+'</td></tr>';
+      rows+='<tr'+((alt++%2)?' class="zeb"':'')+'><td style="text-align:right">'+custDisp(c.name)+'</td><td>'+BC(usBox,usCart)+'</td><td class="alcell">'+BC(alBox,alCart)+'</td><td><b>'+BC(usBox+alBox,usCart+alCart)+'</b></td><td>'+(pal||'—')+'</td></tr>';
     });
     gUB+=rUB;gUC+=rUC;gAB+=rAB;gAC+=rAC;gPal+=rPal;
     body+='<tr style="background:#eef3f7;font-weight:700"><td style="text-align:right">'+esc(reg)+'</td><td>'+BC(rUB,rUC)+'</td><td>'+BC(rAB,rAC)+'</td><td>'+BC(rUB+rAB,rUC+rAC)+'</td><td>~'+rPal+'</td></tr>'+rows;
