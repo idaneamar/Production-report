@@ -185,8 +185,8 @@ const DEFAULT_SETTINGS = {
   our_regions: ["מרכז 3", "צפון מזרח", "צפון מערב"],
   alumim_suppliers: ["43181", "43185"],   // מס' ספק = עלומים (פורמט חדש)
   us_suppliers: ["44601"],                // מס' ספק = טרי לי (פורמט חדש)
-  green_colors: ["FFC4D79B", "FF7CEB99", "THEME6"],   // עלומים מכינים (כולל צבע ערכת-נושא)
-  orange_colors: ["FFFABF8F", "THEME9"],              // אנחנו מכינים (כולל גוון ערכת-נושא)
+  green_colors: ["FFC4D79B", "FF7CEB99", "FF90EE90", "THEME6", "THEME9"],   // עלומים=ירוק (RGB + accent3/accent6 של ערכת-נושא)
+  orange_colors: ["FFFABF8F", "FFF8CBAD", "THEME5"],                       // טרי לי=כתום (RGB + accent2 של ערכת-נושא)
   carton_keywords: ["קרטון", "גזרונ"], // קרטונים שאינם פירות (לא נספרים בארגזים, כן במשטחים)
   fruit_keywords: ["אגס", "נקטרינ", "תפוז", "תפוע", "תפוח"], // פירות מעלומים (לא בארגזים ולא במשטחים)
   through_us_keys: ["טרי לי", "טרילי"], // "מעלומים לטרי לי ומשם ללקוח" = עובר דרכנו (מקבלים)
@@ -345,7 +345,7 @@ function process(ws, S, opts) {
       const qty = cellNum(cell);
       if (!qty || qty <= 0) continue;
       if (p.isDirect) continue; // עלומים שולח ישיר ללקוח — לא באחריותנו
-      const prod = p.fromAlumim ? "alumim" : (rowSup || producerOf(fillARGB(cell))); // פורמט חדש: לפי מס\' ספק, אחרת לפי צבע
+      const prod = p.fromAlumim ? "alumim" : (function(){ var pc=producerOf(fillARGB(cell)); return (pc!=="unknown")?pc:(rowSup||"unknown"); })(); // פורמט חדש: לפי מס\' ספק, אחרת לפי צבע
       if (prod === "unknown") { flags.push({ region, name, product: p.header, qty }); continue; }
       if (S.summer_mode) {
         // מצב קיץ: רק כתום=אנחנו (מכל האזורים), ירוק=עלומים בלבד. תא צבעוני אחר/ללא צבע — אזהרה
