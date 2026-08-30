@@ -727,21 +727,29 @@ function pickerCheckHtml(R){
     if(cart) return rc;
     return String(box);
   }
-  var gUB=0,gUC=0,gAB=0,gAC=0,gPal=0, body='', alt=0;
+  function baseName(n){ return n.replace(/\s*-?\s*לנדא\s*$/,'').trim(); }
+  var gUB=0,gUC=0,gAB=0,gAC=0,gPal=0, body='', alt=0, anyLanda=false;
   regs.forEach(function(reg){
-    var custs=Object.keys(m[reg]).map(function(k){return m[reg][k];}).sort(function(a,b){return a.name.localeCompare(b.name,'he');});
-    var rUB=0,rUC=0,rAB=0,rAC=0,rPal=0,rows='';
-    custs.forEach(function(c){
-      var usBox=0,usCart=0,alBox=0,alCart=0,units=0;
+    // מיזוג לקוח + הגרסה של "-לנדא" (אותו לקוח, כשרות לנדא) לשורה אחת
+    var merged={};
+    Object.keys(m[reg]).forEach(function(k){ var c=m[reg][k];
+      var bn=baseName(c.name), isL=(bn!==c.name);
+      var e=merged[bn]||(merged[bn]={name:bn,usBox:0,usCart:0,alBox:0,alCart:0,pal:0,landa:false});
+      if(isL){ e.landa=true; anyLanda=true; }
+      var u=0;
       for(var pk in c.prods){ var v=c.prods[pk];
-        if(v.isCarton){ if(!v.isFruit){ usCart+=v.us; alCart+=v.al; } }
-        else { usBox+=v.us; alBox+=v.al; }
-        if(!v.isFruit){ units+=v.us+v.al; }
+        if(v.isCarton){ if(!v.isFruit){ e.usCart+=v.us; e.alCart+=v.al; } }
+        else { e.usBox+=v.us; e.alBox+=v.al; }
+        if(!v.isFruit){ u+=v.us+v.al; }
       }
       var lim=palletLimitFor(c.name, S.pallet_limits||[], S.boxes_per_pallet||60);
-      var pal=lim>0?Math.ceil(units/lim):0;
-      rUB+=usBox;rUC+=usCart;rAB+=alBox;rAC+=alCart;rPal+=pal;
-      rows+='<tr'+((alt++%2)?' class="zeb"':'')+'><td style="text-align:right">'+custDisp(c.name)+'</td><td>'+BC(usBox,usCart)+'</td><td class="alcell">'+BC(alBox,alCart)+'</td><td><b>'+BC(usBox+alBox,usCart+alCart)+'</b></td><td>'+(pal||'—')+'</td></tr>';
+      e.pal += lim>0?Math.ceil(u/lim):0;   // משטחים בנפרד לכל כשרות (לנדא לא מתערבב)
+    });
+    var custs=Object.keys(merged).map(function(k){return merged[k];}).sort(function(a,b){return a.name.localeCompare(b.name,'he');});
+    var rUB=0,rUC=0,rAB=0,rAC=0,rPal=0,rows='';
+    custs.forEach(function(e){
+      rUB+=e.usBox;rUC+=e.usCart;rAB+=e.alBox;rAC+=e.alCart;rPal+=e.pal;
+      rows+='<tr'+((alt++%2)?' class="zeb"':'')+'><td style="text-align:right">'+custDisp(e.name)+(e.landa?' <b style="color:#c0392b">*</b>':'')+'</td><td>'+BC(e.usBox,e.usCart)+'</td><td class="alcell">'+BC(e.alBox,e.alCart)+'</td><td><b>'+BC(e.usBox+e.alBox,e.usCart+e.alCart)+'</b></td><td>'+(e.pal||'—')+'</td></tr>';
     });
     gUB+=rUB;gUC+=rUC;gAB+=rAB;gAC+=rAC;gPal+=rPal;
     body+='<tr style="background:#eef3f7;font-weight:700"><td style="text-align:right">'+esc(reg)+'</td><td>'+BC(rUB,rUC)+'</td><td>'+BC(rAB,rAC)+'</td><td>'+BC(rUB+rAB,rUC+rAC)+'</td><td>~'+rPal+'</td></tr>'+rows;
@@ -751,7 +759,7 @@ function pickerCheckHtml(R){
     +'<table class="mini picktbl" style="min-width:70%"><thead><tr><th>לקוח / אזור</th><th>מאצלנו</th><th>מעלומים</th><th>סה"כ</th><th>משטחים</th></tr></thead><tbody>'
     +body
     +'<tr style="font-weight:800;background:var(--brand);color:#fff"><td style="text-align:right">סה"כ הכל</td><td>'+BC(gUB,gUC,true)+'</td><td>'+BC(gAB,gAC,true)+'</td><td>'+BC(gUB+gAB,gUC+gAC,true)+'</td><td>~'+gPal+'</td></tr>'
-    +'</tbody></table></div>';
+    +'</tbody></table>'+(anyLanda?'<div class="muted" style="font-size:12px;margin-top:5px"><b style="color:#c0392b">*</b> לקוח שמוזג עם גרסת הכשרות שלו: חלק מההזמנה בכשרות <b>לנדא</b>.</div>':'')+'</div>';
 }
 /* טבלת מוצר × לקוח: לאילו לקוחות הולך כל מוצר וכמה ארגזים. חלק עליון=מלקטים אצלנו, תחתון=מעלומים */
 function prodCustMatrixHtml(R){ var m=combinedOurs(R);
