@@ -1267,7 +1267,7 @@ function abDayDetail(iso){
   var ranTxt = (!row.file_path) ? '<div class="muted" style="margin-top:6px">יום בסיס שהוזן ידנית — אין השוואה לראן.</div>' : (row.ran_alumim==null&&row.ran_treli==null) ? '<div class="muted" style="margin-top:6px">אין נתוני מאזן מראן בדוח הזה — לא בוצעה השוואה.</div>'
     : (function(){ var cA=row.new_fmt?e.rawA:e.alum, cT=row.new_fmt?e.rawT:e.treli;
         return e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ לא תואם לראן — ייתכן שראן טעו:</b><br>עלומים: הספירה שלנו '+abFmt(cA)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(cA-(row.ran_alumim||0))+')<br>טרי לי: הספירה שלנו '+abFmt(cT)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(cT-(row.ran_treli||0))+')</div>')
-        : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(cA)+' / '+abFmt(cT)+') תואמת לראן</div>'; })() );
+        : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(cA)+' / '+abFmt(cT)+') תואמת לראן</div>'; })();
   // החישוב של ראן כפי שמופיע בדוח
   var ranCalc='';
   if(row.file_path && (row.ran_alumim!=null||row.ran_treli!=null)){
