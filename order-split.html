@@ -717,7 +717,7 @@ function pickerCheckHtml(R){
   var m=combinedOurs(R);
   var regs=Object.keys(m).filter(function(rg){return (S.our_regions||[]).some(function(k){return rg.indexOf(k)>=0;});}).sort(function(a,b){return a.localeCompare(b,'he');});
   if(!regs.length) return '';
-  var gUs=0,gAl=0,gPal=0, body='';
+  var gUs=0,gAl=0,gPal=0, body='', alt=0;
   regs.forEach(function(reg){
     var custs=Object.keys(m[reg]).map(function(k){return m[reg][k];}).sort(function(a,b){return a.name.localeCompare(b.name,'he');});
     var rUs=0,rAl=0,rPal=0,rows='';
@@ -730,7 +730,7 @@ function pickerCheckHtml(R){
       var lim=palletLimitFor(c.name, S.pallet_limits||[], S.boxes_per_pallet||60);
       var pal=lim>0?Math.ceil(units/lim):0;
       rUs+=usBox; rAl+=alBox; rPal+=pal;
-      rows+='<tr><td style="text-align:right">'+custDisp(c.name)+'</td><td>'+(usBox||'—')+'</td><td class="alcell">'+(alBox||'—')+'</td><td><b>'+(usBox+alBox)+'</b></td><td>'+(pal||'—')+'</td></tr>';
+      rows+='<tr'+((alt++%2)?' style="background:#e9f1fa"':'')+'><td style="text-align:right">'+custDisp(c.name)+'</td><td>'+(usBox||'—')+'</td><td class="alcell">'+(alBox||'—')+'</td><td><b>'+(usBox+alBox)+'</b></td><td>'+(pal||'—')+'</td></tr>';
     });
     gUs+=rUs; gAl+=rAl; gPal+=rPal;
     body+='<tr style="background:#eef3f7;font-weight:700"><td style="text-align:right">'+esc(reg)+'</td><td>'+rUs+'</td><td>'+rAl+'</td><td>'+(rUs+rAl)+'</td><td>~'+rPal+'</td></tr>'+rows;
