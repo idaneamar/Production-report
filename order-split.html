@@ -770,20 +770,27 @@ function prodCustMatrixHtml(R){ var m=combinedOurs(R);
       if(v.al>0){ if(!seen[cn]){seen[cn]=1;custs.push(cn);} (alP[p]=alP[p]||{})[cn]=((alP[p]||{})[cn]||0)+v.al; } }); }); });
   custs.sort(function(a,b){return a.localeCompare(b,'he');});
   if(!custs.length) return '';
-  function colTotals(P){ var t={}; Object.keys(P).forEach(function(p){ custs.forEach(function(cn){ t[cn]=(t[cn]||0)+(P[p][cn]||0); }); }); return t; }
-  function section(title,P,cls){ var prods=Object.keys(P).sort(function(a,b){return a.localeCompare(b,'he');}); if(!prods.length) return '';
-    var h='<tr class="'+cls+'"><th>'+title+'</th>'+custs.map(function(){return '<th></th>';}).join('')+'<th></th></tr>';
-    prods.forEach(function(p,pi){ var rt=0; h+='<tr'+(pi%2?' class="zeb"':'')+'><td>'+esc(p)+'</td>';
-      custs.forEach(function(cn){ var q=P[p][cn]||0; rt+=q; h+='<td'+(q?'':' class="z"')+'>'+(q||'·')+'</td>'; });
-      h+='<td><b>'+rt+'</b></td></tr>'; });
-    var ct=colTotals(P); var gt=0;
-    h+='<tr style="font-weight:bold"><td>סה"כ</td>'+custs.map(function(cn){ gt+=ct[cn]||0; return '<td>'+(ct[cn]||'')+'</td>'; }).join('')+'<td>'+gt+'</td></tr>';
+  var CHUNK=12;  // לקוחות לעמוד — כדי שיכנס בהדפסה (נחות)
+  function fullRow(P,pp){ var t=0; custs.forEach(function(cn){t+=P[pp][cn]||0;}); return t; }
+  function colTot(P,cn){ var t=0; Object.keys(P).forEach(function(pp){t+=P[pp][cn]||0;}); return t; }
+  function grand(P){ var t=0; custs.forEach(function(cn){t+=colTot(P,cn);}); return t; }
+  function section(title,P,cls,sub){ var prods=Object.keys(P).sort(function(a,b){return a.localeCompare(b,'he');}); if(!prods.length) return '';
+    var h='<tr class="'+cls+'"><th>'+title+'</th>'+sub.map(function(){return '<th></th>';}).join('')+'<th></th></tr>';
+    prods.forEach(function(pp,pi){ h+='<tr'+(pi%2?' class="zeb"':'')+'><td>'+esc(pp)+'</td>';
+      sub.forEach(function(cn){ var q=P[pp][cn]||0; h+='<td'+(q?'':' class="z"')+'>'+(q||'·')+'</td>'; });
+      h+='<td><b>'+fullRow(P,pp)+'</b></td></tr>'; });
+    h+='<tr style="font-weight:bold"><td>סה"כ</td>'+sub.map(function(cn){ var ct=colTot(P,cn); return '<td>'+(ct||'')+'</td>'; }).join('')+'<td>'+grand(P)+'</td></tr>';
     return h; }
-  var header='<tr><th>מוצר \\ לקוח</th>'+custs.map(function(cn){return '<th class="rot">'+esc(cn)+'</th>';}).join('')+'<th>סה"כ</th></tr>';
-  var body=section('🟧 מלקטים אצלנו',ourP,'sec-prepare')+section('🟩 מעלומים',alP,'sec-receive');
-  return '<div class="card sec-prepare mx-print"><h2>🧩 מוצר × לקוח — מי מקבל מה (ארגזים)</h2>'
-    +'<p class="muted">לכל מוצר: לאילו לקוחות הוא הולך וכמה ארגזים. החלק העליון = מה שמלקטים אצלנו, התחתון = מה שמגיע מעלומים. (פירות לא נכללים — נספרים בנפרד.)</p>'
-    +'<div style="overflow-x:auto"><table class="matrix"><thead>'+header+'</thead><tbody>'+body+'</tbody></table></div></div>'; }
+  var chunks=[]; for(var i=0;i<custs.length;i+=CHUNK) chunks.push(custs.slice(i,i+CHUNK));
+  var out='';
+  chunks.forEach(function(sub,ci){
+    var header='<tr><th>מוצר \\ לקוח</th>'+sub.map(function(cn){return '<th class="rot">'+esc(cn)+'</th>';}).join('')+'<th>סה"כ</th></tr>';
+    var body=section('🟧 מלקטים אצלנו',ourP,'sec-prepare',sub)+section('🟩 מעלומים',alP,'sec-receive',sub);
+    out+='<div class="card sec-prepare mx-print"><h2>🧩 מוצר × לקוח — מי מקבל מה (ארגזים)'+(chunks.length>1?' — חלק '+(ci+1)+' מתוך '+chunks.length:'')+'</h2>'
+      +(ci===0?'<p class="muted">לכל מוצר: לאילו לקוחות הוא הולך וכמה ארגזים. עליון = מלקטים אצלנו, תחתון = מעלומים. עמודת "סה"כ" = סך המוצר לכל הלקוחות. (פירות לא נכללים.)'+(chunks.length>1?' <b>הטבלה מפוצלת ל-'+chunks.length+' עמודים כדי שתיכנס בהדפסה.</b>':'')+'</p>':'<p class="muted" style="margin:0 0 4px">המשך — חלק '+(ci+1)+' מתוך '+chunks.length+'.</p>')
+      +'<div style="overflow-x:auto"><table class="matrix"><thead>'+header+'</thead><tbody>'+body+'</tbody></table></div></div>';
+  });
+  return out; }
 function lineProducts(R){ var m=combinedOurs(R); var out={};
   Object.keys(m).forEach(function(reg){ var prod={};
     Object.keys(m[reg]).forEach(function(ck){ var c=m[reg][ck];
