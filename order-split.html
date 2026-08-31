@@ -356,8 +356,8 @@ function process(ws, S, opts) {
       const c1 = cellText(row.getCell(1));
       if (c1.indexOf("Subtotal") >= 0 || c1.indexOf("Grand") >= 0) continue;   // שורות סיכום
       const supv = supplierCol > 0 ? cellText(row.getCell(supplierCol)) : "";
-      if (!supv) continue;                                                      // אין ספק = [No Order]
-      if (opts.date && dateCol > 0 && cellText(row.getCell(dateCol)).trim() !== opts.date) continue;
+      // לא מדלגים על שורות בלי ספק — הצבע קובע (שורות [No Order] צבועות כן נספרות). תאים ריקים נופלים בבדיקת qty.
+      if (opts.date && dateCol > 0 && supv && cellText(row.getCell(dateCol)).trim() !== opts.date) continue;
       rowSup = supProducer(supv);
     }
     regionsSeen.add(region);
@@ -561,7 +561,7 @@ function buildDateSel(name){
   var dates=Object.keys(set).sort(function(a,b){ return toIsoD(a)<toIsoD(b)?-1:1; });
   if(!dates.length){ wrap.classList.add('hidden'); dsel.innerHTML=''; return; }
   dsel.innerHTML='<option value="">כל התאריכים</option>'+dates.map(function(d){return '<option value="'+esc(d)+'">'+esc(d)+' ('+set[d]+' הזמנות)</option>';}).join('');
-  dsel.value = dates[dates.length-1];   // ברירת מחדל: התאריך האחרון (יום המשלוח)
+  dsel.value = "";   // ברירת מחדל: כל התאריכים (הקובץ כולו = יום משלוח אחד)
   wrap.classList.remove('hidden');
   dsel.onchange=function(){ runSheet(name); };
 }
