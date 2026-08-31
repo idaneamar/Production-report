@@ -1369,7 +1369,8 @@ function abDayDetail(iso){
   var exList=[]; Object.keys(row.green||{}).forEach(function(k){ if(abExcluded(k)&&row.green[k]) exList.push(k+' — עלומים '+abFmt(row.green[k])); }); Object.keys(row.orange||{}).forEach(function(k){ if(abExcluded(k)&&row.orange[k]) exList.push(k+' — טרי לי '+abFmt(row.orange[k])); });
   var exclBlock = row.file_path ? ('<div style="margin-top:8px;padding:8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px"><b>🚫 סה"כ הוחרג מהחישוב:</b> עלומים '+abFmt(exclA)+' · טרי לי '+abFmt(exclT)+(exList.length?'<br><span class="muted" style="font-size:12px">'+exList.join(' · ')+'</span>':' <span class="muted">(אין פריטים מוחרגים ביום זה)</span>')+'</div>') : '';
   var countedLine = row.file_path ? ('<div style="margin-top:6px"><b>✅ נספר למאזן (אחרי החרגה): עלומים '+abFmt(e.alum)+' · טרי לי '+abFmt(e.treli)+'</b></div>') : '';
-  var gap = ranTxt + ranCalc + exclBlock + countedLine;
+  var noteBox = row.note ? ('<div style="margin-top:8px;padding:9px 12px;background:#fff8e1;border:1px solid #f0c36d;border-radius:8px;font-weight:600">📌 '+esc(row.note)+'</div>') : '';
+  var gap = noteBox + ranTxt + ranCalc + exclBlock + countedLine;
   var h='<div class="card" style="margin-top:12px"><h3>'+heDate(iso)+(row.sheet_name?' · '+row.sheet_name:'')+'</h3>'
     +'<div class="row" style="gap:22px;flex-wrap:wrap"><div>מאזן פתיחה: <b>'+abBalTxt(e.open)+'</b></div><div>עלומים: <b>'+abFmt(e.alum)+'</b></div><div>טרי לי: <b>'+abFmt(e.treli)+'</b></div><div>הפרש: <b>'+(e.diff>=0?'+':'')+abFmt(e.diff)+'</b></div><div>מאזן סגירה: <b>'+abBalTxt(e.close)+'</b></div></div>'
     +gap
