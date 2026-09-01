@@ -640,18 +640,22 @@ function render(R){
     h='<div class="card"><h2>סיכום היום</h2>'
      +'<div style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:10px 14px;font-weight:600">🌞 מצב קיץ פעיל — אין מעבר סחורה: <b>כתום = אנחנו מכינים ומוציאים</b> (כל האזורים), <b>ירוק = עלומים מכינים ומוציאים</b>. אין תנועות מאזן ארגזים ומשטחי פירות.</div></div>';
   } else {
-  var _adj=R.adjustOut||0, _effOut=R.boxesOut+_adj, _effNet=_effOut-R.boxesIn;
+  var _adj=R.adjustOut||0, _adjIn=R.adjustIn||0, _effOut=R.boxesOut+_adj, _effIn=R.boxesIn+_adjIn, _effNet=_effOut-_effIn;
   var _outLbl=_adj?(_effOut+' <span style="font-size:12px;color:#94a3b8;font-weight:600">(מקורי '+R.boxesOut+(_adj>0?' +':' ')+_adj+')</span>'):(''+_effOut);
+  var _inLbl=_adjIn?(_effIn+' <span style="font-size:12px;color:#94a3b8;font-weight:600">(מקורי '+R.boxesIn+(_adjIn>0?' +':' ')+_adjIn+')</span>'):(''+_effIn);
   h='<div class="card"><h2>סיכום היום</h2><div class="tot">'
    +tile(_outLbl,'ארגזים לשלוח לעלומים','var(--brand)')
-   +tile(R.boxesIn,'ארגזים לקבל מעלומים','var(--green)')
+   +tile(_inLbl,'ארגזים לקבל מעלומים','var(--green)')
    +tile(R.cartonsIn,'קרטונים לקבל מעלומים','var(--green)')
    +tile((_effNet>=0?'+':'')+_effNet,'מאזן נטו היום',_effNet>=0?'var(--green)':'var(--orange)')
    +tile(R.fruitPallets,'משטחי פירות (היום)','var(--orange)')+'</div>'
-   +'<div class="muted" style="margin-top:8px">✏️ התאמת שליחה ידנית (סיכום מו"מ מול ראן): '
-     +'<input id="adjOut" type="number" value="'+_adj+'" style="width:90px;padding:3px 6px" onchange="setAdjustOut(this.value)"> ארגזים '
-     +'<input id="adjNote" type="text" placeholder="הערה (למשל: 148 במקום 183 של ה-100 גר\')" value="'+esc(R.adjustNote||'')+'" style="width:300px;padding:3px 6px" onchange="if(LAST)LAST.adjustNote=this.value"> '
-     +'<span style="color:#94a3b8">(מספר שלילי מפחית מהשליחה — נכנס גם למאזן וגם ליומן)</span></div>'
+   +'<div class="muted" style="margin-top:8px">✏️ התאמת שליחה (מה ששולחים לעלומים): '
+     +'<input id="adjOut" type="number" value="'+_adj+'" style="width:80px;padding:3px 6px" onchange="setAdjustOut(this.value)"> ארגזים '
+     +'<input id="adjNote" type="text" placeholder="הערה (למשל: 148 במקום 183 של ה-100 גר\')" value="'+esc(R.adjustNote||'')+'" style="width:280px;padding:3px 6px" onchange="if(LAST)LAST.adjustNote=this.value"></div>'
+   +'<div class="muted" style="margin-top:6px">✏️ התאמת קבלה (מה שמקבלים מעלומים): '
+     +'<input id="adjIn" type="number" value="'+_adjIn+'" style="width:80px;padding:3px 6px" onchange="setAdjustIn(this.value)"> ארגזים '
+     +'<input id="adjInNote" type="text" placeholder="הערה" value="'+esc(R.adjustInNote||'')+'" style="width:280px;padding:3px 6px" onchange="if(LAST)LAST.adjustInNote=this.value"> '
+     +'<span style="color:#94a3b8">(מספר שלילי מפחית — נכנס גם למאזן וגם ליומן)</span></div>'
    +'<div class="muted">נטו חיובי = עלומים חייבים לנו ארגזים. את מספר משטחי הפירות של היום אפשר להוסיף ליומן "מעקב משטחי פירות".</div></div>';
   }
   h+=kosherLegendHtml();               // טבלת כשרויות (אחרי סיכום היום)
@@ -904,6 +908,7 @@ function esc(s){ return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&l
 
 /* ---------- יומן מאזן ---------- */
 function setAdjustOut(v){ if(!LAST)return; var n=document.getElementById('adjNote'); if(n)LAST.adjustNote=n.value; LAST.adjustOut=parseFloat(v)||0; render(LAST); }
+function setAdjustIn(v){ if(!LAST)return; var n=document.getElementById('adjInNote'); if(n)LAST.adjustInNote=n.value; LAST.adjustIn=parseFloat(v)||0; render(LAST); }
 function addToLedger(){ if(!LAST){alert('קודם טען דוח');return;}
   const date=new Date().toLocaleDateString('he-IL');
   const skey=(LAST.newFmt&&LAST.reportDate)?(LAST.sheet+' · '+LAST.reportDate):LAST.sheet;   // פורמט חדש: להבחין לפי תאריך משלוח
@@ -912,8 +917,9 @@ function addToLedger(){ if(!LAST){alert('קודם טען דוח');return;}
     if(!confirm('כבר קיים רישום מאזן ל'+skey+' — להחליף אותו בנתוני הדוח המעודכן?\n(כדי לא ליצור כפילות אחרי קובץ מתוקן)')) return;
     LEDGER.entries=LEDGER.entries.filter(e=>!(e.date===date&&e.sheet===skey));
   }
-  var _a=LAST.adjustOut||0, _eO=LAST.boxesOut+_a, _eN=_eO-LAST.boxesIn;
-  LEDGER.entries.push({date:date,sheet:skey,out:_eO,in:LAST.boxesIn,net:_eN,adj:_a,note:(LAST.adjustNote||'')});
+  var _a=LAST.adjustOut||0, _aI=LAST.adjustIn||0, _eO=LAST.boxesOut+_a, _eI=LAST.boxesIn+_aI, _eN=_eO-_eI;
+  var _nt=[(LAST.adjustNote||''),(LAST.adjustInNote?'קבלה: '+LAST.adjustInNote:'')].filter(Boolean).join(' · ');
+  LEDGER.entries.push({date:date,sheet:skey,out:_eO,in:_eI,net:_eN,adj:_a,adjIn:_aI,note:_nt});
   saveLedger(); flash(dup.length?'המאזן של היום הוחלף ✓':'נוסף ליומן ✓ (מאזן ארגזים)'); renderLedger();
 }
 function addManual(){ const d=prompt('תאריך:',new Date().toLocaleDateString('he-IL')); if(d===null)return;
