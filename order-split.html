@@ -1131,14 +1131,18 @@ function abParseNew(ws){
     }
   }catch(e){}
   var grp=null;
-  try{ grp=wb.getWorksheet('ריכוז נתוני ספק לפי קבוצה'); }catch(e){}
+  try{ var _cand=['ריכוז נתוני ספק','ריכוז נתוני ספק לפי קבוצה'];
+    for(var _ci=0;_ci<_cand.length;_ci++){ var _gg=wb.getWorksheet(_cand[_ci]); if(!_gg) continue; var _f=false;
+      for(var _rr=1;_rr<=_gg.rowCount&&!_f;_rr++){ for(var _cc=1;_cc<=_gg.columnCount;_cc++){ if(abTxt(_gg.getRow(_rr).getCell(_cc)).indexOf('התחשבנות')>=0){ _f=true; break; } } }
+      if(_f){ grp=_gg; break; } }
+  }catch(e){}
   if(grp){ var lr=0,lc=0;
     for(var gr=1;gr<=grp.rowCount&&!lr;gr++){ for(var gc=1;gc<=grp.columnCount;gc++){ if(abTxt(grp.getRow(gr).getCell(gc)).indexOf('התחשבנות')>=0){lr=gr;lc=gc;break;} } }
     if(lr){ for(var gr2=lr;gr2<Math.min(lr+8,grp.rowCount+1);gr2++){ var lab=abTxt(grp.getRow(gr2).getCell(lc)).trim(); var val=null;
       for(var gcc=lc+1;gcc<Math.min(lc+5,grp.columnCount+1);gcc++){ var nn=abNum(grp.getRow(gr2).getCell(gcc)); if(nn!=null){val=nn;break;} }
       if(val==null) continue;
-      if(lab.indexOf('הפרש')===0&&ran.diff==null)ran.diff=val; }
-      for(var gb=Math.min(lr+7,grp.rowCount);gb>lr;gb--){ var lbb=abTxt(grp.getRow(gb).getCell(lc)).trim(); if(lbb.indexOf('חייב')<0) continue;
+      if(lab==='עלומים')ran.alumim=val; else if(lab==='טרי לי')ran.treli=val; else if(lab.indexOf('הפרש')===0&&ran.diff==null)ran.diff=val; }
+      for(var gb=Math.min(lr+7,grp.rowCount);gb>lr;gb--){ var lbb=abTxt(grp.getRow(gb).getCell(lc)).trim(); if(lbb.indexOf('חייב')<0||lbb.indexOf('מאתמול')>=0) continue;
         var vb=null; for(var gcb=lc+1;gcb<Math.min(lc+5,grp.columnCount+1);gcb++){ var nb=abNum(grp.getRow(gb).getCell(gcb)); if(nb!=null){vb=nb;break;} }
         if(vb==null) continue; ran.balance=((lbb.indexOf('טרילי חייבים')>=0||lbb.indexOf('טרי לי חייבים')>=0)?-vb:vb); break; }
     }
@@ -1283,7 +1287,7 @@ function abCompute(){
     var close=(mc!=null)?mc:computed; bal=close;   // אם נקבע ידנית — ממשיכים ממנו
     var rA=abRaw(row.green), rT=abRaw(row.orange);   // ספירה גולמית (כל הצבעים) — להשוואה מול ראן
     // התראה רק על אי-התאמה בספירה היומית (לא על נקודות פתיחה/סגירה) — כדי שטעות של יום לא תיגרר
-    var cmpA=row.new_fmt?rA:al, cmpT=row.new_fmt?rT:tl;   // פורמט חדש: השוואה גולמית מול ריכוז ראן
+    var cmpA=al, cmpT=tl;   // השוואה נטו (אחרי החרגות) מול בלוק ההתחשבנות של ראן
     var mism=(!!row.file_path)&&((row.ran_alumim!=null&&Math.abs(cmpA-row.ran_alumim)>0.01)||(row.ran_treli!=null&&Math.abs(cmpT-row.ran_treli)>0.01));
     // מאזן ראן: משורשר מאותה נקודת התחלה, לפי הספירה היומית של ראן (עקבי ובר-השוואה)
     var ranOpen=ranBal, ranClose;
@@ -1351,7 +1355,7 @@ function abDayDetail(iso){
   var exl=[]; var seen={}; Object.keys(row.green||{}).concat(Object.keys(row.orange||{})).forEach(function(k){ if(seen[k])return; seen[k]=1; if(abExcluded(k)&&((row.green&&row.green[k])||(row.orange&&row.orange[k]))) exl.push(k); });
   var exclA=0,exclT=0; for(var ek in (row.green||{})) if(abExcluded(ek)) exclA+=row.green[ek]; for(var ek2 in (row.orange||{})) if(abExcluded(ek2)) exclT+=row.orange[ek2];
   var ranTxt = (!row.file_path) ? '<div class="muted" style="margin-top:6px">יום בסיס שהוזן ידנית — אין השוואה לראן.</div>' : (row.ran_alumim==null&&row.ran_treli==null) ? '<div class="muted" style="margin-top:6px">אין נתוני מאזן מראן בדוח הזה — לא בוצעה השוואה.</div>'
-    : (function(){ var cA=row.new_fmt?e.rawA:e.alum, cT=row.new_fmt?e.rawT:e.treli;
+    : (function(){ var cA=e.alum, cT=e.treli;
         return e.mism ? ('<div class="warn" style="margin-top:6px"><b>⚠ לא תואם לראן — ייתכן שראן טעו:</b><br>עלומים: הספירה שלנו '+abFmt(cA)+' · ראן '+abFmt(row.ran_alumim==null?0:row.ran_alumim)+' (פער '+abFmt(cA-(row.ran_alumim||0))+')<br>טרי לי: הספירה שלנו '+abFmt(cT)+' · ראן '+abFmt(row.ran_treli==null?0:row.ran_treli)+' (פער '+abFmt(cT-(row.ran_treli||0))+')</div>')
         : '<div style="color:#166534;margin-top:6px">✓ הספירה שלנו ('+abFmt(cA)+' / '+abFmt(cT)+') תואמת לראן</div>'; })();
   // החישוב של ראן כפי שמופיע בדוח
