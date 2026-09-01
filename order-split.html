@@ -294,7 +294,7 @@ function getColumns(ws, hr, S) {
     if (nameCol < 0 && h.indexOf("קיטרינג") >= 0) { nameCol = c; continue; }
     if (addrCol < 0 && h.indexOf("כתובת") >= 0) { addrCol = c; continue; }
     if (has(h, S.meta_headers)) continue; // עמודות מטא (כולל 'מספר משטחים', תאריכים, מובילים)
-    var isFruit = has(h, S.fruit_keywords);
+    var isFruit = has(h, S.fruit_keywords) && h.indexOf("תפוח אדמה") < 0;   // "תפוח אדמה" = ירק, לא פרי
     var isCarton = has(h, S.carton_keywords) || isFruit; // פרי תמיד לא-ארגז
     var fromAlumim = h.indexOf("מעלומים") >= 0;          // עמודה שמסומנת מפורשות "מעלומים"
     var throughUs = (S.through_us_keys || []).some(function (k) { return h.indexOf(k) >= 0; });
@@ -1083,7 +1083,7 @@ function abTxt(cell){ var v=cell&&cell.value; if(v==null)return ''; if(typeof v=
 function abNum(cell){ var v=cell&&cell.value; if(v&&typeof v==='object'&&v.result!=null)v=v.result; return typeof v==='number'?v:null; }
 function abAutoExcluded(h){
   if(h.indexOf('80 גר')>=0 && h.indexOf('בד')>=0) return true;   // 80 גר' בד"ץ
-  if(has(h,S.fruit_keywords||[])) return true;                    // פירות
+  if(has(h,S.fruit_keywords||[]) && h.indexOf("תפוח אדמה")<0) return true;   // פירות (תפוח אדמה=ירק, לא פרי)
   if(h.indexOf('גזרונ')>=0) return true;                          // גזרונים
   return false;
 }
