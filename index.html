@@ -587,7 +587,10 @@ function pickerCheckHtml(results){
   if(!results || !results.length) return '';
   var tp=0, tb=0;
   var rows='';
-  results.forEach(function(r){
+  // מיון: לקוחות של נסיעת הערב קודם, אחריהם כל השאר (מיון יציב לפי הסדר המקורי)
+  var evRank=function(c){ var m=metaFor(c); var b=(m&&m.b)||''; return (b.indexOf('ערב')>=0)?0:1; };
+  var ordered=results.map(function(r,i){return {r:r,i:i};}).sort(function(a,b){ return evRank(a.r.cust)-evRank(b.r.cust) || a.i-b.i; }).map(function(x){return x.r;});
+  ordered.forEach(function(r){
     var pm=new Map(), tmap=new Map(), bags=0;
     r.shipments.forEach(function(s){
       (s.agg.parts||[]).forEach(function(pt){
