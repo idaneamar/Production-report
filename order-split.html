@@ -124,7 +124,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
  <div class="card"><h2>מאזן ארגזים מול עלומים</h2>
   <p class="muted">מאזן חיובי = עלומים חייבים לנו ארגזים. שלילי = אנחנו חייבים להם. "שלחנו" = ארגזים שלנו שהלכו אליהם; "קיבלנו" = ארגזים שלהם שאצלנו.</p>
   <div class="row">מאזן פתיחה (ארגזים): <input id="opening" type="number" style="width:110px" onchange="saveLedger();bxRender()" value="0">
-   <button class="btn sec" onclick="bxAddManual()">+ רשומה ידנית</button>
+   <button class="btn sec" onclick="openAddRow('bx')">+ רשומה ידנית</button>
    <button class="btn sec" onclick="bxExportXls()">⬇ ייצוא יומן</button></div>
   <div id="ledgerTotals" class="tot"></div>
   <div id="ledgerTbl"></div>
@@ -1479,7 +1479,7 @@ function abTableHtml(){
       +'<td class="abro"><button class="btn sec" style="padding:2px 8px" onclick="abDelRow(\''+d+'\')" title="מחק רשומה">✕</button></td>'
       +'</tr>';
   });
-  return '<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">📊 טבלת מאזן (סגנון אקסל)</h2><span><button class="btn sec" onclick="abAddManual()">+ שורה ידנית</button> <button class="btn sec" onclick="abExportXls()">⬇ ייצוא לאקסל</button></span></div>'
+  return '<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">📊 טבלת מאזן (סגנון אקסל)</h2><span><button class="btn sec" onclick="openAddRow(\'ab\')">+ שורה ידנית</button> <button class="btn sec" onclick="abExportXls()">⬇ ייצוא לאקסל</button></span></div>'
     +'<p class="muted">מתמלאת אוטומטית מכל דוח שמעלים. אפשר לתקן ידנית את הייצור (עלומים/טרי לי) או את מאזן הסגירה — התיקון נדרס, נשמר לענן, וכל המאזנים שאחריו מתחשבים מחדש. חיובי = עלומים חייבים לטרי לי.</p>'
     +'<table class="abtbl"><thead><tr><th>תאריך</th><th>מאזן פתיחה</th><th>ייצור עלומים</th><th>ייצור טרי לי</th><th>הפרש</th><th>חלקי 2</th><th>מאזן סגירה</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
@@ -1511,6 +1511,43 @@ async function abAddManual(){
   try{ var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); if(!r.ok) throw new Error(r.status+' '+await r.text()); AB_MONTH=iso.slice(0,7); abLoad(); }
   catch(e){ alert('שגיאה: '+e.message); }
 }
+function openAddRow(kind){
+  if(!ordSession()){ alert('צריך להיות מחובר'); return; }
+  var m=document.getElementById('addRowModal');
+  if(!m){ m=document.createElement('div'); m.id='addRowModal';
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999';
+    m.innerHTML='<div style="background:#fff;border-radius:12px;padding:20px;max-width:420px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.25)" onclick="event.stopPropagation()">'
+      +'<h3 id="arTitle" style="margin:0 0 14px"></h3>'
+      +'<label style="display:block;margin-bottom:4px;font-weight:600">תאריך</label>'
+      +'<input id="arDate" type="date" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:12px">'
+      +'<label id="arL1" style="display:block;margin-bottom:4px;font-weight:600"></label>'
+      +'<input id="arV1" type="number" step="any" value="0" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:12px">'
+      +'<label id="arL2" style="display:block;margin-bottom:4px;font-weight:600"></label>'
+      +'<input id="arV2" type="number" step="any" value="0" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:18px">'
+      +'<div style="display:flex;gap:8px"><button class="btn" onclick="saveAddRow()">הוסף</button><button class="btn sec" onclick="closeAddRow()">ביטול</button></div></div>';
+    m.onclick=closeAddRow; document.body.appendChild(m);
+  }
+  m.setAttribute('data-kind',kind);
+  document.getElementById('arTitle').textContent = kind==='ab' ? 'הוספת שורה — מאזן עם עלומים' : 'הוספת שורה — מאזן ארגזים';
+  document.getElementById('arL1').textContent = kind==='ab' ? 'ייצור עלומים' : 'ארגזים שעלומים שלחו';
+  document.getElementById('arL2').textContent = kind==='ab' ? 'ייצור טרי לי' : 'ארגזים שטרי לי שלחו';
+  var t=new Date(); document.getElementById('arDate').value = t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);
+  document.getElementById('arV1').value='0'; document.getElementById('arV2').value='0';
+  m.style.display='flex'; setTimeout(function(){document.getElementById('arDate').focus();},50);
+}
+function closeAddRow(){ var m=document.getElementById('addRowModal'); if(m)m.style.display='none'; }
+async function saveAddRow(){
+  var m=document.getElementById('addRowModal'); if(!m)return; var kind=m.getAttribute('data-kind');
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var iso=document.getElementById('arDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('בחר תאריך'); return; }
+  var v1=+document.getElementById('arV1').value||0, v2=+document.getElementById('arV2').value||0;
+  var url, body;
+  if(kind==='ab'){ url=ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date'; body={report_date:iso,green:{},orange:{},manual_alumim:v1,manual_treli:v2,uploaded_by:s.username||s.email||''}; }
+  else { url=ORD_SB+'/rest/v1/box_balance?on_conflict=report_date'; body={report_date:iso,box_in:v1,box_out:v2,uploaded_by:s.username||s.email||''}; }
+  try{ var r=await fetch(url,{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); if(!r.ok) throw new Error(r.status+' '+await r.text()); closeAddRow(); AB_MONTH=iso.slice(0,7); if(kind==='ab')abLoad(); else bxLoad(); }
+  catch(e){ alert('שגיאה: '+e.message); }
+}
+
 function abExportXls(){
   var dates=Object.keys(AB_SEQ).sort(); if(!dates.length){ alert('אין נתונים'); return; }
   var h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1"><tr>'
