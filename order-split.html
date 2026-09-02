@@ -123,9 +123,9 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 <div id="ledger" class="hidden">
  <div class="card"><h2>מאזן ארגזים מול עלומים</h2>
   <p class="muted">מאזן חיובי = עלומים חייבים לנו ארגזים. שלילי = אנחנו חייבים להם. "שלחנו" = ארגזים שלנו שהלכו אליהם; "קיבלנו" = ארגזים שלהם שאצלנו.</p>
-  <div class="row">מאזן פתיחה (ארגזים): <input id="opening" type="number" style="width:110px" onchange="saveLedger();renderLedger()" value="0">
-   <button class="btn sec" onclick="addManual()">+ רשומה ידנית</button>
-   <button class="btn sec" onclick="exportLedger()">⬇ ייצוא יומן</button></div>
+  <div class="row">מאזן פתיחה (ארגזים): <input id="opening" type="number" style="width:110px" onchange="saveLedger();bxRender()" value="0">
+   <button class="btn sec" onclick="bxAddManual()">+ רשומה ידנית</button>
+   <button class="btn sec" onclick="bxExportXls()">⬇ ייצוא יומן</button></div>
   <div id="ledgerTotals" class="tot"></div>
   <div id="ledgerTbl"></div>
  </div>
@@ -402,7 +402,7 @@ function process(ws, S, opts) {
       }
       // !ours && alumim -> מתעלמים
       // משטחי פירות: נספר לכל פרי שאנחנו מטפלים בו (מכינים/שולחים/מקבלים) — כולל פירות בציאן — ללא תלות ביצרן
-      if (p.isFruit && (prod === "us" || (ours && prod === "alumim"))) { fruitCartons += qty; fruitPallets += Math.ceil(qty / fcpp); }
+      if (p.isFruit && ours) { fruitCartons += qty; fruitPallets += Math.ceil(qty / fcpp); }   // רק פירות שמגיעים לטרי לי (האזורים שלנו) — לא כאלה שנשלחים לאזורי עלומים
     }
   }
   return {
@@ -560,6 +560,7 @@ async function loadFile(f){
     buildDateSel(def);
     runSheet(def);
     autoRecord(LAST);
+    bxAutoRecord(LAST);
   }catch(err){ info.textContent=''; document.getElementById('msg').innerHTML='<div class="warn">שגיאה בקריאת הקובץ: '+(err.message||err)+'</div>'; console.error(err); }
 }
 function runSheet(name){ const ws=WB.getWorksheet(name); if(!ws)return;
@@ -946,7 +947,7 @@ function closeAdjust(){ var m=document.getElementById('adjModal'); if(m)m.style.
 function saveAdjust(){ var m=document.getElementById('adjModal'); if(!m||!LAST)return; var kind=m.getAttribute('data-kind');
   var q=parseFloat(document.getElementById('adjQty').value)||0; var t=document.getElementById('adjTxt').value;
   if(kind==='out'){ LAST.adjustOut=q; LAST.adjustNote=t; } else { LAST.adjustIn=q; LAST.adjustInNote=t; }
-  closeAdjust(); render(LAST); }
+  closeAdjust(); render(LAST); bxAutoRecord(LAST); }
 function addToLedger(){ if(!LAST){alert('קודם טען דוח');return;}
   const date=new Date().toLocaleDateString('he-IL');
   const skey=(LAST.newFmt&&LAST.reportDate)?(LAST.sheet+' · '+LAST.reportDate):LAST.sheet;   // פורמט חדש: להבחין לפי תאריך משלוח
@@ -964,19 +965,101 @@ function addManual(){ const d=prompt('תאריך:',new Date().toLocaleDateString
   const o=parseFloat(prompt('שלחנו (ארגזים שלנו לעלומים):','0'))||0; const i=parseFloat(prompt('קיבלנו (ארגזים שלהם אצלנו):','0'))||0;
   LEDGER.entries.push({date:d,sheet:'ידני',out:o,in:i,net:o-i}); saveLedger(); renderLedger(); }
 function delEntry(ix){ LEDGER.entries.splice(ix,1); saveLedger(); renderLedger(); }
-function renderLedger(){
-  if(S.sheet_webapp_url) return renderShared('ledgerTbl','ledgerTotals','box');
-  const o=document.getElementById('opening'); if(o&&document.activeElement!==o) o.value=LEDGER.opening||0;
-  let sumOut=0,sumIn=0; LEDGER.entries.forEach(e=>{sumOut+=e.out;sumIn+=e.in;});
-  const net=(LEDGER.opening||0)+(sumOut-sumIn);
-  document.getElementById('ledgerTotals').innerHTML=
-    tile(sumOut,'סה"כ שלחנו','var(--brand)')+tile(sumIn,'סה"כ קיבלנו','var(--green)')
-    +tile((net>=0?'+':'')+net,'מאזן נוכחי',net>=0?'var(--green)':'var(--orange)');
-  let h='<table><thead><tr><th>תאריך</th><th>גיליון</th><th>שלחנו</th><th>קיבלנו</th><th>נטו</th><th></th></tr></thead><tbody>';
-  if(!LEDGER.entries.length) h+='<tr><td colspan="6" class="muted">אין רשומות עדיין</td></tr>';
-  LEDGER.entries.forEach((e,ix)=>{ h+='<tr><td>'+esc(e.date)+'</td><td>'+esc(e.sheet||'')+(e.note?'<br><span class="muted" style="font-size:12px">✏️ '+esc(e.note)+'</span>':'')+'</td><td>'+e.out+'</td><td>'+e.in+'</td><td>'+(e.net>=0?'+':'')+e.net+'</td><td><button class="btn sec" style="padding:2px 8px" onclick="delEntry('+ix+')">✕</button></td></tr>'; });
-  h+='</tbody></table>'; document.getElementById('ledgerTbl').innerHTML=h;
+/* ---------- מאזן ארגזים (Supabase, סגנון אקסל) ---------- */
+async function bxLoad(){
+  try{ BOX_ROWS=await (await fetch(ORD_SB+'/rest/v1/box_balance?select=*&order=report_date.asc',{headers:abH()})).json(); if(!Array.isArray(BOX_ROWS))BOX_ROWS=[]; }
+  catch(e){ BOX_ROWS=[]; }
+  bxRender();
 }
+function bxCompute(){
+  var sorted=BOX_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:(a.report_date>b.report_date?1:0);});
+  var bal=(+LEDGER.opening||0); BOX_SEQ={};
+  sorted.forEach(function(row){
+    var inCount=(row.box_in!=null?+row.box_in:0), outCount=(row.box_out!=null?+row.box_out:0);
+    var bin=(row.manual_in!=null&&row.manual_in!=='')?+row.manual_in:inCount;
+    var bout=(row.manual_out!=null&&row.manual_out!=='')?+row.manual_out:outCount;
+    var net=bout-bin, open=bal, computed=open+net;
+    var mc=(row.manual_close!=null&&row.manual_close!=='')?+row.manual_close:null;
+    var close=(mc!=null)?mc:computed; bal=close;
+    BOX_SEQ[row.report_date]={open:open,bin:bin,bout:bout,inCount:inCount,outCount:outCount,manIn:(row.manual_in!=null&&row.manual_in!==''?+row.manual_in:null),manOut:(row.manual_out!=null&&row.manual_out!==''?+row.manual_out:null),net:net,close:close,computed:computed,manClose:mc,row:row};
+  });
+}
+function bxRender(){
+  bxCompute();
+  var o=document.getElementById('opening'); if(o&&document.activeElement!==o) o.value=(+LEDGER.opening||0);
+  var dates=Object.keys(BOX_SEQ).sort();
+  var last=dates.length?BOX_SEQ[dates[dates.length-1]].close:(+LEDGER.opening||0);
+  var tot=document.getElementById('ledgerTotals');
+  if(tot) tot.innerHTML=tile((last>=0?'+':'')+abFmt(last),'מאזן נוכחי',last>=0?'var(--green)':'var(--orange)')+tile(dates.length,'רשומות','var(--brand)');
+  var box=document.getElementById('ledgerTbl'); if(box) box.innerHTML=bxTableHtml();
+}
+function bxTableHtml(){
+  var dates=Object.keys(BOX_SEQ).sort();
+  if(!dates.length) return '<p class="muted">אין רשומות עדיין — העלה דוח בלשונית "עיבוד יומי" והמאזן יתמלא אוטומטית.</p>';
+  var rows='';
+  dates.forEach(function(d){
+    var q=BOX_SEQ[d];
+    var inEd=q.manIn!=null, outEd=q.manOut!=null, cEd=q.manClose!=null;
+    var inOrig=inEd?('<div class="abov">נספר: '+abFmt(q.inCount)+' <a href="#" onclick="bxSetField(\''+d+'\',\'manual_in\',\'\');return false" title="בטל דריסה">↺</a></div>'):'';
+    var outOrig=outEd?('<div class="abov">נספר: '+abFmt(q.outCount)+' <a href="#" onclick="bxSetField(\''+d+'\',\'manual_out\',\'\');return false" title="בטל דריסה">↺</a></div>'):'';
+    var cOrig=cEd?('<div class="abov">מחושב: '+abFmt(q.computed)+' <a href="#" onclick="bxSetField(\''+d+'\',\'manual_close\',\'\');return false" title="בטל קיבוע">↺</a></div>'):'';
+    var clsCol=q.close>0?'color:#047857':(q.close<0?'color:#b45309':'');
+    rows+='<tr>'
+      +'<td class="abd">'+heDate(d)+'</td>'
+      +'<td class="abro">'+abFmt(q.open)+'</td>'
+      +'<td class="abedit'+(inEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.bin)+'" onchange="bxSetField(\''+d+'\',\'manual_in\',this.value)">'+inOrig+'</td>'
+      +'<td class="abedit'+(outEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.bout)+'" onchange="bxSetField(\''+d+'\',\'manual_out\',this.value)">'+outOrig+'</td>'
+      +'<td class="abro" style="font-weight:700">'+(q.net>=0?'+':'')+abFmt(q.net)+'</td>'
+      +'<td class="abedit'+(cEd?' abm':'')+'" style="'+clsCol+'"><input type="number" step="any" value="'+abNumStr(q.close)+'" onchange="bxSetField(\''+d+'\',\'manual_close\',this.value)">'+cOrig+'</td>'
+      +'<td class="abro"><button class="btn sec" style="padding:2px 8px" onclick="bxDelRow(\''+d+'\')" title="מחק רשומה">✕</button></td>'
+      +'</tr>';
+  });
+  return '<table class="abtbl"><thead><tr><th>תאריך</th><th>מאזן פתיחה</th><th>ארגזים שעלומים שלחו</th><th>ארגזים שטרי לי שלחו</th><th>סה"כ (נטו)</th><th>מאזן סגירה</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+async function bxSetField(iso,field,value){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var v=String(value).trim().replace(/,/g,'');
+  if(v!=='' && isNaN(+v)){ alert('הזן מספר'); bxRender(); return; }
+  var body={}; body[field]=(v===''?null:+v);
+  var row=BOX_ROWS.find(function(r){return r.report_date===iso;}); if(row) row[field]=body[field];
+  bxRender();
+  try{ var r=await fetch(ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso,{method:'PATCH',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify(body)}); if(!r.ok) throw new Error(r.status+' '+await r.text()); }
+  catch(e){ alert('שגיאה בשמירה: '+e.message); bxLoad(); }
+}
+async function bxAddManual(){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var d=prompt('תאריך (יום/חודש/שנה):',new Date().toLocaleDateString('he-IL')); if(d===null)return;
+  var iso=toIsoD(d); if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('תאריך לא תקין'); return; }
+  var inV=prompt('ארגזים שעלומים שלחו:','0'); if(inV===null)return;
+  var outV=prompt('ארגזים שטרי לי שלחו:','0'); if(outV===null)return;
+  var body={report_date:iso,box_in:+inV||0,box_out:+outV||0,uploaded_by:s.username||s.email||''};
+  try{ var r=await fetch(ORD_SB+'/rest/v1/box_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); if(!r.ok) throw new Error(r.status+' '+await r.text()); bxLoad(); }
+  catch(e){ alert('שגיאה: '+e.message); }
+}
+async function bxDelRow(iso){
+  if(!confirm('למחוק את הרשומה של '+heDate(iso)+'?')) return;
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  try{ var r=await fetch(ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso,{method:'DELETE',headers:Object.assign({},abH(),{'Prefer':'return=minimal'})}); if(!r.ok) throw new Error(r.status+' '+await r.text()); bxLoad(); }
+  catch(e){ alert('שגיאה: '+e.message); }
+}
+async function bxAutoRecord(R){
+  if(!R||R.summer||!R.reportDate) return;
+  var s=ordSession(); if(!s) return;
+  var iso=toIsoD(R.reportDate); if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+  var effOut=(R.boxesOut||0)+(R.adjustOut||0), effIn=(R.boxesIn||0)+(R.adjustIn||0);
+  var body={report_date:iso,box_in:effIn,box_out:effOut,uploaded_by:s.username||s.email||''};
+  try{ await fetch(ORD_SB+'/rest/v1/box_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); }
+  catch(e){}
+}
+function bxExportXls(){
+  var dates=Object.keys(BOX_SEQ).sort(); if(!dates.length){ alert('אין נתונים'); return; }
+  var h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1"><tr><th>תאריך</th><th>מאזן פתיחה</th><th>ארגזים שעלומים שלחו</th><th>ארגזים שטרי לי שלחו</th><th>סה"כ (נטו)</th><th>מאזן סגירה</th></tr>';
+  dates.forEach(function(d){ var q=BOX_SEQ[d]; h+='<tr><td>'+heDate(d)+'</td><td>'+abNumStr(q.open)+'</td><td>'+abNumStr(q.bin)+'</td><td>'+abNumStr(q.bout)+'</td><td>'+abNumStr(q.net)+'</td><td>'+abNumStr(q.close)+'</td></tr>'; });
+  h+='</table></body></html>';
+  dl(new Blob(['﻿'+h],{type:'application/vnd.ms-excel'}),'מאזן ארגזים עלומים-טרי לי.xls');
+}
+
+function renderLedger(){ bxLoad(); }
 function exportLedger(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1"><tr><th>תאריך</th><th>גיליון</th><th>שלחנו</th><th>קיבלנו</th><th>נטו</th></tr>';
   LEDGER.entries.forEach(e=>h+='<tr><td>'+e.date+'</td><td>'+(e.sheet||'')+'</td><td>'+e.out+'</td><td>'+e.in+'</td><td>'+e.net+'</td></tr>');
   let sO=0,sI=0;LEDGER.entries.forEach(e=>{sO+=e.out;sI+=e.in;}); const net=(LEDGER.opening||0)+sO-sI;
@@ -1117,6 +1200,7 @@ function tab(id,btn){ ['proc','ledger','fruit','albal','settings','help'].forEac
 renderSet(); renderLedger(); renderFruit();
 /* ===================== מאזן עם עלומים ===================== */
 var AB_FILE=null, AB_SET={exclusions:[],includes:[]}, AB_ROWS=[], AB_MONTH=null, AB_SEQ={}, AB_AUTOEX=[];
+var BOX_ROWS=[], BOX_SEQ={};
 var AB_START=48;                 // מאזן פתיחה קבוע (עלומים חייבים לטרי לי) — מ-2.8
 var AB_MN=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 function abH(){ var s=ordSession(); return {'apikey':ORD_KEY,'Authorization':'Bearer '+(s?s.access_token:ORD_KEY),'Content-Type':'application/json'}; }
