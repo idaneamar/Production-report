@@ -1476,11 +1476,12 @@ function abTableHtml(){
       +'<td class="abro">'+abFmt(diffDisp)+'</td>'
       +'<td class="abro">'+abFmt(half)+'</td>'
       +'<td class="abedit'+(cEd?' abm':'')+'" style="'+clsCol+'"><input type="number" step="any" value="'+abNumStr(q.close)+'" onchange="abSetField(\''+d+'\',\'manual_close\',this.value)">'+cOrig+'</td>'
+      +'<td class="abro"><button class="btn sec" style="padding:2px 8px" onclick="abDelRow(\''+d+'\')" title="מחק רשומה">✕</button></td>'
       +'</tr>';
   });
-  return '<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">📊 טבלת מאזן (סגנון אקסל)</h2><button class="btn sec" onclick="abExportXls()">⬇ ייצוא לאקסל</button></div>'
+  return '<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">📊 טבלת מאזן (סגנון אקסל)</h2><span><button class="btn sec" onclick="abAddManual()">+ שורה ידנית</button> <button class="btn sec" onclick="abExportXls()">⬇ ייצוא לאקסל</button></span></div>'
     +'<p class="muted">מתמלאת אוטומטית מכל דוח שמעלים. אפשר לתקן ידנית את הייצור (עלומים/טרי לי) או את מאזן הסגירה — התיקון נדרס, נשמר לענן, וכל המאזנים שאחריו מתחשבים מחדש. חיובי = עלומים חייבים לטרי לי.</p>'
-    +'<table class="abtbl"><thead><tr><th>תאריך</th><th>מאזן פתיחה</th><th>ייצור עלומים</th><th>ייצור טרי לי</th><th>הפרש</th><th>חלקי 2</th><th>מאזן סגירה</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    +'<table class="abtbl"><thead><tr><th>תאריך</th><th>מאזן פתיחה</th><th>ייצור עלומים</th><th>ייצור טרי לי</th><th>הפרש</th><th>חלקי 2</th><th>מאזן סגירה</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 async function abSetField(iso,field,value){
   var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
@@ -1493,6 +1494,22 @@ async function abSetField(iso,field,value){
     var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,{method:'PATCH',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify(body)});
     if(!r.ok) throw new Error(r.status+' '+await r.text());
   }catch(e){ alert('שגיאה בשמירה: '+e.message); abLoad(); }
+}
+async function abDelRow(iso){
+  if(!confirm('למחוק את הרשומה של '+heDate(iso)+'?')) return;
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  try{ var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,{method:'DELETE',headers:Object.assign({},abH(),{'Prefer':'return=minimal'})}); if(!r.ok) throw new Error(r.status+' '+await r.text()); AB_MONTH=iso.slice(0,7); abLoad(); }
+  catch(e){ alert('שגיאה: '+e.message); }
+}
+async function abAddManual(){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var d=prompt('תאריך (יום/חודש/שנה):',new Date().toLocaleDateString('he-IL')); if(d===null)return;
+  var iso=toIsoD(d); if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('תאריך לא תקין'); return; }
+  var a=prompt('ייצור עלומים:','0'); if(a===null)return;
+  var t=prompt('ייצור טרי לי:','0'); if(t===null)return;
+  var body={report_date:iso,green:{},orange:{},manual_alumim:+a||0,manual_treli:+t||0,uploaded_by:s.username||s.email||''};
+  try{ var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); if(!r.ok) throw new Error(r.status+' '+await r.text()); AB_MONTH=iso.slice(0,7); abLoad(); }
+  catch(e){ alert('שגיאה: '+e.message); }
 }
 function abExportXls(){
   var dates=Object.keys(AB_SEQ).sort(); if(!dates.length){ alert('אין נתונים'); return; }
