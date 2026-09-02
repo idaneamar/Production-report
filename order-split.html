@@ -381,13 +381,14 @@ function process(ws, S, opts) {
         add("receive", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
         if (!p.isCarton) boxesIn += qty;
         else if (!p.isFruit) cartonsIn += qty;
-        if (p.isFruit) { fruitCartons += qty; fruitPallets += Math.ceil(qty / fcpp); } // כל משלוח פרי בנפרד; >60=2
       } else if (!ours && prod === "us") {
         add("send", region, name, addr, p.header, qty, p.isCarton, p.isFruit);
         if (!p.isCarton) boxesOut += qty;
         else if (!p.isFruit) cartonsOut += qty;
       }
       // !ours && alumim -> מתעלמים
+      // משטחי פירות: נספר לכל פרי שאנחנו מטפלים בו (מכינים/שולחים/מקבלים) — כולל פירות בציאן — ללא תלות ביצרן
+      if (p.isFruit && (prod === "us" || (ours && prod === "alumim"))) { fruitCartons += qty; fruitPallets += Math.ceil(qty / fcpp); }
     }
   }
   return {
