@@ -294,7 +294,7 @@ function getColumns(ws, hr, S) {
     if (nameCol < 0 && h.indexOf("קיטרינג") >= 0) { nameCol = c; continue; }
     if (addrCol < 0 && h.indexOf("כתובת") >= 0) { addrCol = c; continue; }
     if (has(h, S.meta_headers)) continue; // עמודות מטא (כולל 'מספר משטחים', תאריכים, מובילים)
-    var isFruit = has(h, S.fruit_keywords) && h.indexOf("תפוח אדמה") < 0;   // "תפוח אדמה" = ירק, לא פרי
+    var isFruit = has(h.replace(/[\"'\u05f3\u05f4]/g,""), S.fruit_keywords) && h.indexOf("תפוח אדמה") < 0;   // "תפוח אדמה" = ירק; מנקים גרשיים כדי לזהות תפו"ע
     var isCarton = has(h, S.carton_keywords) || isFruit; // פרי תמיד לא-ארגז
     var fromAlumim = h.indexOf("מעלומים") >= 0;          // עמודה שמסומנת מפורשות "מעלומים"
     var throughUs = (S.through_us_keys || []).some(function (k) { return h.indexOf(k) >= 0; });
@@ -316,6 +316,7 @@ function process(ws, S, opts) {
   const producerOf = argb => {
     if (S.green_colors.includes(argb)) return "alumim";
     if (S.orange_colors.includes(argb)) return "us";
+    if (argb === "FF00FFFF") return "us";   // ציאן/תכלת = סימון פירות (אנחנו מטפלים) — לא נספר במאזן כי פרי מוחרג
     // זיהוי לפי גוון: כל כתום/כתמתם=שלנו, כל ירוק/ירקרק=עלומים (עמיד לגוונים דומים)
     if (/^[0-9A-F]{8}$/.test(argb || "")) {
       const r = parseInt(argb.slice(2, 4), 16), g = parseInt(argb.slice(4, 6), 16), b = parseInt(argb.slice(6, 8), 16);
@@ -1108,6 +1109,7 @@ function abProducer(argb){
   if(!argb||argb==='00000000') return null;
   if((S.green_colors||[]).indexOf(argb)>=0) return 'alumim';
   if((S.orange_colors||[]).indexOf(argb)>=0) return 'us';
+  if(argb==='FF00FFFF') return 'us';   // ציאן = פירות (מוחרג ממילא)
   if(argb.indexOf('THEME')===0) return null;
   try{ var r=parseInt(argb.substr(2,2),16)/255,g=parseInt(argb.substr(4,2),16)/255,b=parseInt(argb.substr(6,2),16)/255;
     var mx=Math.max(r,g,b),mn=Math.min(r,g,b),d=mx-mn; if(mx===0||d/mx<0.12) return null;
@@ -1119,7 +1121,7 @@ function abTxt(cell){ var v=cell&&cell.value; if(v==null)return ''; if(typeof v=
 function abNum(cell){ var v=cell&&cell.value; if(v&&typeof v==='object'&&v.result!=null)v=v.result; return typeof v==='number'?v:null; }
 function abAutoExcluded(h){
   if(h.indexOf('80 גר')>=0 && h.indexOf('בד')>=0) return true;   // 80 גר' בד"ץ
-  if(has(h,S.fruit_keywords||[]) && h.indexOf("תפוח אדמה")<0) return true;   // פירות (תפוח אדמה=ירק, לא פרי)
+  if(has(h.replace(/[\"'\u05f3\u05f4]/g,""),S.fruit_keywords||[]) && h.indexOf("תפוח אדמה")<0) return true;   // פירות (מנקים גרשיים לזיהוי תפו"ע; תפוח אדמה=ירק)
   if(h.indexOf('גזרונ')>=0) return true;                          // גזרונים
   return false;
 }
