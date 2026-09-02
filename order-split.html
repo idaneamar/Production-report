@@ -1023,8 +1023,8 @@ async function bxSetField(iso,field,value){
   var body={}; body[field]=(v===''?null:+v);
   var row=BOX_ROWS.find(function(r){return r.report_date===iso;}); if(row) row[field]=body[field];
   bxRender();
-  try{ var r=await fetch(ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso,{method:'PATCH',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify(body)}); if(!r.ok) throw new Error(r.status+' '+await r.text()); }
-  catch(e){ alert('שגיאה בשמירה: '+e.message); bxLoad(); }
+  try{ await ordSave('PATCH',ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso,body); }
+  catch(e){ alert('שגיאה בשמירה: '+e.message+'\nהתיקון נשאר על המסך — נסה שוב או רענן.'); }
 }
 async function bxAddManual(){
   var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
@@ -1039,7 +1039,7 @@ async function bxAddManual(){
 async function bxDelRow(iso){
   if(!confirm('למחוק את הרשומה של '+heDate(iso)+'?')) return;
   var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
-  try{ var r=await fetch(ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso,{method:'DELETE',headers:Object.assign({},abH(),{'Prefer':'return=minimal'})}); if(!r.ok) throw new Error(r.status+' '+await r.text()); bxLoad(); }
+  try{ await ordSave('DELETE',ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso); bxLoad(); }
   catch(e){ alert('שגיאה: '+e.message); }
 }
 async function bxAutoRecord(R){
@@ -1204,6 +1204,29 @@ var BOX_ROWS=[], BOX_SEQ={};
 var AB_START=48;                 // מאזן פתיחה קבוע (עלומים חייבים לטרי לי) — מ-2.8
 var AB_MN=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 function abH(){ var s=ordSession(); return {'apikey':ORD_KEY,'Authorization':'Bearer '+(s?s.access_token:ORD_KEY),'Content-Type':'application/json'}; }
+async function ordFreshToken(){
+  var s=ordSession(); if(!s) return null;
+  var exp=s.expires_at?(s.expires_at*1000):0;
+  if(!exp || Date.now() < exp-60000) return s.access_token;
+  if(!s.refresh_token) return s.access_token;
+  try{ var r=await fetch(ORD_SB+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{'apikey':ORD_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:s.refresh_token})});
+    if(r.ok){ var j=await r.json(); if(j&&j.access_token){ s.access_token=j.access_token; if(j.refresh_token)s.refresh_token=j.refresh_token; s.expires_at=j.expires_at||(Math.floor(Date.now()/1000)+(j.expires_in||3600)); try{localStorage.setItem('trelee_session',JSON.stringify(s));}catch(e){} return s.access_token; } }
+  }catch(e){}
+  return s.access_token;
+}
+async function ordSave(method,url,body,prefer){
+  var tok=await ordFreshToken();
+  var H={'apikey':ORD_KEY,'Authorization':'Bearer '+(tok||ORD_KEY),'Content-Type':'application/json','Prefer':prefer||'return=minimal'};
+  var lastErr;
+  for(var i=0;i<3;i++){
+    try{ var r=await fetch(url,{method:method,headers:H,body:body?JSON.stringify(body):undefined});
+      if(r.ok) return true;
+      if(r.status===401||r.status===403) throw new Error('אין הרשאה ('+r.status+') — ייתכן שצריך להתחבר מחדש');
+      lastErr=new Error(r.status+' '+await r.text());
+    }catch(e){ lastErr=e; if(i<2) await new Promise(function(res){setTimeout(res,400*(i+1));}); }
+  }
+  throw lastErr||new Error('שמירה נכשלה');
+}
 function abProducer(argb){
   if(!argb||argb==='00000000') return null;
   if((S.green_colors||[]).indexOf(argb)>=0) return 'alumim';
@@ -1490,15 +1513,13 @@ async function abSetField(iso,field,value){
   var body={}; body[field]=(v===''?null:+v);
   var row=AB_ROWS.find(function(r){return r.report_date===iso;}); if(row) row[field]=body[field];   // עדכון אופטימי
   abRender();
-  try{
-    var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,{method:'PATCH',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify(body)});
-    if(!r.ok) throw new Error(r.status+' '+await r.text());
-  }catch(e){ alert('שגיאה בשמירה: '+e.message); abLoad(); }
+  try{ await ordSave('PATCH',ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,body); }
+  catch(e){ alert('שגיאה בשמירה: '+e.message+'\nהתיקון נשאר על המסך — נסה שוב או רענן.'); }
 }
 async function abDelRow(iso){
   if(!confirm('למחוק את הרשומה של '+heDate(iso)+'?')) return;
   var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
-  try{ var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,{method:'DELETE',headers:Object.assign({},abH(),{'Prefer':'return=minimal'})}); if(!r.ok) throw new Error(r.status+' '+await r.text()); AB_MONTH=iso.slice(0,7); abLoad(); }
+  try{ await ordSave('DELETE',ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso); AB_MONTH=iso.slice(0,7); abLoad(); }
   catch(e){ alert('שגיאה: '+e.message); }
 }
 async function abAddManual(){
@@ -1531,7 +1552,8 @@ function openAddRow(kind){
   document.getElementById('arTitle').textContent = kind==='ab' ? 'הוספת שורה — מאזן עם עלומים' : 'הוספת שורה — מאזן ארגזים';
   document.getElementById('arL1').textContent = kind==='ab' ? 'ייצור עלומים' : 'ארגזים שעלומים שלחו';
   document.getElementById('arL2').textContent = kind==='ab' ? 'ייצור טרי לי' : 'ארגזים שטרי לי שלחו';
-  var t=new Date(); document.getElementById('arDate').value = t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);
+  var t=new Date(); var dw=t.getDay(); var addD=(dw===4)?3:(dw===5)?2:(dw===6)?1:1; t.setDate(t.getDate()+addD);   // מחר; חמישי->ראשון, ושישי/שבת->ראשון
+  document.getElementById('arDate').value = t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);
   document.getElementById('arV1').value='0'; document.getElementById('arV2').value='0';
   m.style.display='flex'; setTimeout(function(){document.getElementById('arDate').focus();},50);
 }
@@ -1542,9 +1564,9 @@ async function saveAddRow(){
   var iso=document.getElementById('arDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('בחר תאריך'); return; }
   var v1=+document.getElementById('arV1').value||0, v2=+document.getElementById('arV2').value||0;
   var url, body;
-  if(kind==='ab'){ url=ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date'; body={report_date:iso,green:{},orange:{},manual_alumim:v1,manual_treli:v2,uploaded_by:s.username||s.email||''}; }
+  if(kind==='ab'){ url=ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date'; body={report_date:iso,manual_alumim:v1,manual_treli:v2,uploaded_by:s.username||s.email||''}; }   // בלי green/orange כדי לא לדרוס ספירה קיימת
   else { url=ORD_SB+'/rest/v1/box_balance?on_conflict=report_date'; body={report_date:iso,box_in:v1,box_out:v2,uploaded_by:s.username||s.email||''}; }
-  try{ var r=await fetch(url,{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); if(!r.ok) throw new Error(r.status+' '+await r.text()); closeAddRow(); AB_MONTH=iso.slice(0,7); if(kind==='ab')abLoad(); else bxLoad(); }
+  try{ await ordSave('POST',url,body,'resolution=merge-duplicates,return=minimal'); closeAddRow(); AB_MONTH=iso.slice(0,7); if(kind==='ab')abLoad(); else bxLoad(); }
   catch(e){ alert('שגיאה: '+e.message); }
 }
 
