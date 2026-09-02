@@ -1320,7 +1320,10 @@ function abCompute(){
   var sorted=AB_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:(a.report_date>b.report_date?1:0);});
   var bal=AB_START, ranBal=AB_START; AB_SEQ={};
   sorted.forEach(function(row){
-    var al=abSum(row.green), tl=abSum(row.orange), diff=(al-tl)/2, open=bal;
+    var alCount=abSum(row.green), tlCount=abSum(row.orange);
+    var al=(row.manual_alumim!=null&&row.manual_alumim!=='')?(+row.manual_alumim):alCount;
+    var tl=(row.manual_treli!=null&&row.manual_treli!=='')?(+row.manual_treli):tlCount;
+    var diff=(al-tl)/2, open=bal;
     var computed=open+diff;
     var mc=(row.manual_close!=null&&row.manual_close!=='')?(+row.manual_close):null;
     var close=(mc!=null)?mc:computed; bal=close;   // אם נקבע ידנית — ממשיכים ממנו
@@ -1334,7 +1337,7 @@ function abCompute(){
     else if(row.ran_alumim!=null&&row.ran_treli!=null) ranClose=ranOpen+((row.ran_alumim-row.ran_treli)/2);
     else ranClose=ranOpen;
     ranBal=ranClose;
-    AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,diff:diff,close:close,computed:computed,manual:mc,row:row,mism:mism,rawA:rA,rawT:rT,ranOpen:ranOpen,ranClose:ranClose};
+    AB_SEQ[row.report_date]={open:open,alum:al,treli:tl,alumCount:alCount,treliCount:tlCount,manA:(row.manual_alumim!=null&&row.manual_alumim!=='')?(+row.manual_alumim):null,manT:(row.manual_treli!=null&&row.manual_treli!=='')?(+row.manual_treli):null,diff:diff,close:close,computed:computed,manual:mc,row:row,mism:mism,rawA:rA,rawT:rT,ranOpen:ranOpen,ranClose:ranClose};
   });
 }
 function abRender(){
@@ -1352,8 +1355,58 @@ function abRender(){
   }
   var box=document.getElementById('abTbl'); if(!box) return;
   if(!AB_MONTH){ var ds=Object.keys(AB_SEQ).sort(); AB_MONTH=ds.length?ds[ds.length-1].slice(0,7):(new Date().getFullYear()+'-'+('0'+(new Date().getMonth()+1)).slice(-2)); }
-  box.innerHTML=abCalHtml(AB_MONTH)+'<div id="abDetail"></div>';
+  box.innerHTML=abTableHtml()+abCalHtml(AB_MONTH)+'<div id="abDetail"></div>';
 }
+function abNumStr(n){ return String(Math.round((+n||0)*100)/100); }
+function abTableHtml(){
+  var dates=Object.keys(AB_SEQ).sort();
+  if(!dates.length) return '';
+  var rows='';
+  dates.forEach(function(d){
+    var q=AB_SEQ[d];
+    var diffDisp=q.treli-q.alum, half=diffDisp/2;
+    var aEd=(q.manA!=null), tEd=(q.manT!=null), cEd=(q.manual!=null);
+    var aOrig=aEd?('<div class="abov">נספר: '+abFmt(q.alumCount)+' <a href="#" onclick="abSetField(\''+d+'\',\'manual_alumim\',\'\');return false" title="בטל דריסה">↺</a></div>'):'';
+    var tOrig=tEd?('<div class="abov">נספר: '+abFmt(q.treliCount)+' <a href="#" onclick="abSetField(\''+d+'\',\'manual_treli\',\'\');return false" title="בטל דריסה">↺</a></div>'):'';
+    var cOrig=cEd?('<div class="abov">מחושב: '+abFmt(q.computed)+' <a href="#" onclick="abSetField(\''+d+'\',\'manual_close\',\'\');return false" title="בטל קיבוע">↺</a></div>'):'';
+    var clsCol=q.close>0?'color:#047857':(q.close<0?'color:#b45309':'');
+    rows+='<tr>'
+      +'<td class="abd"><a href="#" onclick="abDayDetail(\''+d+'\');return false" title="פרטי היום">'+heDate(d)+'</a></td>'
+      +'<td class="abro">'+abFmt(q.open)+'</td>'
+      +'<td class="abedit'+(aEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.alum)+'" onchange="abSetField(\''+d+'\',\'manual_alumim\',this.value)">'+aOrig+'</td>'
+      +'<td class="abedit'+(tEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.treli)+'" onchange="abSetField(\''+d+'\',\'manual_treli\',this.value)">'+tOrig+'</td>'
+      +'<td class="abro">'+abFmt(diffDisp)+'</td>'
+      +'<td class="abro">'+abFmt(half)+'</td>'
+      +'<td class="abedit'+(cEd?' abm':'')+'" style="'+clsCol+'"><input type="number" step="any" value="'+abNumStr(q.close)+'" onchange="abSetField(\''+d+'\',\'manual_close\',this.value)">'+cOrig+'</td>'
+      +'</tr>';
+  });
+  return '<div class="card"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">📊 טבלת מאזן (סגנון אקסל)</h2><button class="btn sec" onclick="abExportXls()">⬇ ייצוא לאקסל</button></div>'
+    +'<p class="muted">מתמלאת אוטומטית מכל דוח שמעלים. אפשר לתקן ידנית את הייצור (עלומים/טרי לי) או את מאזן הסגירה — התיקון נדרס, נשמר לענן, וכל המאזנים שאחריו מתחשבים מחדש. חיובי = עלומים חייבים לטרי לי.</p>'
+    +'<table class="abtbl"><thead><tr><th>תאריך</th><th>מאזן פתיחה</th><th>ייצור עלומים</th><th>ייצור טרי לי</th><th>הפרש</th><th>חלקי 2</th><th>מאזן סגירה</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+async function abSetField(iso,field,value){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var v=String(value).trim().replace(/,/g,'');
+  if(v!=='' && isNaN(+v)){ alert('הזן מספר'); abRender(); return; }
+  var body={}; body[field]=(v===''?null:+v);
+  var row=AB_ROWS.find(function(r){return r.report_date===iso;}); if(row) row[field]=body[field];   // עדכון אופטימי
+  abRender();
+  try{
+    var r=await fetch(ORD_SB+'/rest/v1/alumim_balance?report_date=eq.'+iso,{method:'PATCH',headers:Object.assign({},abH(),{'Prefer':'return=minimal'}),body:JSON.stringify(body)});
+    if(!r.ok) throw new Error(r.status+' '+await r.text());
+  }catch(e){ alert('שגיאה בשמירה: '+e.message); abLoad(); }
+}
+function abExportXls(){
+  var dates=Object.keys(AB_SEQ).sort(); if(!dates.length){ alert('אין נתונים'); return; }
+  var h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1"><tr>'
+    +'<th>תאריך</th><th>מאזן פתיחה</th><th>ייצור עלומים</th><th>ייצור טרי לי</th><th>הפרש</th><th>חלקי 2</th><th>מאזן סגירה</th></tr>';
+  dates.forEach(function(d){ var q=AB_SEQ[d]; var dd=q.treli-q.alum;
+    h+='<tr><td>'+heDate(d)+'</td><td>'+abNumStr(q.open)+'</td><td>'+abNumStr(q.alum)+'</td><td>'+abNumStr(q.treli)+'</td><td>'+abNumStr(dd)+'</td><td>'+abNumStr(dd/2)+'</td><td>'+abNumStr(q.close)+'</td></tr>'; });
+  h+='</table></body></html>';
+  var blob=new Blob(['﻿'+h],{type:'application/vnd.ms-excel'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='מאזן הפרש עלומים-טרי לי.xls'; a.click();
+}
+
 function abCalHtml(ym){
   var y=+ym.slice(0,4), m=+ym.slice(5,7), first=new Date(y,m-1,1), startDow=first.getDay(), days=new Date(y,m,0).getDate();
   var today=new Date(); today.setHours(0,0,0,0);
