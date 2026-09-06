@@ -306,7 +306,7 @@ function getColumns(ws, hr, S) {
     if (h.indexOf("שם לקוח") >= 0) { nameCol = c; continue; }                 // פורמט חדש
     if (h.indexOf("מס. ספק") >= 0 || h === "מס ספק" || h === "מס' ספק") { supplierCol = c; continue; }
     if (h === "תאריך") { dateCol = c; continue; }
-    if (h.indexOf("קוד קו חלוקה") >= 0 || h.indexOf("מס. הזמנה") >= 0 || h === "הערה" || h === "אריזות" || h === "משטחים") continue; // מטא של הפורמט החדש
+    if (h.indexOf("קוד קו חלוקה") >= 0 || h.indexOf("מס. הזמנה") >= 0 || h === "הערה" || h === "אריזות" || h.indexOf("משטח") >= 0 || h.indexOf("סה\"כ") >= 0) continue; // מטא + עמודות סיכום
     if (regionCol < 0 && h.indexOf("מחוז") >= 0) { regionCol = c; continue; }
     if (nameCol < 0 && h.indexOf("קיטרינג") >= 0) { nameCol = c; continue; }
     if (addrCol < 0 && h.indexOf("כתובת") >= 0) { addrCol = c; continue; }
@@ -1311,7 +1311,7 @@ function abParseNew(ws){
   for(var c=1;c<=maxc;c++){ var h=abTxt(ws.getRow(1).getCell(c)).trim(); if(!h) continue;
     if(h==='קו חלוקה'){regionCol=c;continue;} if(h.indexOf('שם לקוח')>=0){nameCol=c;continue;}
     if(h.indexOf('מס. ספק')>=0||h==='מס ספק'||h==="מס' ספק"){supCol=c;continue;}
-    if(h.indexOf('קוד קו חלוקה')>=0||h.indexOf('מס. הזמנה')>=0||h==='הערה'||h==='כתובת'||h==='תאריך'||h==='אריזות'||h==='משטחים') continue;
+    if(h.indexOf('קוד קו חלוקה')>=0||h.indexOf('מס. הזמנה')>=0||h==='הערה'||h==='כתובת'||h==='תאריך'||h==='אריזות'||h.indexOf('משטח')>=0||h.indexOf('סה"כ')>=0) continue;   // מדלג גם על עמודות סיכום (סה"כ / משטחים)
     hdr[c]=h; }
   var ALU=(S.alumim_suppliers||['43181','43185']), USS=(S.us_suppliers||['44601']);
   var green={}, orange={};
