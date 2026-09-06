@@ -134,8 +134,8 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
 <div id="fruit" class="hidden">
  <div class="card"><h2>מעקב משטחי פירות</h2>
   <p class="muted">טבלה של תאריך · כמות משטחים · הערות. אפשר להוסיף מהעיבוד היומי ("🍐 הוסף משטחי פירות ליומן") או ידנית. ניתן לייצא לאקסל נפרד.</p>
-  <div class="row"><button class="btn sec" onclick="addFruitManual()">+ רשומה ידנית</button>
-   <button class="btn sec" onclick="exportFruit()">⬇ ייצוא לאקסל (מעקב משטחי פירות)</button></div>
+  <div class="row"><button class="btn sec" onclick="openAddRow('fb')">+ רשומה ידנית</button>
+   <button class="btn sec" onclick="fbExportXls()">⬇ ייצוא לאקסל (מעקב משטחי פירות)</button></div>
   <div id="fruitTotals" class="tot"></div>
   <div id="fruitTbl"></div>
  </div>
@@ -564,6 +564,7 @@ async function loadFile(f){
     runSheet(def);
     autoRecord(LAST);
     bxAutoRecord(LAST);
+    fbAutoRecord(LAST);
   }catch(err){ info.textContent=''; document.getElementById('msg').innerHTML='<div class="warn">שגיאה בקריאת הקובץ: '+(err.message||err)+'</div>'; console.error(err); }
 }
 function runSheet(name){ const ws=WB.getWorksheet(name); if(!ws)return;
@@ -1008,7 +1009,7 @@ function bxTableHtml(){
     var cOrig=cEd?('<div class="abov">מחושב: '+abFmt(q.computed)+' <a href="#" onclick="bxSetField(\''+d+'\',\'manual_close\',\'\');return false" title="בטל קיבוע">↺</a></div>'):'';
     var clsCol=q.close>0?'color:#047857':(q.close<0?'color:#b45309':'');
     rows+='<tr>'
-      +'<td class="abd">'+heDate(d)+'</td>'
+      +'<td class="abd"><input type="date" value="'+d+'" onchange="moveRowDate(\'box_balance\',\''+d+'\',this.value)" style="border:none;background:transparent;font-weight:700;color:#0f5132;width:132px;font-size:14px"></td>'
       +'<td class="abro">'+abFmt(q.open)+'</td>'
       +'<td class="abedit'+(inEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.bin)+'" onchange="bxSetField(\''+d+'\',\'manual_in\',this.value)">'+inOrig+'</td>'
       +'<td class="abedit'+(outEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.bout)+'" onchange="bxSetField(\''+d+'\',\'manual_out\',this.value)">'+outOrig+'</td>'
@@ -1071,7 +1072,8 @@ function exportLedger(){ let h='<html dir="rtl"><head><meta charset="utf-8"></he
   dl(new Blob(['﻿'+h],{type:'application/vnd.ms-excel'}),'מאזן_ארגזים.xls'); }
 
 /* ---------- מעקב משטחי פירות ---------- */
-function addFruitFromDay(){ if(!LAST){alert('קודם טען דוח');return;}
+function addFruitFromDay(){ if(!LAST){alert('קודם טען דוח');return;} fbAutoRecord(LAST); flash('משטחי הפירות נרשמו למעקב ✓'); return; }
+function _addFruitFromDayOld(){ if(!LAST){alert('קודם טען דוח');return;}
   const date=(LAST.newFmt&&LAST.reportDate)?LAST.reportDate:new Date().toLocaleDateString('he-IL');
   const p=prompt('כמות משטחי פירות לתאריך '+date+':', LAST.fruitPallets); if(p===null)return;
   const notes=prompt('הערות (לא חובה):','')||'';
@@ -1102,17 +1104,51 @@ async function renderShared(tblId,totId,kind){
   rows.forEach(r=>{ const v=Number(r.val)||0; h+='<tr><td>'+esc(r.date)+'</td><td>'+(kind==='box'&&v>=0?'+':'')+r.val+'</td><td>'+esc(r.notes||'')+'</td></tr>'; });
   h+='</tbody></table>'; tbl.innerHTML=h;
 }
-function renderFruit(){
-  if(S.sheet_webapp_url) return renderShared('fruitTbl','fruitTotals','fruit');
-  let tot=0; FRUIT.entries.forEach(e=>tot+=e.pallets);
-  document.getElementById('fruitTotals').innerHTML=tile(tot,'סה"כ משטחי פירות','var(--orange)')+tile(FRUIT.entries.length,'רשומות','var(--brand)');
-  let h='<table><thead><tr><th>תאריך</th><th>כמות משטחים</th><th>הערות</th><th></th></tr></thead><tbody>';
-  if(!FRUIT.entries.length) h+='<tr><td colspan="4" class="muted">אין רשומות עדיין</td></tr>';
-  FRUIT.entries.forEach((e,ix)=>{ h+='<tr><td>'+esc(e.date)+'</td>'
-    +'<td><input type="number" value="'+e.pallets+'" style="width:80px" onchange="fruitQty('+ix+',this.value)"></td>'
-    +'<td><input value="'+esc(e.notes||'')+'" style="width:100%" onchange="fruitNote('+ix+',this.value)" placeholder="הערות..."></td>'
-    +'<td><button class="btn sec" style="padding:2px 8px" onclick="delFruit('+ix+')">✕</button></td></tr>'; });
-  h+='</tbody></table>'; document.getElementById('fruitTbl').innerHTML=h; }
+var FRUIT_ROWS=[];
+function fbVal(row){ return (row.manual_pallets!=null&&row.manual_pallets!=='')?+row.manual_pallets:(row.pallets!=null?+row.pallets:0); }
+async function fbLoad(){ try{ FRUIT_ROWS=await (await fetch(ORD_SB+'/rest/v1/fruit_balance?select=*&order=report_date.asc',{headers:abH()})).json(); if(!Array.isArray(FRUIT_ROWS))FRUIT_ROWS=[]; }catch(e){FRUIT_ROWS=[];} fbRender(); }
+function fbRender(){
+  var tot=0; FRUIT_ROWS.forEach(function(r){tot+=fbVal(r);});
+  var tt=document.getElementById('fruitTotals'); if(tt) tt.innerHTML=tile(abFmt(tot),'סה"כ משטחי פירות','var(--orange)')+tile(FRUIT_ROWS.length,'רשומות','var(--brand)');
+  var box=document.getElementById('fruitTbl'); if(!box) return;
+  var rows='';
+  FRUIT_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:1;}).forEach(function(r){
+    var d=r.report_date; var ed=(r.manual_pallets!=null&&r.manual_pallets!=='');
+    var orig=ed?('<div class="abov">נספר: '+abFmt(r.pallets!=null?+r.pallets:0)+' <a href="#" onclick="fbSetField(\''+d+'\',\'manual_pallets\',\'\');return false" title="בטל דריסה">↺</a></div>'):'';
+    rows+='<tr><td class="abd"><input type="date" value="'+d+'" onchange="moveRowDate(\'fruit_balance\',\''+d+'\',this.value)" style="border:none;background:transparent;font-weight:700;color:#0f5132;width:132px;font-size:14px"></td>'
+      +'<td class="abedit'+(ed?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(fbVal(r))+'" onchange="fbSetField(\''+d+'\',\'manual_pallets\',this.value)">'+orig+'</td>'
+      +'<td class="abedit"><input type="text" value="'+esc(r.note||'')+'" onchange="fbSetField(\''+d+'\',\'note\',this.value)" placeholder="הערות..." style="text-align:right"></td>'
+      +'<td class="abro"><button class="btn sec" style="padding:2px 8px" onclick="fbDelRow(\''+d+'\')" title="מחק">✕</button></td></tr>';
+  });
+  if(!FRUIT_ROWS.length) rows='<tr><td colspan="4" class="muted">אין רשומות עדיין</td></tr>';
+  box.innerHTML='<table class="abtbl"><thead><tr><th>תאריך</th><th>משטחי פירות</th><th>הערות</th><th></th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+async function fbSetField(iso,field,value){
+  if(!ordSession()){ alert('צריך להיות מחובר'); return; }
+  var v=String(value).trim(); var body={};
+  if(field==='note'){ body.note=v; } else { v=v.replace(/,/g,''); if(v!=='' && isNaN(+v)){ alert('הזן מספר'); fbRender(); return; } body[field]=(v===''?null:+v); }
+  var row=FRUIT_ROWS.find(function(r){return r.report_date===iso;}); if(row) row[field]=body[field];
+  fbRender();
+  try{ await ordSave('PATCH',ORD_SB+'/rest/v1/fruit_balance?report_date=eq.'+iso,body); }
+  catch(e){ alert('שגיאה בשמירה: '+e.message+'\nהתיקון נשאר על המסך — נסה שוב או רענן.'); }
+}
+async function fbDelRow(iso){ if(!confirm('למחוק את הרשומה של '+heDate(iso)+'?')) return; if(!ordSession()){ alert('צריך להיות מחובר'); return; }
+  try{ await ordSave('DELETE',ORD_SB+'/rest/v1/fruit_balance?report_date=eq.'+iso); fbLoad(); }catch(e){ alert('שגיאה: '+e.message); } }
+async function fbAutoRecord(R){
+  if(!R||R.summer) return; var s=ordSession(); if(!s) return;
+  var iso=(R.pubDate&&/^\d{4}-\d{2}-\d{2}$/.test(R.pubDate))?R.pubDate:''; if(!iso) return;
+  var body={report_date:iso,pallets:(R.fruitPallets||0),uploaded_by:s.username||s.email||''};
+  try{ await ordSave('POST',ORD_SB+'/rest/v1/fruit_balance?on_conflict=report_date',body,'resolution=merge-duplicates,return=minimal'); }catch(e){}
+}
+function fbExportXls(){
+  var rows=FRUIT_ROWS.slice().sort(function(a,b){return a.report_date<b.report_date?-1:1;});
+  if(!rows.length){ alert('אין נתונים'); return; }
+  var h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1"><tr><th>תאריך</th><th>משטחי פירות</th><th>הערות</th></tr>';
+  var tot=0; rows.forEach(function(r){ var v=fbVal(r); tot+=v; h+='<tr><td>'+heDate(r.report_date)+'</td><td>'+abNumStr(v)+'</td><td>'+(r.note||'')+'</td></tr>'; });
+  h+='<tr><td><b>סה"כ</b></td><td><b>'+abNumStr(tot)+'</b></td><td></td></tr></table></body></html>';
+  dl(new Blob(['\ufeff'+h],{type:'application/vnd.ms-excel'}),'מעקב משטחי פירות.xls');
+}
+function renderFruit(){ fbLoad(); }
 function exportFruit(){ let h='<html dir="rtl"><head><meta charset="utf-8"></head><body><table border="1">'
   +'<tr><th colspan="3" style="background:#d97a2b;color:#fff">מעקב משטחי פירות</th></tr>'
   +'<tr><th>תאריך</th><th>כמות משטחים</th><th>הערות</th></tr>';
@@ -1230,6 +1266,13 @@ async function ordSave(method,url,body,prefer){
     }catch(e){ lastErr=e; if(i<2) await new Promise(function(res){setTimeout(res,400*(i+1));}); }
   }
   throw lastErr||new Error('שמירה נכשלה');
+}
+async function moveRowDate(tbl,oldIso,newIso){
+  if(!newIso||!/^\d{4}-\d{2}-\d{2}$/.test(newIso)||newIso===oldIso) return;
+  if(!ordSession()){ alert('צריך להיות מחובר'); return; }
+  try{ await ordSave('PATCH',ORD_SB+'/rest/v1/'+tbl+'?report_date=eq.'+oldIso,{report_date:newIso});
+    if(tbl==='box_balance') bxLoad(); else if(tbl==='alumim_balance'){ AB_MONTH=newIso.slice(0,7); abLoad(); } else fbLoad();
+  }catch(e){ alert('שגיאה בשינוי התאריך — ייתכן שכבר קיימת שורה בתאריך הזה.\n'+e.message); }
 }
 function abProducer(argb){
   if(!argb||argb==='00000000') return null;
@@ -1496,7 +1539,7 @@ function abTableHtml(){
     var cOrig=cEd?('<div class="abov">מחושב: '+abFmt(q.computed)+' <a href="#" onclick="abSetField(\''+d+'\',\'manual_close\',\'\');return false" title="בטל קיבוע">↺</a></div>'):'';
     var clsCol=q.close>0?'color:#047857':(q.close<0?'color:#b45309':'');
     rows+='<tr>'
-      +'<td class="abd"><a href="#" onclick="abDayDetail(\''+d+'\');return false" title="פרטי היום">'+heDate(d)+'</a></td>'
+      +'<td class="abd"><input type="date" value="'+d+'" onchange="moveRowDate(\'alumim_balance\',\''+d+'\',this.value)" style="border:none;background:transparent;font-weight:700;color:#0f5132;width:132px;font-size:14px"> <a href="#" onclick="abDayDetail(\''+d+'\');return false" title="פרטי היום">🔍</a></td>'
       +'<td class="abro">'+abFmt(q.open)+'</td>'
       +'<td class="abedit'+(aEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.alum)+'" onchange="abSetField(\''+d+'\',\'manual_alumim\',this.value)">'+aOrig+'</td>'
       +'<td class="abedit'+(tEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.treli)+'" onchange="abSetField(\''+d+'\',\'manual_treli\',this.value)">'+tOrig+'</td>'
@@ -1553,9 +1596,12 @@ function openAddRow(kind){
     m.onclick=closeAddRow; document.body.appendChild(m);
   }
   m.setAttribute('data-kind',kind);
-  document.getElementById('arTitle').textContent = kind==='ab' ? 'הוספת שורה — מאזן עם עלומים' : 'הוספת שורה — מאזן ארגזים';
-  document.getElementById('arL1').textContent = kind==='ab' ? 'ייצור עלומים' : 'ארגזים שעלומים שלחו';
+  var isFb=(kind==='fb');
+  document.getElementById('arTitle').textContent = kind==='ab' ? 'הוספת שורה — מאזן עם עלומים' : (kind==='bx' ? 'הוספת שורה — מאזן ארגזים' : 'הוספת שורה — משטחי פירות');
+  document.getElementById('arL1').textContent = kind==='ab' ? 'ייצור עלומים' : (kind==='bx' ? 'ארגזים שעלומים שלחו' : 'משטחי פירות');
   document.getElementById('arL2').textContent = kind==='ab' ? 'ייצור טרי לי' : 'ארגזים שטרי לי שלחו';
+  document.getElementById('arL2').style.display=isFb?'none':'block';
+  document.getElementById('arV2').style.display=isFb?'none':'block';
   var t=new Date(); var dw=t.getDay(); var addD=(dw===4)?3:(dw===5)?2:(dw===6)?1:1; t.setDate(t.getDate()+addD);   // מחר; חמישי->ראשון, ושישי/שבת->ראשון
   document.getElementById('arDate').value = t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);
   document.getElementById('arV1').value='0'; document.getElementById('arV2').value='0';
@@ -1568,9 +1614,10 @@ async function saveAddRow(){
   var iso=document.getElementById('arDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('בחר תאריך'); return; }
   var v1=+document.getElementById('arV1').value||0, v2=+document.getElementById('arV2').value||0;
   var url, body;
-  if(kind==='ab'){ url=ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date'; body={report_date:iso,manual_alumim:v1,manual_treli:v2,uploaded_by:s.username||s.email||''}; }   // בלי green/orange כדי לא לדרוס ספירה קיימת
+  if(kind==='ab'){ url=ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date'; body={report_date:iso,manual_alumim:v1,manual_treli:v2,uploaded_by:s.username||s.email||''}; }
+  else if(kind==='fb'){ url=ORD_SB+'/rest/v1/fruit_balance?on_conflict=report_date'; body={report_date:iso,pallets:v1,uploaded_by:s.username||s.email||''}; }
   else { url=ORD_SB+'/rest/v1/box_balance?on_conflict=report_date'; body={report_date:iso,box_in:v1,box_out:v2,uploaded_by:s.username||s.email||''}; }
-  try{ await ordSave('POST',url,body,'resolution=merge-duplicates,return=minimal'); closeAddRow(); AB_MONTH=iso.slice(0,7); if(kind==='ab')abLoad(); else bxLoad(); }
+  try{ await ordSave('POST',url,body,'resolution=merge-duplicates,return=minimal'); closeAddRow(); AB_MONTH=iso.slice(0,7); if(kind==='ab')abLoad(); else if(kind==='fb')fbLoad(); else bxLoad(); }
   catch(e){ alert('שגיאה: '+e.message); }
 }
 
