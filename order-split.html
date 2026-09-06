@@ -284,6 +284,9 @@ function getReportDate(ws) {
   }
   return "";
 }
+function nextWorkdayISO(iso){ if(!iso) return ""; var p=iso.split("-"); var d=new Date(+p[0],+p[1]-1,+p[2]); d.setDate(d.getDate()+1); if(d.getDay()===6) d.setDate(d.getDate()+1); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+function latestOrderISO(ws){ var maxc=ws.columnCount, dCol=-1; for(var c=1;c<=maxc;c++){ if(cellText(ws.getRow(1).getCell(c)).trim()==="תאריך"){dCol=c;break;} } if(dCol<0) return ""; var best=""; for(var r=2;r<=ws.rowCount;r++){ var dv=cellText(ws.getRow(r).getCell(dCol)).trim(); var m=dv.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/); if(!m) continue; var y=m[3].length===2?"20"+m[3]:m[3]; if(y==="2088"||y==="1988") continue; var cand=y+"-"+("0"+m[2]).slice(-2)+"-"+("0"+m[1]).slice(-2); if(cand>best) best=cand; } return best; }
+function pubDateISO(ws){ return latestOrderISO(ws); }   // תאריך פרסום הדוח = התאריך האחרון בקובץ (יום השליחה)
 function detectHeader(ws) {
   for (let r = 1; r <= Math.min(ws.rowCount, 15); r++) {
     const row = ws.getRow(r); let hasReg = false, hasName = false, hasNewReg = false, hasNewName = false;
@@ -408,7 +411,7 @@ function process(ws, S, opts) {
   return {
     headerRow: hr, productCount: products.length, regionsSeen: [...regionsSeen],
     buckets, flags, summer: !!S.summer_mode, boxesOut, boxesIn, cartonsIn, cartonsOut, dailyNet: boxesOut - boxesIn,
-    fruitCartons, fruitPallets, settings: S, newFmt: newFmt, reportDate: (opts.date ? opts.date : getReportDate(ws))
+    fruitCartons, fruitPallets, settings: S, newFmt: newFmt, reportDate: (opts.date ? opts.date : getReportDate(ws)), pubDate: (newFmt ? pubDateISO(ws) : toIsoD(getReportDate(ws)))
   };
 }
 
@@ -1043,9 +1046,10 @@ async function bxDelRow(iso){
   catch(e){ alert('שגיאה: '+e.message); }
 }
 async function bxAutoRecord(R){
-  if(!R||R.summer||!R.reportDate) return;
+  if(!R||R.summer) return;
   var s=ordSession(); if(!s) return;
-  var iso=toIsoD(R.reportDate); if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+  var iso=(R.pubDate&&/^\d{4}-\d{2}-\d{2}$/.test(R.pubDate))?R.pubDate:"";
+  if(!iso) return;   // אין תאריך אספקה תקין בקובץ — לא רושמים (עדיף לא לרשום מאשר לרשום על 01/01/88)
   var effOut=(R.boxesOut||0)+(R.adjustOut||0), effIn=(R.boxesIn||0)+(R.adjustIn||0);
   var body={report_date:iso,box_in:effIn,box_out:effOut,uploaded_by:s.username||s.email||''};
   try{ await fetch(ORD_SB+'/rest/v1/box_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); }
@@ -1312,7 +1316,7 @@ function abParseNew(ws){
   for(var dc=1;dc<=maxc;dc++){ if(abTxt(ws.getRow(1).getCell(dc)).trim()==='תאריך'){ dCol=dc; break; } }
   if(dCol>0){ var best='';
     for(var dr=2;dr<=ws.rowCount;dr++){ var dv=abTxt(ws.getRow(dr).getCell(dCol)).trim(); var mm=dv.match(/(\d\d)\/(\d\d)\/(\d{2,4})/); if(!mm) continue; var y=mm[3].length===2?'20'+mm[3]:mm[3]; if(y==='2088'||y==='1988'||dv.indexOf('01/01/88')>=0) continue; var cand=y+'-'+mm[2]+'-'+mm[1]; if(cand>best) best=cand; }
-    iso=best; }
+    iso=best; }   // תאריך פרסום הדוח
   return {date:iso, green:green, orange:orange, ran:ran, sheet:ws.name, newFmt:true};
 }
 function abParse(ws){
