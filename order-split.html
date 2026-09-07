@@ -311,12 +311,15 @@ function getColumns(ws, hr, S) {
     if (nameCol < 0 && h.indexOf("קיטרינג") >= 0) { nameCol = c; continue; }
     if (addrCol < 0 && h.indexOf("כתובת") >= 0) { addrCol = c; continue; }
     if (has(h, S.meta_headers)) continue; // עמודות מטא (כולל 'מספר משטחים', תאריכים, מובילים)
-    var isFruit = has(h.replace(/[\"'\u05f3\u05f4]/g,""), S.fruit_keywords) && h.indexOf("תפוח אדמה") < 0;   // "תפוח אדמה" = ירק; מנקים גרשיים כדי לזהות תפו"ע
+    var _hn = h.replace(/[\"'\u05f3\u05f4]/g,"");
+    var isFruit = has(_hn, S.fruit_keywords) && h.indexOf("תפוח אדמה") < 0;   // "תפוח אדמה" = ירק; מנקים גרשיים כדי לזהות תפו"ע
+    var fruitKey = ""; if (isFruit) { for (var _fi=0; _fi<S.fruit_keywords.length; _fi++){ if(_hn.indexOf(S.fruit_keywords[_fi])>=0){ fruitKey=S.fruit_keywords[_fi]; break; } } }
+    if (fruitKey==="תפוע"||fruitKey==="תפוח") fruitKey="תפוח עץ";   // תפו"ע ותפוח = אותו פרי
     var isCarton = has(h, S.carton_keywords) || isFruit; // פרי תמיד לא-ארגז
     var fromAlumim = h.indexOf("מעלומים") >= 0;          // עמודה שמסומנת מפורשות "מעלומים"
     var throughUs = (S.through_us_keys || []).some(function (k) { return h.indexOf(k) >= 0; });
     var isDirect = fromAlumim && h.indexOf("ללקוח") >= 0 && !throughUs; // עלומים ישיר ללקוח — לא נוגע לנו
-    products.push({ col: c, header: h, isCarton: isCarton, isFruit: isFruit, fromAlumim: fromAlumim, isDirect: isDirect });
+    products.push({ col: c, header: h, isCarton: isCarton, isFruit: isFruit, fruitKey: fruitKey, fromAlumim: fromAlumim, isDirect: isDirect });
   }
   return { regionCol, nameCol, addrCol, supplierCol, dateCol, products, newFmt };
 }
@@ -352,7 +355,7 @@ function process(ws, S, opts) {
   };
 
   const buckets = { prepare: {}, receive: {}, send: {} }; // region -> {custKey -> {name,addr,region,items:[]}}
-  const flags = []; let boxesOut = 0, boxesIn = 0, cartonsIn = 0, cartonsOut = 0, fruitCartons = 0, fruitPallets = 0;
+  const flags = []; let boxesOut = 0, boxesIn = 0, cartonsIn = 0, cartonsOut = 0, fruitCartons = 0, fruitPallets = 0; const fruitByType = {};
   const fcpp = S.fruit_cartons_per_pallet > 0 ? S.fruit_cartons_per_pallet : 60;
   const regionsSeen = new Set();
 
@@ -405,9 +408,10 @@ function process(ws, S, opts) {
       }
       // !ours && alumim -> מתעלמים
       // משטחי פירות: נספר לכל פרי שאנחנו מטפלים בו (מכינים/שולחים/מקבלים) — כולל פירות בציאן — ללא תלות ביצרן
-      if (p.isFruit && ours) { fruitCartons += qty; fruitPallets += Math.ceil(qty / fcpp); }   // רק פירות שמגיעים לטרי לי (האזורים שלנו) — לא כאלה שנשלחים לאזורי עלומים
+      if (p.isFruit && ours) { fruitCartons += qty; var _fk = p.fruitKey || p.header; fruitByType[_fk] = (fruitByType[_fk] || 0) + qty; }   // צובר לפי סוג פרי; משטחים מחושבים בסוף (אותו פרי = משטח אחד)
     }
   }
+  for (var _ft in fruitByType) fruitPallets += Math.ceil(fruitByType[_ft] / fcpp);   // אותו פרי מתאחד למשטח
   return {
     headerRow: hr, productCount: products.length, regionsSeen: [...regionsSeen],
     buckets, flags, summer: !!S.summer_mode, boxesOut, boxesIn, cartonsIn, cartonsOut, dailyNet: boxesOut - boxesIn,
