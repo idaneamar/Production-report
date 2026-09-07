@@ -84,7 +84,7 @@ body{background:#fff}
 .pick thead{display:table-header-group}
 .pick th,.pick td{border:1.4px solid #111!important}
 .pick{border:2px solid #111!important}
-.pick tr{page-break-inside:avoid}}
+.pick tr{page-break-inside:avoid}.pick tr.evbreak td{page-break-before:always;break-before:page}}
 tr.pk,details.pk>summary{background:#fff7e6}
 ol li,ul li{margin:5px 0}
 </style>
@@ -588,9 +588,11 @@ function pickerCheckHtml(results){
   var tp=0, tb=0;
   var rows='';
   // מיון: לקוחות של נסיעת הערב קודם, אחריהם כל השאר (מיון יציב לפי הסדר המקורי)
-  var evRank=function(c){ var m=metaFor(c); var b=(m&&m.b)||''; return (b.indexOf('ערב')>=0)?0:1; };
+  var evRank=function(c){ var dv=drvForCust(c); if(dv&&dv.shift){ return shiftLbl(dv.shift).indexOf('ערב')>=0?0:1; } var m=metaFor(c); var b=(m&&m.b)||''; return (b.indexOf('ערב')>=0 && b.indexOf('בוקר')<0)?0:1; };
   var ordered=results.map(function(r,i){return {r:r,i:i};}).sort(function(a,b){ return evRank(a.r.cust)-evRank(b.r.cust) || a.i-b.i; }).map(function(x){return x.r;});
+  var evSeen=0, evBroke=false;
   ordered.forEach(function(r){
+    var _isEve=(evRank(r.cust)===0); var _brk=false; if(_isEve){evSeen++;} else if(!evBroke&&evSeen>0){_brk=true;evBroke=true;}
     var pm=new Map(), tmap=new Map(), bags=0;
     r.shipments.forEach(function(s){
       (s.agg.parts||[]).forEach(function(pt){
@@ -620,7 +622,8 @@ function pickerCheckHtml(results){
     var mt=metaFor(r.cust); var metaLine=mt?'<div class="cmeta">📍 '+esc(mt.l||'—')+' <span class="cbe '+beClass(mt.b)+'">'+esc(beShort(mt.b))+'</span></div>':'';
     var cnotes=NOTES.filter(function(n){return n.cust&&r.cust&&n.cust.name===r.cust.name;});
     var noteLine=cnotes.length?'<div class="drv" style="color:#b45309">🧺 '+cnotes.map(function(n){return esc(n.text)+(n.row?' ('+esc(n.row)+')':'');}).join(' · ')+'</div>':'';
-    rows+='<tr'+(r.cust.pickup?' class="pk"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+metaLine+noteLine+'</td>'
+    var _cls=[]; if(r.cust.pickup)_cls.push('pk'); if(_brk)_cls.push('evbreak');
+    rows+='<tr'+(_cls.length?' class="'+_cls.join(' ')+'"':'')+'><td class="cn">'+custLabel(r.cust)+drvLine+metaLine+noteLine+'</td>'
         +'<td class="big">'+((r.aggAll||r.agg).pallets||0)+'</td>'
         +'<td>'+cont+'</td>'
         +'<td class="prods">'+(plist||'—')+'</td></tr>';
