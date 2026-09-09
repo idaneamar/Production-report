@@ -264,11 +264,12 @@ function aggregate(custTotalsByType){
 
 /* ---------- התאמות ---------- */
 function norm(s){ return (s||'').toString().replace(/["'׳״]/g,'').replace(/\s+/g,' ').trim(); }
+function normP(s){ return norm(s).replace(/(^|\s)1\s*קג(\s|$)/g,'$1קג$2'); }   // "1 ק\"ג" ≡ "ק\"ג"
 function findProduct(name,code){
-  const n=norm(name);
-  let p=DB.products.find(x=>norm(x.name)===n);
+  const n=normP(name);
+  let p=DB.products.find(x=>normP(x.name)===n);
   if(!p && code) p=DB.products.find(x=>x.code && norm(x.code)===norm(code));
-  if(!p && n) p=DB.products.find(x=>norm(x.name) && (norm(x.name).includes(n)||n.includes(norm(x.name))));
+  if(!p && n) p=DB.products.find(x=>normP(x.name) && (normP(x.name).includes(n)||n.includes(normP(x.name))));
   return p||null;
 }
 /* כותרת לקוח בדוח מכילה לעיתים את זמן האספקה, למשל:
