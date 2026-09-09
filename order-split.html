@@ -125,6 +125,7 @@ code{background:#eef3f7;padding:1px 5px;border-radius:4px}
   <p class="muted">מאזן חיובי = עלומים חייבים לנו ארגזים. שלילי = אנחנו חייבים להם. "שלחנו" = ארגזים שלנו שהלכו אליהם; "קיבלנו" = ארגזים שלהם שאצלנו.</p>
   <div class="row">מאזן פתיחה (ארגזים): <input id="opening" type="number" style="width:110px" onchange="saveLedger();bxRender()" value="0">
    <button class="btn sec" onclick="openAddRow('bx')">+ רשומה ידנית</button>
+   <button class="btn sec" onclick="openReturn()">↩ החזר ארגזים</button>
    <button class="btn sec" onclick="bxExportXls()">⬇ ייצוא יומן</button></div>
   <div id="ledgerTotals" class="tot"></div>
   <div id="ledgerTbl"></div>
@@ -986,10 +987,11 @@ function bxCompute(){
     var inCount=(row.box_in!=null?+row.box_in:0), outCount=(row.box_out!=null?+row.box_out:0);
     var bin=(row.manual_in!=null&&row.manual_in!=='')?+row.manual_in:inCount;
     var bout=(row.manual_out!=null&&row.manual_out!=='')?+row.manual_out:outCount;
-    var net=bout-bin, open=bal, computed=open+net;
+    var retIn=(row.ret_in!=null?+row.ret_in:0), retOut=(row.ret_out!=null?+row.ret_out:0);
+    var net=(bout+retOut)-(bin+retIn), open=bal, computed=open+net;
     var mc=(row.manual_close!=null&&row.manual_close!=='')?+row.manual_close:null;
     var close=(mc!=null)?mc:computed; bal=close;
-    BOX_SEQ[row.report_date]={open:open,bin:bin,bout:bout,inCount:inCount,outCount:outCount,manIn:(row.manual_in!=null&&row.manual_in!==''?+row.manual_in:null),manOut:(row.manual_out!=null&&row.manual_out!==''?+row.manual_out:null),net:net,close:close,computed:computed,manClose:mc,row:row};
+    BOX_SEQ[row.report_date]={open:open,bin:bin,bout:bout,inCount:inCount,outCount:outCount,retIn:retIn,retOut:retOut,retNote:row.ret_note||'',manIn:(row.manual_in!=null&&row.manual_in!==''?+row.manual_in:null),manOut:(row.manual_out!=null&&row.manual_out!==''?+row.manual_out:null),net:net,close:close,computed:computed,manClose:mc,row:row};
   });
 }
 function bxRender(){
@@ -1017,7 +1019,7 @@ function bxTableHtml(){
       +'<td class="abro">'+abFmt(q.open)+'</td>'
       +'<td class="abedit'+(inEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.bin)+'" onchange="bxSetField(\''+d+'\',\'manual_in\',this.value)">'+inOrig+'</td>'
       +'<td class="abedit'+(outEd?' abm':'')+'"><input type="number" step="any" value="'+abNumStr(q.bout)+'" onchange="bxSetField(\''+d+'\',\'manual_out\',this.value)">'+outOrig+'</td>'
-      +'<td class="abro" style="font-weight:700">'+(q.net>=0?'+':'')+abFmt(q.net)+'</td>'
+      +'<td class="abro" style="font-weight:700">'+(q.net>=0?'+':'')+abFmt(q.net)+((q.retIn||q.retOut)?('<div class="abov" style="color:#0ea5e9">↩ '+[(q.retIn?'עלומים החזירו '+abFmt(q.retIn):''),(q.retOut?'החזרנו '+abFmt(q.retOut):'')].filter(Boolean).join(' · ')+' <a href="#" onclick="bxClearReturn(\''+d+'\');return false" title="בטל החזר">↺</a></div>'):'')+'</td>'
       +'<td class="abedit'+(cEd?' abm':'')+'" style="'+clsCol+'"><input type="number" step="any" value="'+abNumStr(q.close)+'" onchange="bxSetField(\''+d+'\',\'manual_close\',this.value)">'+cOrig+'</td>'
       +'<td class="abro"><button class="btn sec" style="padding:2px 8px" onclick="bxDelRow(\''+d+'\')" title="מחק רשומה">✕</button></td>'
       +'</tr>';
@@ -1059,6 +1061,45 @@ async function bxAutoRecord(R){
   var body={report_date:iso,box_in:effIn,box_out:effOut,uploaded_by:s.username||s.email||''};
   try{ await fetch(ORD_SB+'/rest/v1/box_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); }
   catch(e){}
+}
+function openReturn(){
+  if(!ordSession()){ alert('צריך להיות מחובר'); return; }
+  var m=document.getElementById('retModal');
+  if(!m){ m=document.createElement('div'); m.id='retModal';
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999';
+    m.innerHTML='<div style="background:#fff;border-radius:12px;padding:20px;max-width:420px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.25)" onclick="event.stopPropagation()">'
+      +'<h3 style="margin:0 0 4px">↩ החזר ארגזים</h3>'
+      +'<div class="muted" style="margin-bottom:12px">החזר ארגזים בין החברות לאיזון המאזן (לא קשור לדוח היומי).</div>'
+      +'<label style="display:block;margin-bottom:4px;font-weight:600">תאריך</label>'
+      +'<input id="retDate" type="date" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:12px">'
+      +'<label style="display:block;margin-bottom:4px;font-weight:600">כיוון</label>'
+      +'<select id="retDir" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:12px"><option value="in">עלומים החזירו לנו</option><option value="out">אנחנו החזרנו לעלומים</option></select>'
+      +'<label style="display:block;margin-bottom:4px;font-weight:600">כמות ארגזים</label>'
+      +'<input id="retAmt" type="number" step="any" value="0" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:18px" onkeydown="if(event.key===\'Enter\')saveReturn()">'
+      +'<div style="display:flex;gap:8px"><button class="btn" onclick="saveReturn()">שמור</button><button class="btn sec" onclick="closeReturn()">ביטול</button></div></div>';
+    m.onclick=closeReturn; document.body.appendChild(m);
+  }
+  var t=new Date(); document.getElementById('retDate').value=t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);
+  document.getElementById('retAmt').value='0';
+  m.style.display='flex'; setTimeout(function(){document.getElementById('retAmt').focus();},50);
+}
+function closeReturn(){ var m=document.getElementById('retModal'); if(m)m.style.display='none'; }
+async function saveReturn(){
+  var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
+  var iso=document.getElementById('retDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('בחר תאריך'); return; }
+  var dir=document.getElementById('retDir').value;
+  var amt=+document.getElementById('retAmt').value||0; if(!amt){ closeReturn(); return; }
+  var row=BOX_ROWS.find(function(r){return r.report_date===iso;});
+  var curIn=(row&&row.ret_in!=null?+row.ret_in:0), curOut=(row&&row.ret_out!=null?+row.ret_out:0);
+  var body={report_date:iso,uploaded_by:s.username||s.email||''}; if(dir==='in') body.ret_in=curIn+amt; else body.ret_out=curOut+amt;
+  try{ await ordSave('POST',ORD_SB+'/rest/v1/box_balance?on_conflict=report_date',body,'resolution=merge-duplicates,return=minimal'); closeReturn(); bxLoad(); }
+  catch(e){ alert('שגיאה: '+e.message); }
+}
+async function bxClearReturn(iso){
+  if(!confirm('לבטל את ההחזר של '+heDate(iso)+'?')) return;
+  if(!ordSession()){ alert('צריך להיות מחובר'); return; }
+  try{ await ordSave('PATCH',ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso,{ret_in:0,ret_out:0,ret_note:null}); bxLoad(); }
+  catch(e){ alert('שגיאה: '+e.message); }
 }
 function bxExportXls(){
   var dates=Object.keys(BOX_SEQ).sort(); if(!dates.length){ alert('אין נתונים'); return; }
