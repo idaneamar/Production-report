@@ -339,6 +339,12 @@ function parseMatrix(text){
     const c=findCustomer(h);
     if(c){ custCols.push({i,c,header:h,deliv:sd.deliv}); DELIV_BY_COL[h]=sd; }
     else if(unmatchedHdr.indexOf(sd.clean)<0) unmatchedHdr.push(sd.clean); }
+  // עמודות כפולות בקובץ: אותו לקוח + נתונים זהים בדיוק → נספרות פעם אחת (מונע הכפלה)
+  (function(){ var seen={}, uniq=[];
+    custCols.forEach(function(cc){ var sig=norm(cc.c.name)+'|';
+      for(var r=hIdx+1;r<grid.length;r++){ var v=(grid[r]&&grid[r][cc.i]); sig+=(v==null?'':(''+v).trim())+'\u0001'; }
+      if(seen[sig]) return; seen[sig]=1; uniq.push(cc); });
+    if(uniq.length<custCols.length){ custCols.length=0; uniq.forEach(function(x){custCols.push(x);}); } })();
   const items=[]; const unmatchedProd=new Set(); const notes=[];
   for(let r=hIdx+1;r<grid.length;r++){ const row=grid[r];
     const pname = nameCol>=0?row[nameCol]:''; const pcode = codeCol>=0?row[codeCol]:'';
@@ -375,7 +381,7 @@ const ORD_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJl
 function ordSession(){ try{return JSON.parse(localStorage.getItem('trelee_session'))||null;}catch(e){return null;} }
 /* ---------- מיפוי נהג+משמרת לכל לקוח (ממעקב הנהגים) ---------- */
 var DRV_MAP={}, DRV_LOADED=0;
-var REPORT_DOW=null, DRV_KEY='';
+var REPORT_DOW=null, DRV_KEY='', REPORT_DATE='', REPORT_DAY='';
 var NOTES=[];
 async function loadDriverMap(){
   if(Date.now()-DRV_LOADED<120000 && Object.keys(DRV_MAP).length && DRV_KEY===String(REPORT_DOW)) return;
@@ -629,7 +635,8 @@ function pickerCheckHtml(results){
         +'<td>'+cont+'</td>'
         +'<td class="prods">'+(plist||'—')+'</td></tr>';
   });
-  return '<div class="card pick-check"><h2>✅ בדיקת מלקט — מה צריך לצאת לכל לקוח</h2>'
+  var _hd=(REPORT_DAY||REPORT_DATE)?(' <span style="color:#0f5132">— '+(REPORT_DAY?'יום '+REPORT_DAY+' ':'')+(REPORT_DATE||'')+'</span>'):'';
+  return '<div class="card pick-check"><h2>✅ בדיקת מלקט'+_hd+' — מה צריך לצאת לכל לקוח</h2>'
     +'<p class="muted">שורה אחת ללקוח: כמה משטחים, כמה קרטונים ואילו מוצרים. אם מספר המשטחים בפועל לא תואם — חסר או עודף משהו.</p>'
     +'<table class="pick"><thead><tr><th>לקוח</th><th>משטחים</th><th>קרטונים</th><th>מוצרים (כמות · ארגזים)</th></tr></thead><tbody>'
     +rows
@@ -782,7 +789,11 @@ async function handleFile(f){
 function finishGrid(grid,label){
   const tsv=grid.map(r=>r.map(c=>(c==null?'':(''+c).replace(/\t/g,' '))).join('\t')).join('\n');
   document.getElementById('inp').value=tsv;
-  document.getElementById('fileinfo').textContent='✓ נטען: '+label+' ('+grid.length+' שורות)';
+  REPORT_DATE=''; REPORT_DAY='';
+  for(var _r=0;_r<Math.min(grid.length,4);_r++){ if(!grid[_r])continue; for(var _c=0;_c<grid[_r].length;_c++){ var _m=String(grid[_r][_c]||'').match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/); if(_m){ REPORT_DATE=_m[0]; break; } } if(REPORT_DATE)break; }
+  var _Dw=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת']; for(var _di=0;_di<_Dw.length;_di++){ if((label||'').indexOf(_Dw[_di])>=0){ REPORT_DAY=_Dw[_di]; break; } }
+  var _dd=(REPORT_DAY||REPORT_DATE)?(' · <b style="font-size:15px;color:#0f5132">📅 '+(REPORT_DAY?'יום '+REPORT_DAY+' ':'')+(REPORT_DATE||'')+'</b>'):'';
+  document.getElementById('fileinfo').innerHTML='✓ נטען: '+esc(label)+_dd+' <span class="muted">('+grid.length+' שורות)</span>';
   run();
 }
 function csvToGrid(t){ const lines=t.replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
