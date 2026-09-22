@@ -77,7 +77,10 @@
     <div id="pdfReview" class="hidden" style="margin-top:14px">
       <div class="row">
         <b>נסיעות שזוהו — בדוק ותקן לפני שמירה:</b>
-        <label>תאריך הסידור <input type="date" id="pdfDate"></label>
+        <label>תאריך הסידור <input type="date" id="pdfDate" oninput="pdfAutoDates()"></label>
+        <label>🌙 תאריך לילה <input type="date" id="pdfNightDate"></label>
+        <label>☀ תאריך בוקר/צהריים <input type="date" id="pdfMorningDate"></label>
+        <span class="muted">התאריכים נמלאים אוטומטית מתאריך הסידור — אפשר לתקן ידנית לפני שמירה</span>
       </div>
       <div style="max-height:50vh;overflow:auto" id="pdfTbl"></div>
       <div class="row" style="margin-top:10px">
@@ -542,6 +545,7 @@ async function handlePdf(file){
     if(!PDF_ROWS.length){ alert('לא זוהו נסיעות בקובץ — ודא שזה קובץ סידור נהגים'); return; }
     const m=file.name.match(/(\d{4}-\d{2}-\d{2})/);
     document.getElementById('pdfDate').value=m?m[1]:'';
+    pdfAutoDates();
     renderPdfReview();
   }catch(e){ alert('שגיאה בפענוח הקובץ: '+e.message); }
   finally{ loader.style.display='none'; }
@@ -563,13 +567,21 @@ function renderPdfReview(){
   document.getElementById('pdfTbl').innerHTML=h;
   document.getElementById('pdfReview').classList.remove('hidden');
 }
+/* ממלא אוטומטית את תאריכי המשלוח מתאריך הסידור. מדלג רק על שבת (שישי הוא יום חלוקה). ניתן לתקן ידנית. */
+function pdfAutoDates(){
+  var d=document.getElementById('pdfDate').value;
+  if(!d) return;
+  var _mo=new Date(d+'T00:00:00'); do{ _mo.setDate(_mo.getDate()+1); }while(_mo.getDay()===6); /* דלג רק על שבת */
+  var _ev=new Date(_mo); _ev.setDate(_ev.getDate()-1);
+  document.getElementById('pdfMorningDate').value=iso(_mo);
+  document.getElementById('pdfNightDate').value=iso(_ev);
+}
 async function savePdf(){ if(!CAN_EDIT){ alert('אין לך הרשאת עריכה במעקב נהגים'); return; }
   const date=document.getElementById('pdfDate').value;
   if(!date){ alert('בחר תאריך לסידור'); return; }
-  // תאריכי משלוח: בוקר = יום המשלוח הבא (מדלג על שישי/שבת), ערב/לילה = היום שלפניו (סידור חמישי → מוצאי שבת + ראשון).
-  var _mo=new Date(date+'T00:00:00'); do{ _mo.setDate(_mo.getDate()+1); }while(_mo.getDay()===5||_mo.getDay()===6);
-  var _ev=new Date(_mo); _ev.setDate(_ev.getDate()-1);
-  var evd=iso(_ev), mod=iso(_mo);
+  var evd=document.getElementById('pdfNightDate').value, mod=document.getElementById('pdfMorningDate').value;
+  if(!evd||!mod){ pdfAutoDates(); evd=document.getElementById('pdfNightDate').value; mod=document.getElementById('pdfMorningDate').value; }
+  if(!evd||!mod){ alert('בחר תאריך לילה ותאריך בוקר/צהריים'); return; }
   const rows=[];
   PDF_ROWS.forEach((r,i)=>{
     if(!document.getElementById('pr_on_'+i).checked) return;
