@@ -567,9 +567,7 @@ async function loadFile(f){
     info.textContent='✓ נטען: '+f.name;
     buildDateSel(def);
     runSheet(def);
-    autoRecord(LAST);
-    bxAutoRecord(LAST);
-    fbAutoRecord(LAST);
+    // רישום מאזן ארגזים/פירות נעשה ידנית עם בחירת תאריך (כפתורי "הוסף ... ליומן")
   }catch(err){ info.textContent=''; document.getElementById('msg').innerHTML='<div class="warn">שגיאה בקריאת הקובץ: '+(err.message||err)+'</div>'; console.error(err); }
 }
 function runSheet(name){ const ws=WB.getWorksheet(name); if(!ws)return;
@@ -956,8 +954,9 @@ function closeAdjust(){ var m=document.getElementById('adjModal'); if(m)m.style.
 function saveAdjust(){ var m=document.getElementById('adjModal'); if(!m||!LAST)return; var kind=m.getAttribute('data-kind');
   var q=parseFloat(document.getElementById('adjQty').value)||0; var t=document.getElementById('adjTxt').value;
   if(kind==='out'){ LAST.adjustOut=q; LAST.adjustNote=t; } else { LAST.adjustIn=q; LAST.adjustInNote=t; }
-  closeAdjust(); render(LAST); bxAutoRecord(LAST); }
-function addToLedger(){ if(!LAST){alert('קודם טען דוח');return;}
+  closeAdjust(); render(LAST); }
+function addToLedger(){ openRecordDate('box'); }
+function _addToLedgerOld(){ if(!LAST){alert('קודם טען דוח');return;}
   const date=new Date().toLocaleDateString('he-IL');
   const skey=(LAST.newFmt&&LAST.reportDate)?(LAST.sheet+' · '+LAST.reportDate):LAST.sheet;   // פורמט חדש: להבחין לפי תאריך משלוח
   const dup=LEDGER.entries.filter(e=>e.date===date&&e.sheet===skey);
@@ -1052,15 +1051,47 @@ async function bxDelRow(iso){
   try{ await ordSave('DELETE',ORD_SB+'/rest/v1/box_balance?report_date=eq.'+iso); bxLoad(); }
   catch(e){ alert('שגיאה: '+e.message); }
 }
-async function bxAutoRecord(R){
+async function bxAutoRecord(R,isoArg){
   if(!R||R.summer) return;
   var s=ordSession(); if(!s) return;
-  var iso=(R.pubDate&&/^\d{4}-\d{2}-\d{2}$/.test(R.pubDate))?R.pubDate:"";
-  if(!iso) return;   // אין תאריך אספקה תקין בקובץ — לא רושמים (עדיף לא לרשום מאשר לרשום על 01/01/88)
+  var iso=(isoArg&&/^\d{4}-\d{2}-\d{2}$/.test(isoArg))?isoArg:((R.pubDate&&/^\d{4}-\d{2}-\d{2}$/.test(R.pubDate))?R.pubDate:"");
+  if(!iso) return;   // אין תאריך תקין — לא רושמים
   var effOut=(R.boxesOut||0)+(R.adjustOut||0), effIn=(R.boxesIn||0)+(R.adjustIn||0);
   var body={report_date:iso,box_in:effIn,box_out:effOut,uploaded_by:s.username||s.email||''};
   try{ await fetch(ORD_SB+'/rest/v1/box_balance?on_conflict=report_date',{method:'POST',headers:Object.assign({},abH(),{'Prefer':'resolution=merge-duplicates,return=minimal'}),body:JSON.stringify(body)}); }
   catch(e){}
+}
+function _bestRecDate(){ var R=LAST; if(R&&R.pubDate&&/^\d{4}-\d{2}-\d{2}$/.test(R.pubDate)) return R.pubDate; var t=new Date(); return t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2); }
+function openRecordDate(kind){
+  if(!LAST){ alert('קודם טען דוח'); return; }
+  if(!ordSession()){ alert('צריך להיות מחובר'); return; }
+  var m=document.getElementById('recDateModal');
+  if(!m){ m=document.createElement('div'); m.id='recDateModal';
+    m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999';
+    m.innerHTML='<div style="background:#fff;border-radius:12px;padding:20px;max-width:420px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,.25)" onclick="event.stopPropagation()">'
+      +'<h3 id="recTitle" style="margin:0 0 8px"></h3>'
+      +'<div id="recInfo" class="muted" style="margin-bottom:12px"></div>'
+      +'<label style="display:block;margin-bottom:4px;font-weight:600">תאריך הדוח</label>'
+      +'<input id="recDate" type="date" style="width:100%;padding:8px;box-sizing:border-box;margin-bottom:18px" onkeydown="if(event.key===\'Enter\')saveRecDate()">'
+      +'<div style="display:flex;gap:8px"><button class="btn" onclick="saveRecDate()">רשום</button><button class="btn sec" onclick="closeRecDate()">ביטול</button></div></div>';
+    m.onclick=closeRecDate; document.body.appendChild(m);
+  }
+  m.setAttribute('data-kind',kind);
+  document.getElementById('recTitle').textContent = kind==='box' ? '➕ רישום מאזן ארגזים — בחר תאריך' : '🍐 רישום משטחי פירות — בחר תאריך';
+  var info = kind==='box' ? ('ייכנס: עלומים שלחו '+abFmt((LAST.boxesIn||0)+(LAST.adjustIn||0))+' · טרי לי שלחו '+abFmt((LAST.boxesOut||0)+(LAST.adjustOut||0))) : ('ייכנס: '+abFmt(LAST.fruitPallets||0)+' משטחי פירות');
+  document.getElementById('recInfo').textContent=info;
+  document.getElementById('recDate').value=_bestRecDate();
+  m.style.display='flex'; setTimeout(function(){document.getElementById('recDate').focus();},50);
+}
+function closeRecDate(){ var m=document.getElementById('recDateModal'); if(m)m.style.display='none'; }
+async function saveRecDate(){
+  var m=document.getElementById('recDateModal'); if(!m||!LAST)return; var kind=m.getAttribute('data-kind');
+  var iso=document.getElementById('recDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('בחר תאריך'); return; }
+  closeRecDate();
+  try{
+    if(kind==='box'){ await bxAutoRecord(LAST,iso); flash('מאזן הארגזים נרשם ל-'+heDate(iso)+' ✓'); if(typeof bxLoad==='function')bxLoad(); }
+    else { await fbAutoRecord(LAST,iso); flash('משטחי הפירות נרשמו ל-'+heDate(iso)+' ✓'); if(typeof fbLoad==='function')fbLoad(); }
+  }catch(e){ alert('שגיאה: '+e.message); }
 }
 function openReturn(){
   if(!ordSession()){ alert('צריך להיות מחובר'); return; }
@@ -1117,7 +1148,7 @@ function exportLedger(){ let h='<html dir="rtl"><head><meta charset="utf-8"></he
   dl(new Blob(['﻿'+h],{type:'application/vnd.ms-excel'}),'מאזן_ארגזים.xls'); }
 
 /* ---------- מעקב משטחי פירות ---------- */
-function addFruitFromDay(){ if(!LAST){alert('קודם טען דוח');return;} fbAutoRecord(LAST); flash('משטחי הפירות נרשמו למעקב ✓'); return; }
+function addFruitFromDay(){ openRecordDate('fruit'); }
 function _addFruitFromDayOld(){ if(!LAST){alert('קודם טען דוח');return;}
   const date=(LAST.newFmt&&LAST.reportDate)?LAST.reportDate:new Date().toLocaleDateString('he-IL');
   const p=prompt('כמות משטחי פירות לתאריך '+date+':', LAST.fruitPallets); if(p===null)return;
@@ -1179,9 +1210,9 @@ async function fbSetField(iso,field,value){
 }
 async function fbDelRow(iso){ if(!confirm('למחוק את הרשומה של '+heDate(iso)+'?')) return; if(!ordSession()){ alert('צריך להיות מחובר'); return; }
   try{ await ordSave('DELETE',ORD_SB+'/rest/v1/fruit_balance?report_date=eq.'+iso); fbLoad(); }catch(e){ alert('שגיאה: '+e.message); } }
-async function fbAutoRecord(R){
+async function fbAutoRecord(R,isoArg){
   if(!R||R.summer) return; var s=ordSession(); if(!s) return;
-  var iso=(R.pubDate&&/^\d{4}-\d{2}-\d{2}$/.test(R.pubDate))?R.pubDate:''; if(!iso) return;
+  var iso=(isoArg&&/^\d{4}-\d{2}-\d{2}$/.test(isoArg))?isoArg:((R.pubDate&&/^\d{4}-\d{2}-\d{2}$/.test(R.pubDate))?R.pubDate:''); if(!iso) return;
   var body={report_date:iso,pallets:(R.fruitPallets||0),uploaded_by:s.username||s.email||''};
   try{ await ordSave('POST',ORD_SB+'/rest/v1/fruit_balance?on_conflict=report_date',body,'resolution=merge-duplicates,return=minimal'); }catch(e){}
 }
