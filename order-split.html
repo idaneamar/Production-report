@@ -1087,6 +1087,9 @@ function closeRecDate(){ var m=document.getElementById('recDateModal'); if(m)m.s
 async function saveRecDate(){
   var m=document.getElementById('recDateModal'); if(!m||!LAST)return; var kind=m.getAttribute('data-kind');
   var iso=document.getElementById('recDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('בחר תאריך'); return; }
+  var _ex=(kind==='box'?(typeof BOX_ROWS!=='undefined'?BOX_ROWS:[]):(typeof FRUIT_ROWS!=='undefined'?FRUIT_ROWS:[])).find(function(r){return r.report_date===iso;});
+  if(kind==='box' && _ex && (_ex.box_in!=null||_ex.box_out!=null)){ if(!confirm('⚠ כבר קיים דוח ארגזים לתאריך '+heDate(iso)+':\nעלומים שלחו '+abFmt(+_ex.box_in||0)+' · טרי לי שלחו '+abFmt(+_ex.box_out||0)+'\n\nלהחליף אותו בנתונים החדשים?')) return; }
+  else if(kind==='fruit' && _ex && _ex.pallets!=null){ if(!confirm('⚠ כבר קיים רישום פירות לתאריך '+heDate(iso)+' ('+abFmt(+_ex.pallets||0)+' משטחים).\nלהחליף?')) return; }
   closeRecDate();
   try{
     if(kind==='box'){ await bxAutoRecord(LAST,iso); flash('מאזן הארגזים נרשם ל-'+heDate(iso)+' ✓'); if(typeof bxLoad==='function')bxLoad(); }
@@ -1689,6 +1692,11 @@ async function saveAddRow(){
   var s=ordSession(); if(!s){ alert('צריך להיות מחובר'); return; }
   var iso=document.getElementById('arDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(iso)){ alert('בחר תאריך'); return; }
   var v1=+document.getElementById('arV1').value||0, v2=+document.getElementById('arV2').value||0;
+  var _rows=(kind==='ab'?AB_ROWS:(kind==='fb'?FRUIT_ROWS:BOX_ROWS)); var _e=_rows.find(function(r){return r.report_date===iso;});
+  if(_e){
+    var _has = kind==='ab' ? (_e.manual_alumim!=null||_e.manual_treli!=null||(_e.green&&Object.keys(_e.green).length)||(_e.orange&&Object.keys(_e.orange).length)) : (kind==='fb' ? (_e.pallets!=null||_e.manual_pallets!=null) : (_e.box_in!=null||_e.box_out!=null));
+    if(_has && !confirm('⚠ כבר קיימת שורה לתאריך '+heDate(iso)+'. הרישום החדש ידרוס אותה — להמשיך?')) return;
+  }
   var url, body;
   if(kind==='ab'){ url=ORD_SB+'/rest/v1/alumim_balance?on_conflict=report_date'; body={report_date:iso,manual_alumim:v1,manual_treli:v2,uploaded_by:s.username||s.email||''}; }
   else if(kind==='fb'){ url=ORD_SB+'/rest/v1/fruit_balance?on_conflict=report_date'; body={report_date:iso,pallets:v1,uploaded_by:s.username||s.email||''}; }
